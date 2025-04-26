@@ -7,9 +7,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import 'react-native-gesture-handler'
 
 // Import your screens
-import HomeScreen from './screens/HomeScreen.tsx'
-import AboutScreen from './screens/AboutScreen.tsx'
-import SettingsScreen from './screens/SettingsScreen.tsx'
+import LoginScreen from './screens/login.tsx'
+import LoginFormScreen from './screens/loginform.tsx'
+import RegisterScreen from './screens/register.tsx'
 
 // Create Tamagui config
 const config = createTamagui(defaultConfig)
@@ -29,10 +29,14 @@ export default function App() {
     <SafeAreaProvider>
       <TamaguiProvider config={config}>
         <NavigationContainer>
-          <Stack.Navigator initialRouteName="Home">
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="About" component={AboutScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Navigator initialRouteName="Login">
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen name="LoginForm" component={LoginFormScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }}/>
           </Stack.Navigator>
         </NavigationContainer>
       </TamaguiProvider>

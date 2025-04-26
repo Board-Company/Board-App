@@ -1,0 +1,90 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from typing import Optional
+from datetime import timedelta
+from dotenv import load_dotenv
+import os
+from supabase import create_client, Client
+import uvicorn
+from schemas import Token, User, UserCreate
+from auth import (
+    verify_password, get_password_hash, create_access_token, 
+    get_user, authenticate_user, get_current_user, 
+    get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES
+)
+
+# Load environment variables
+load_dotenv()
+
+# Configure FastAPI app
+app = FastAPI(title="Board API", description="Backend API for Board Application")
+
+# Initialize Supabase client
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
+
+# Routes
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await authenticate_user(form_data.username, form_data.password, supabase)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/register", response_model=User)
+async def register_user(user_data: UserCreate):
+    # Check if user already exists
+    existing_user = await get_user(user_data.username, supabase)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    
+    # Create new user
+    hashed_password = get_password_hash(user_data.password)
+    user_dict = user_data.model_dump()
+    user_dict.pop("password")
+    user_dict["hashed_password"] = hashed_password
+    user_dict["disabled"] = False
+    
+    try:
+        response = supabase.table("users").insert(user_dict).execute()
+        if response.data:
+            return User(**user_dict)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating user: {str(e)}"
+        )
+
+@app.get("/users/me", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
+
+@app.get("/")
+async def root():
+    return {"message": "Board API is running"}
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+# Run the application
+if __name__ == "__main__":
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
