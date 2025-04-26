@@ -99,22 +99,6 @@ export default function LoginScreen() {
             </XStack>
           </Button>
           
-          {/* Play as Guest button */}
-          <Button 
-            style={{ 
-              backgroundColor: "#333333",
-              height: 50,
-              width: "100%",
-              borderColor: "#A4BE7B",
-              borderWidth: 1
-            }}
-            color="#A4BE7B"
-            fontSize="$4"
-            pressStyle={{ opacity: 0.8 }}
-            //nPress={() => navigation.navigate('Home')}
-          >
-            Play as Guest
-          </Button>
         </YStack>
       </YStack>
     </YStack>

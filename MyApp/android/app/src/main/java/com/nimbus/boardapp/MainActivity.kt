@@ -1,4 +1,4 @@
-package com.myapp
+package com.nimbus.boardapp
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

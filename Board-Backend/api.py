@@ -8,12 +8,14 @@ import os
 from supabase import create_client, Client
 import uvicorn
 from loguru import logger
-from schemas import Token, User, UserCreate
+from schemas import Token, User, UserCreate, GoogleAuthRequest
 from auth import (
     verify_password, get_password_hash, create_access_token, 
     get_user, authenticate_user, get_current_user, 
     get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 # Load environment variables
 load_dotenv()
@@ -27,6 +29,9 @@ app = FastAPI(title="Board API", description="Backend API for Board Application"
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
+
+#initialize google client
+google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 
 # Log environment variables (without showing full API key)
 if supabase_url and supabase_key:
@@ -125,6 +130,60 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.post("/auth/google", response_model=Token)
+async def google_auth(google_data: GoogleAuthRequest):
+    try:
+        # Verify the Google token
+        idinfo = id_token.verify_oauth2_token(
+            google_data.token, requests.Request(), google_client_id)
+
+        # Get user email from Google data
+        email = idinfo['email']
+        
+        # Check if user exists in your database
+        existing_user = await get_user(email, supabase)
+        
+        if not existing_user:
+            # Create new user if they don't exist
+            user_dict = {
+                "username": email,  # Using email as username
+                "email": email,
+                "disabled": False,
+                "hashed_password": get_password_hash(os.urandom(32).hex())  # Random password for Google users
+            }
+            
+            response = supabase.table("users").insert(user_dict).execute()
+            if not hasattr(response, 'data') or not response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create user"
+                )
+            user = User(**user_dict)
+        else:
+            user = existing_user
+
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username},
+            expires_delta=access_token_expires
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except ValueError:
+        # Invalid token
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token"
+        )
+    except Exception as e:
+        logger.exception(f"Error in Google authentication: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error processing Google authentication"
+        )
 
 # Run the application
 if __name__ == "__main__":

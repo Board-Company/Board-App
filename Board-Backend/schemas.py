@@ -21,4 +21,12 @@ class UserCreate(BaseModel):
     username: str
     email: str
     password: str
-    full_name: Optional[str] = None 
+    full_name: Optional[str] = None
+
+class GoogleAuthRequest(BaseModel):
+    token: str
+
+class GoogleUser(BaseModel):
+    email: str
+    name: Optional[str] = None
+    picture: Optional[str] = None 
