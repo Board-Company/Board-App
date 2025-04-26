@@ -5,13 +5,27 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
-from supabase import Client
+from supabase import create_client, Client
 from schemas import TokenData, User, UserInDB
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-for-development-only")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+
+# Initialize Supabase client
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+
+# Make sure the Supabase URL and key are available
+if not supabase_url or not supabase_key:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
+
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -53,7 +67,7 @@ async def authenticate_user(username: str, password: str, supabase: Client):
         return False
     return user
 
-async def get_current_user(token: str = Depends(oauth2_scheme), supabase: Client = None):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -67,6 +81,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), supabase: Client
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
+    
     user = await get_user(username=token_data.username, supabase=supabase)
     if user is None:
         raise credentials_exception
