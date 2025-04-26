@@ -71,7 +71,7 @@ export default function LoginScreen() {
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
               <View style={styles.iconPlaceholder}>
-                <Image source={require('../assets/images/google.png')} style={{ width: 24, height: 24 }}/>
+                <Image source={require('../../assets/images/google.png')} style={{ width: 24, height: 24 }}/>
               </View>
               <Text style={{ color: "white", fontSize: 16, marginLeft: 8 }}> Login with Google</Text>
             </XStack>
