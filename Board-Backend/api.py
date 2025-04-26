@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional
 from datetime import timedelta
@@ -6,6 +7,7 @@ from dotenv import load_dotenv
 import os
 from supabase import create_client, Client
 import uvicorn
+from loguru import logger
 from schemas import Token, User, UserCreate
 from auth import (
     verify_password, get_password_hash, create_access_token, 
@@ -16,12 +18,23 @@ from auth import (
 # Load environment variables
 load_dotenv()
 
+# Configure logger
+logger.add("api.log", rotation="10 MB", level="DEBUG")
+
 # Configure FastAPI app
 app = FastAPI(title="Board API", description="Backend API for Board Application")
 
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
+
+# Log environment variables (without showing full API key)
+if supabase_url and supabase_key:
+    logger.info(f"Supabase URL configured: {supabase_url}")
+    logger.info(f"Supabase key provided: {supabase_key[:5]}...{supabase_key[-5:] if len(supabase_key) > 10 else '****'}")
+else:
+    logger.error(f"Missing Supabase configuration - URL: {'Set' if supabase_url else 'Missing'}, Key: {'Set' if supabase_key else 'Missing'}")
+
 supabase: Client = create_client(supabase_url, supabase_key)
 
 # Routes
@@ -45,6 +58,7 @@ async def register_user(user_data: UserCreate):
     # Check if user already exists
     existing_user = await get_user(user_data.username, supabase)
     if existing_user:
+        logger.warning(f"Registration attempt with existing username: {user_data.username}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
@@ -52,21 +66,48 @@ async def register_user(user_data: UserCreate):
     
     # Create new user
     hashed_password = get_password_hash(user_data.password)
-    user_dict = user_data.model_dump()
-    user_dict.pop("password")
-    user_dict["hashed_password"] = hashed_password
-    user_dict["disabled"] = False
+    
+    # Clean up the user data to match Supabase schema
+    user_dict = {
+        "username": user_data.username,
+        "email": user_data.email,
+        "hashed_password": hashed_password,
+        "disabled": False
+    }
     
     try:
-        response = supabase.table("users").insert(user_dict).execute()
-        if response.data:
-            return User(**user_dict)
-        else:
+        # Log user registration attempt
+        logger.info(f"Attempting to register user: {user_data.username}")
+        logger.debug(f"User data being inserted: {user_dict}")
+        
+        # Check Supabase connection
+        try:
+            test_query = supabase.table("users").select("count").limit(1).execute()
+            logger.debug(f"Supabase connection test: {test_query}")
+        except Exception as conn_err:
+            logger.error(f"Supabase connection error: {str(conn_err)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user"
+                detail="Database connection error"
+            )
+        
+        response = supabase.table("users").insert(user_dict).execute()
+        
+        logger.debug(f"Full Supabase response: {response}")
+        
+        if hasattr(response, 'data') and response.data:
+            logger.success(f"User registered successfully: {user_data.username}")
+            return User(**user_dict)
+        else:
+            logger.error(f"Supabase response empty or invalid: {response}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user - empty response"
             )
     except Exception as e:
+        logger.exception(f"Error creating user: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating user: {str(e)}"
