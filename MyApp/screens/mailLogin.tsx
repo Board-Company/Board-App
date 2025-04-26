@@ -1,4 +1,4 @@
-import { Button, YStack, Text , Input} from 'tamagui'
+import { Button, YStack, Text, Input} from 'tamagui'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 
@@ -10,7 +10,7 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
 
-export default function SettingsScreen() {
+export default function mailLogin() {
   const navigation = useNavigation<NavigationProp>()
   
   return (
@@ -19,11 +19,9 @@ export default function SettingsScreen() {
         {/* Top section with title and inputs */}
         <YStack style={{ alignItems: "center", marginTop: 40, gap: 24 , width: "100%"}}>
           <Text style={{ color: "white", fontSize: 32, fontWeight: "bold", textAlign: "center" }}>
-            Create an Account
+            Login
           </Text>
           <Input width="90%" placeholder="Email" borderWidth={2} borderColor="white" />
-          <Input width="90%" placeholder="Username" borderWidth={2} borderColor="white" />
-
           <Input width="90%" placeholder="Password" borderWidth={2} borderColor="white" />
         </YStack>
 
@@ -40,10 +38,9 @@ export default function SettingsScreen() {
             fontWeight="bold"
             pressStyle={{ opacity: 0.8 }}
           >
-            Create Account
+            Login
           </Button>
-
-              <Button 
+          <Button 
             style={{ 
               backgroundColor: "#333333",
               height: 50,
