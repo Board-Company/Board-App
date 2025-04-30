@@ -10,7 +10,8 @@ import 'react-native-gesture-handler'
 import LoginScreen from './screens/login.tsx'
 import mailLogin from './screens/mailLogin.tsx'
 import RegisterScreen from './screens/register.tsx'
-
+import HomeScreen from './screens/home.tsx'
+import PlayMenuScreen from './screens/playMenu.tsx'
 // Create Tamagui config
 const config = createTamagui(defaultConfig)
 
@@ -37,6 +38,8 @@ export default function App() {
             />
             <Stack.Screen name="mailLogin" component={mailLogin} options={{ headerShown: false }} />
             <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }}/>
+            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }}/>
+            <Stack.Screen name="PlayMenu" component={PlayMenuScreen} options={{ headerShown: false }}/>
           </Stack.Navigator>
         </NavigationContainer>
       </TamaguiProvider>

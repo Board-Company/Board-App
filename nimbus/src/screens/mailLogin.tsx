@@ -37,6 +37,7 @@ export default function mailLogin() {
             fontSize="$5"
             fontWeight="bold"
             pressStyle={{ opacity: 0.8 }}
+            onPress={() => navigation.navigate('Home')}
           >
             Login
           </Button>

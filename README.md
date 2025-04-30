@@ -1,16 +1,23 @@
+## Frontend
 To run:
 
 ```
 cd nimbus
-npm install
+npm install --legacy-peer-deps
 npx react-native run-android
+```
+To add a new package:
+
+```
+npm install <package-name> --legacy-peer-deps
+
 ```
 To clear Cache: 
 
 ```
 npx react-native start --reset-cache
 ```
-
+*note to run, this must be done user legacy peer deps or there will be errors
 ## Backend Server
 
 To run the backend server using Poetry:
