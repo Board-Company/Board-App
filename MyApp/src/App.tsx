@@ -8,7 +8,7 @@ import 'react-native-gesture-handler'
 
 // Import your screens
 import LoginScreen from './screens/login.tsx'
-import LoginFormScreen from './screens/loginform.tsx'
+import mailLogin from './screens/mailLogin.tsx'
 import RegisterScreen from './screens/register.tsx'
 
 // Create Tamagui config
@@ -35,7 +35,7 @@ export default function App() {
               component={LoginScreen} 
               options={{ headerShown: false }}
             />
-            <Stack.Screen name="LoginForm" component={LoginFormScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="mailLogin" component={mailLogin} options={{ headerShown: false }} />
             <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }}/>
           </Stack.Navigator>
         </NavigationContainer>

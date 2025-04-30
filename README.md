@@ -1,7 +1,7 @@
 To run:
 
 ```
-cd MyApp
+cd nimbus
 npm install
 npx react-native run-android
 ```

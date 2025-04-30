@@ -1,7 +1,7 @@
 import { Button, YStack, Text, XStack } from 'tamagui'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Image } from 'react-native'
 
 type RootStackParamList = {
   Home: undefined;
@@ -9,7 +9,7 @@ type RootStackParamList = {
   Settings: undefined;
   Login: undefined;
   Register: undefined;
-  LoginForm: undefined;
+  mailLogin: undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
@@ -67,11 +67,11 @@ export default function LoginScreen() {
             color="white"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
-            onPress={() => navigation.navigate('LoginForm')}
+            //onPress={() => navigation.navigate('mailLogin')}
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
               <View style={styles.iconPlaceholder}>
-                <Text style={{ color: "white", fontSize: 16 }}>G</Text>
+                <Image source={require('../../assets/images/google.png')} style={{ width: 24, height: 24 }}/>
               </View>
               <Text style={{ color: "white", fontSize: 16, marginLeft: 8 }}> Login with Google</Text>
             </XStack>
@@ -88,7 +88,7 @@ export default function LoginScreen() {
             color="white"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
-            onPress={() => navigation.navigate('LoginForm')}
+            onPress={() => navigation.navigate('mailLogin')}
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
               {/* Simple envelope icon placeholder */}
@@ -99,22 +99,6 @@ export default function LoginScreen() {
             </XStack>
           </Button>
           
-          {/* Play as Guest button */}
-          <Button 
-            style={{ 
-              backgroundColor: "#333333",
-              height: 50,
-              width: "100%",
-              borderColor: "#A4BE7B",
-              borderWidth: 1
-            }}
-            color="#A4BE7B"
-            fontSize="$4"
-            pressStyle={{ opacity: 0.8 }}
-            onPress={() => navigation.navigate('Home')}
-          >
-            Play as Guest
-          </Button>
         </YStack>
       </YStack>
     </YStack>
