@@ -28,12 +28,11 @@ app = FastAPI(title="Board API", description="Backend API for Board Application"
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
 
-# Log environment variables (without showing full API key)
+# Replace the current logging section with this:
 if supabase_url and supabase_key:
-    logger.info(f"Supabase URL configured: {supabase_url}")
-    logger.info(f"Supabase key provided: {supabase_key[:5]}...{supabase_key[-5:] if len(supabase_key) > 10 else '****'}")
+    logger.info("Supabase configuration successfully loaded")
 else:
-    logger.error(f"Missing Supabase configuration - URL: {'Set' if supabase_url else 'Missing'}, Key: {'Set' if supabase_key else 'Missing'}")
+    logger.error("Missing Supabase configuration")
 
 supabase: Client = create_client(supabase_url, supabase_key)
 
