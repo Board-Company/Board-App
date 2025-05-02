@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { createTamagui } from '@tamagui/core'
 import { TamaguiProvider } from 'tamagui'
 import { defaultConfig } from '@tamagui/config/v4'
@@ -12,6 +13,8 @@ import mailLogin from './screens/mailLogin.tsx'
 import RegisterScreen from './screens/register.tsx'
 import HomeScreen from './screens/home.tsx'
 import PlayMenuScreen from './screens/playMenu.tsx'
+import PlayScreen from './screens/play.tsx'
+
 // Create Tamagui config
 const config = createTamagui(defaultConfig)
 
@@ -27,22 +30,45 @@ const Stack = createNativeStackNavigator()
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <TamaguiProvider config={config}>
-        <NavigationContainer>
-          <Stack.Navigator initialRouteName="Login">
-            <Stack.Screen 
-              name="Login" 
-              component={LoginScreen} 
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="mailLogin" component={mailLogin} options={{ headerShown: false }} />
-            <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }}/>
-            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }}/>
-            <Stack.Screen name="PlayMenu" component={PlayMenuScreen} options={{ headerShown: false }}/>
-          </Stack.Navigator>
-        </NavigationContainer>
-      </TamaguiProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <TamaguiProvider config={config}>
+          <NavigationContainer>
+            <Stack.Navigator initialRouteName="Login">
+              <Stack.Screen 
+                name="Login" 
+                component={LoginScreen} 
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen 
+                name="mailLogin" 
+                component={mailLogin} 
+                options={{ headerShown: false }} 
+              />
+              <Stack.Screen 
+                name="Register" 
+                component={RegisterScreen} 
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen 
+                name="Home" 
+                component={HomeScreen} 
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen 
+                name="PlayMenu" 
+                component={PlayMenuScreen} 
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen 
+                name="Play" 
+                component={PlayScreen} 
+                options={{ headerShown: false }}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </TamaguiProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }

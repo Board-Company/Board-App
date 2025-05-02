@@ -1,59 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, SafeAreaView, ActivityIndicator } from 'react-native';
-import Chessboard from 'react-native-chessboard';
 import { Chess } from 'chess.js';
-
-// Define proper types for move parameters
-type Square = string;
-type Piece = string;
-type ChessMove = {
-  from: Square;
-  to: Square;
-  promotion?: string;
-};
+import ChessBoard from '../components/ChessBoard';
 
 const PlayScreen = () => {
   // Create a reference to the chess.js instance
   const chessRef = useRef(new Chess());
-  const [position, setPosition] = useState('start');
-  const [playerColor, setPlayerColor] = useState('w'); // 'w' for white, 'b' for black
+  const [fen, setFen] = useState(chessRef.current.fen());
+  const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
   const [gameStatus, setGameStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
-
-  // Handle the player's move
-  const handleMove = (move: ChessMove) => {
-    try {
-      // Try to make the move in the chess game
-      const result = chessRef.current.move({
-        from: move.from,
-        to: move.to,
-        promotion: move.promotion || undefined
-      });
-      
-      if (result) {
-        // If move was valid, update the position FEN
-        setPosition(chessRef.current.fen());
-        updateMoveHistory();
-        
-        // Check for game over conditions
-        checkGameStatus();
-        
-        // If game is not over, get the computer's move
-        if (!chessRef.current.isGameOver()) {
-          getComputerMove();
-        }
-      }
-    } catch (e) {
-      console.log('Invalid move', e);
-    }
-  };
-
-  // Update the move history display
-  const updateMoveHistory = () => {
-    const history = chessRef.current.history();
-    setMoveHistory(history);
-  };
 
   // Check the status of the game
   const checkGameStatus = () => {
@@ -80,48 +37,33 @@ const PlayScreen = () => {
     }
   };
 
-  // Get a move from the computer (this would call your API)
+  // Update the move history display
+  const updateMoveHistory = () => {
+    const history = chessRef.current.history();
+    setMoveHistory(history);
+  };
+
+  // Get a move from the computer
   const getComputerMove = async () => {
     setIsLoading(true);
     try {
-      // Here you would make an actual API call
-      // For now, we'll simulate a delay and make a random move
       setTimeout(() => {
         makeRandomMove();
         setIsLoading(false);
       }, 500);
-
-      // Example of how the actual API call might look:
-      // const response = await fetch('https://your-chess-api.com/move', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ 
-      //     fen: chessRef.current.fen(),
-      //     level: 3 // difficulty level
-      //   }),
-      // });
-      // const data = await response.json();
-      // if (data.move) {
-      //   chessRef.current.move(data.move);
-      //   setPosition(chessRef.current.fen());
-      //   updateMoveHistory();
-      //   checkGameStatus();
-      // }
     } catch (error) {
       console.error('Error getting computer move:', error);
       setIsLoading(false);
     }
   };
 
-  // Make a random legal move (temporary function until API is connected)
+  // Make a random legal move
   const makeRandomMove = () => {
     const moves = chessRef.current.moves({ verbose: true });
     if (moves.length > 0) {
       const randomMove = moves[Math.floor(Math.random() * moves.length)];
       chessRef.current.move(randomMove);
-      setPosition(chessRef.current.fen());
+      setFen(chessRef.current.fen());
       updateMoveHistory();
       checkGameStatus();
     }
@@ -130,33 +72,56 @@ const PlayScreen = () => {
   // Start a new game
   const startNewGame = () => {
     chessRef.current.reset();
-    setPosition('start');
+    setFen(chessRef.current.fen());
     setMoveHistory([]);
     setGameStatus('White to move');
   };
 
   // Undo the last move (both player and computer moves)
   const undoMove = () => {
-    // Undo twice to undo both computer and player moves
     chessRef.current.undo();
     chessRef.current.undo();
-    setPosition(chessRef.current.fen());
+    setFen(chessRef.current.fen());
     updateMoveHistory();
     checkGameStatus();
   };
 
   // Set player color preference
-  const setColor = (color: 'w' | 'b') => {
+  const handleColorChange = (color: 'w' | 'b') => {
     setPlayerColor(color);
-    startNewGame();
+    setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    setGameStatus('playing');
+    setMoveHistory([]);
     if (color === 'b') {
       // If player chooses black, computer (white) goes first
       getComputerMove();
     }
   };
 
+  // Handle player move
+  const handleMove = (move: { from: string; to: string }) => {
+    try {
+      const result = chessRef.current.move({
+        from: move.from,
+        to: move.to,
+        promotion: 'q' // Always promote to queen for simplicity
+      });
+
+      if (result) {
+        setFen(chessRef.current.fen());
+        updateMoveHistory();
+        checkGameStatus();
+
+        if (!chessRef.current.isGameOver()) {
+          getComputerMove();
+        }
+      }
+    } catch (e) {
+      console.log('Invalid move:', e);
+    }
+  };
+
   useEffect(() => {
-    // Initialize game status
     setGameStatus('White to move');
   }, []);
 
@@ -176,21 +141,6 @@ const PlayScreen = () => {
     return moves;
   };
 
-  // Handle when a piece is moved on the board
-  const onMove = (move: any) => {
-    // Extract from and to squares from the move info
-    const { from, to } = move;
-    
-    const moveAttempt = {
-      from,
-      to,
-      promotion: 'q' // Default to queen for simplicity
-    };
-    
-    handleMove(moveAttempt);
-    return true;
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -205,7 +155,11 @@ const PlayScreen = () => {
             <Text style={styles.loadingText}>Thinking...</Text>
           </View>
         )}
-        <Chessboard />
+        <ChessBoard
+          fen={fen}
+          onMove={handleMove}
+          playerColor={playerColor}
+        />
       </View>
 
       <View style={styles.controlsContainer}>
@@ -223,13 +177,13 @@ const PlayScreen = () => {
           <View style={styles.buttonsRow}>
             <TouchableOpacity 
               style={[styles.colorButton, playerColor === 'w' && styles.selectedButton]} 
-              onPress={() => setColor('w')}
+              onPress={() => handleColorChange('w')}
             >
               <Text style={styles.buttonText}>White</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.colorButton, playerColor === 'b' && styles.selectedButton]} 
-              onPress={() => setColor('b')}
+              onPress={() => handleColorChange('b')}
             >
               <Text style={styles.buttonText}>Black</Text>
             </TouchableOpacity>
@@ -273,10 +227,6 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignSelf: 'center',
     position: 'relative',
-  },
-  board: {
-    width: '100%',
-    height: '100%',
   },
   loadingOverlay: {
     position: 'absolute',
