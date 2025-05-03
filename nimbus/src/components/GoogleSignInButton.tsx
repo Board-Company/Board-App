@@ -1,54 +1,51 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { signInWithGoogle } from '../services/auth';
+import { useAuth } from '../contexts/AuthContext';
 
-interface Props {
-  onSignInSuccess?: (authData: any) => void;
-  onSignInError?: (error: Error) => void;
-}
-
-export const GoogleSignInButton: React.FC<Props> = ({ onSignInSuccess, onSignInError }) => {
-  const [loading, setLoading] = React.useState(false);
-
-  const handleSignIn = async () => {
-    try {
-      setLoading(true);
-      const authData = await signInWithGoogle();
-      onSignInSuccess?.(authData);
-    } catch (error) {
-      onSignInError?.(error as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
+export const GoogleSignInButton: React.FC = () => {
+  const { signIn, loading, error } = useAuth();
 
   return (
-    <TouchableOpacity
-      style={styles.button}
-      onPress={handleSignIn}
-      disabled={loading}
-    >
-      {loading ? (
-        <ActivityIndicator color="#fff" />
-      ) : (
-        <Text style={styles.buttonText}>Sign in with Google</Text>
+    <>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={signIn}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Sign in with Google</Text>
+        )}
+      </TouchableOpacity>
+      {error && (
+        <Text style={styles.errorText}>
+          {error.message}
+        </Text>
       )}
-    </TouchableOpacity>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#4285F4',
-    padding: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 4,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minWidth: 200,
   },
   buttonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorText: {
+    color: 'red',
+    marginTop: 8,
+    textAlign: 'center',
   },
 }); 

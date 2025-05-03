@@ -1,7 +1,9 @@
+import React from 'react'
 import { Button, YStack, Text, XStack } from 'tamagui'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { View, StyleSheet, Image } from 'react-native'
+import { View, StyleSheet, Image, ActivityIndicator } from 'react-native'
+import { useAuth } from '../contexts/AuthContext'
 
 type RootStackParamList = {
   Home: undefined;
@@ -16,6 +18,16 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>()
+  const { signIn, loading, error } = useAuth()
+  
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn()
+      navigation.navigate('Home')
+    } catch (error) {
+      console.error('Google sign in error:', error)
+    }
+  }
   
   return (
     <YStack style={{ flex: 1, backgroundColor: "#2A2A2A", padding: 16 }}>
@@ -67,13 +79,20 @@ export default function LoginScreen() {
             color="white"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
-            //onPress={() => navigation.navigate('mailLogin')}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
-              <View style={styles.iconPlaceholder}>
-                <Image source={require('../../assets/images/google.png')} style={{ width: 24, height: 24 }}/>
-              </View>
-              <Text style={{ color: "white", fontSize: 16, marginLeft: 8 }}> Login with Google</Text>
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <View style={styles.iconPlaceholder}>
+                    <Image source={require('../../assets/images/google.png')} style={{ width: 24, height: 24 }}/>
+                  </View>
+                  <Text style={{ color: "white", fontSize: 16, marginLeft: 8 }}>Login with Google</Text>
+                </>
+              )}
             </XStack>
           </Button>
           
@@ -101,6 +120,12 @@ export default function LoginScreen() {
           
         </YStack>
       </YStack>
+      
+      {error && (
+        <Text style={{ color: 'red', textAlign: 'center', marginTop: 16 }}>
+          {error.message}
+        </Text>
+      )}
     </YStack>
   )
 }

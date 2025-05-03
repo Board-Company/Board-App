@@ -8,6 +8,8 @@ import os
 from supabase import create_client, Client
 from schemas import TokenData, User, UserInDB
 from dotenv import load_dotenv
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 # Load environment variables
 load_dotenv()
@@ -16,6 +18,9 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-for-development-only")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
@@ -30,6 +35,42 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+async def verify_google_token(token: str):
+    try:
+        # Verify the token
+        idinfo = id_token.verify_oauth2_token(
+            token, requests.Request(), GOOGLE_CLIENT_ID)
+
+        # Get user info from the token
+        user_email = idinfo['email']
+        user_name = idinfo.get('name', '')
+        user_picture = idinfo.get('picture', '')
+
+        # Check if user exists in database
+        response = supabase.table("users").select("*").eq("email", user_email).execute()
+        
+        if not response.data:
+            # Create new user if doesn't exist
+            new_user = {
+                "email": user_email,
+                "username": user_name,
+                "picture": user_picture,
+                "auth_provider": "google"
+            }
+            response = supabase.table("users").insert(new_user).execute()
+            user_data = response.data[0]
+        else:
+            user_data = response.data[0]
+
+        return user_data
+    except ValueError as e:
+        # Invalid token
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 # Security functions
 def verify_password(plain_password, hashed_password):
