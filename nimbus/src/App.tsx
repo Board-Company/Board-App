@@ -1,3 +1,4 @@
+import React from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { createTamagui } from '@tamagui/core'
 import { TamaguiProvider } from 'tamagui'
@@ -6,7 +7,7 @@ import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import 'react-native-gesture-handler'
-import { AuthProvider } from './contexts/AuthContext'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Import your screens
 import LoginScreen from './screens/login.tsx'
@@ -29,13 +30,28 @@ declare module '@tamagui/core' {
 // Create the stack navigator
 const Stack = createNativeStackNavigator()
 
+// Protected Route Component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return null; // Or a loading screen
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  return <>{children}</>;
+};
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <TamaguiProvider config={config}>
           <AuthProvider>
-          <NavigationContainer>
+            <NavigationContainer>
               <Stack.Navigator initialRouteName="Login">
                 <Stack.Screen 
                   name="Login" 
@@ -43,34 +59,49 @@ export default function App() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen 
-                name="mailLogin" 
-                component={mailLogin} 
-                options={{ headerShown: false }} 
-              />
+                  name="mailLogin" 
+                  component={mailLogin} 
+                  options={{ headerShown: false }} 
+                />
                 <Stack.Screen 
-                name="Register" 
-                component={RegisterScreen} 
-                options={{ headerShown: false }}
-              />
+                  name="Register" 
+                  component={RegisterScreen} 
+                  options={{ headerShown: false }}
+                />
                 <Stack.Screen 
-                name="Home" 
-                component={HomeScreen} 
-                options={{ headerShown: false }}
-              />
+                  name="Home" 
+                  options={{ headerShown: false }}
+                >
+                  {() => (
+                    <ProtectedRoute>
+                      <HomeScreen />
+                    </ProtectedRoute>
+                  )}
+                </Stack.Screen>
                 <Stack.Screen 
-                name="PlayMenu" 
-                component={PlayMenuScreen} 
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen 
-                name="Play" 
-                component={PlayScreen} 
-                options={{ headerShown: false }}
-              />
+                  name="PlayMenu" 
+                  options={{ headerShown: false }}
+                >
+                  {() => (
+                    <ProtectedRoute>
+                      <PlayMenuScreen />
+                    </ProtectedRoute>
+                  )}
+                </Stack.Screen>
+                <Stack.Screen 
+                  name="Play" 
+                  options={{ headerShown: false }}
+                >
+                  {() => (
+                    <ProtectedRoute>
+                      <PlayScreen />
+                    </ProtectedRoute>
+                  )}
+                </Stack.Screen>
               </Stack.Navigator>
             </NavigationContainer>
           </AuthProvider>
-      </TamaguiProvider>
+        </TamaguiProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )

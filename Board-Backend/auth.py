@@ -10,6 +10,7 @@ from schemas import TokenData, User, UserInDB
 from dotenv import load_dotenv
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from loguru import logger
 
 # Load environment variables
 load_dotenv()
@@ -91,21 +92,34 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def get_user(username: str, supabase: Client):
     try:
+        logger.info(f"Looking up user with username: {username}")
         response = supabase.table("users").select("*").eq("username", username).execute()
+        logger.debug(f"Supabase response for user lookup: {response}")
+        
         if response.data:
             user_dict = response.data[0]
+            logger.info(f"User found: {user_dict}")
             return UserInDB(**user_dict)
+        logger.warning(f"No user found with username: {username}")
         return None
     except Exception as e:
-        print(f"Error getting user: {e}")
+        logger.error(f"Error getting user: {str(e)}")
         return None
 
 async def authenticate_user(username: str, password: str, supabase: Client):
+    logger.info(f"Attempting to authenticate user: {username}")
     user = await get_user(username, supabase)
+    
     if not user:
+        logger.warning(f"Authentication failed: User not found - {username}")
         return False
+        
+    logger.debug(f"Verifying password for user: {username}")
     if not verify_password(password, user.hashed_password):
+        logger.warning(f"Authentication failed: Invalid password for user - {username}")
         return False
+        
+    logger.info(f"Authentication successful for user: {username}")
     return user
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):

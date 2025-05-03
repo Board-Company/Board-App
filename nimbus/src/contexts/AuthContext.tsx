@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithGoogle, signOut, getStoredAuthData } from '../services/auth';
+import { signInWithGoogle, signOut, getStoredAuthData, signInWithEmail } from '../services/auth';
 
 interface User {
   id: string;
@@ -14,6 +14,7 @@ interface AuthContextType {
   error: Error | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -71,6 +72,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const handleEmailSignIn = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const authData = await signInWithEmail(email, password);
+      setUser(authData.user);
+    } catch (error) {
+      console.error('Email sign in error:', error);
+      setError(error as Error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -79,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error,
         signIn: handleSignIn,
         signOut: handleSignOut,
+        signInWithEmail: handleEmailSignIn,
         isAuthenticated: !!user,
       }}
     >

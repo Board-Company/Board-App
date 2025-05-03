@@ -44,32 +44,62 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # Routes
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await authenticate_user(form_data.username, form_data.password, supabase)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    logger.info(f"Login attempt for username: {form_data.username}")
+    
+    try:
+        user = await authenticate_user(form_data.username, form_data.password, supabase)
+        if not user:
+            logger.warning(f"Authentication failed for username: {form_data.username}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        logger.info(f"User authenticated successfully: {user.username}")
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": user.dict()
-    }
+        logger.debug(f"Access token created for user: {user.username}")
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user.dict()
+        }
+    except Exception as e:
+        logger.error(f"Error during authentication: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
+        )
 
 @app.post("/register", response_model=User)
 async def register_user(user_data: UserCreate):
-    # Check if user already exists
+    # Check if username already exists
     existing_user = await get_user(user_data.username, supabase)
     if existing_user:
         logger.warning(f"Registration attempt with existing username: {user_data.username}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
+        )
+    
+    # Check if email already exists
+    try:
+        email_check = supabase.table("users").select("*").eq("email", user_data.email).execute()
+        if email_check.data and len(email_check.data) > 0:
+            logger.warning(f"Registration attempt with existing email: {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+    except Exception as e:
+        logger.error(f"Error checking email existence: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error checking email existence"
         )
     
     # Create new user
