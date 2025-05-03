@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import Header from '../components/header';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuth } from '../contexts/AuthContext';
 
 // Define the navigation param list type
 type RootStackParamList = {
@@ -18,7 +19,16 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
+
   return (
     <View style={styles.container}>
       <Header />
@@ -29,6 +39,13 @@ const HomeScreen = () => {
           onPress={() => navigation.navigate('PlayMenu')}
         >
           <Text style={styles.playButtonText}>Play</Text>
+        </TouchableOpacity>
+        {/* Logout button */}
+        <TouchableOpacity 
+          style={[styles.playButton, { backgroundColor: '#D7263D', marginTop: 16 }]}
+          onPress={handleLogout}
+        >
+          <Text style={styles.playButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
     </View>

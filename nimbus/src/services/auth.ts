@@ -13,7 +13,7 @@ interface AuthResponse {
 
 // Initialize Google Sign-In
 GoogleSignin.configure({
-  webClientId: '707897598265-gtmb4jh9p6b1pq9a0l9ql2clbjk5f1kh.apps.googleusercontent.com',
+  webClientId: '707897598265-33vag82hncte292mk5qp7l2mpsq8h72g.apps.googleusercontent.com',
   offlineAccess: true,
   forceCodeForRefreshToken: true,
   scopes: ['profile', 'email']
@@ -33,7 +33,7 @@ export const signInWithGoogle = async (): Promise<AuthResponse> => {
     console.log('Got ID token');
     
     // Send token to your backend
-    const response = await fetch('http://localhost:8000/auth/google', {
+    const response = await fetch('http://10.0.2.2:8000/auth/google', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -55,7 +55,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user.dict()
+    }
 
 @app.post("/register", response_model=User)
 async def register_user(user_data: UserCreate):
@@ -133,15 +137,23 @@ async def health_check():
 @app.post("/auth/google", response_model=Token)
 async def google_auth(google_data: GoogleAuthRequest):
     try:
+        logger.info(f"Received Google token: {google_data.token}")
         # Verify the Google token
-        idinfo = id_token.verify_oauth2_token(
-            google_data.token, requests.Request(), google_client_id)
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                google_data.token, requests.Request(), google_client_id)
+            logger.info(f"Google token verified. idinfo: {idinfo}")
+        except Exception as verify_err:
+            logger.error(f"Google token verification failed: {verify_err}")
+            raise
 
         # Get user email from Google data
-        email = idinfo['email']
+        email = idinfo.get('email')
+        logger.info(f"Extracted email from Google token: {email}")
         
         # Check if user exists in your database
         existing_user = await get_user(email, supabase)
+        logger.info(f"User lookup result for {email}: {existing_user}")
         
         if not existing_user:
             # Create new user if they don't exist
@@ -151,9 +163,11 @@ async def google_auth(google_data: GoogleAuthRequest):
                 "disabled": False,
                 "hashed_password": get_password_hash(os.urandom(32).hex())  # Random password for Google users
             }
-            
+            logger.info(f"Creating new user: {user_dict}")
             response = supabase.table("users").insert(user_dict).execute()
+            logger.info(f"Supabase insert response: {response}")
             if not hasattr(response, 'data') or not response.data:
+                logger.error(f"Failed to create user for {email}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to create user"
@@ -161,6 +175,7 @@ async def google_auth(google_data: GoogleAuthRequest):
             user = User(**user_dict)
         else:
             user = existing_user
+            logger.info(f"Using existing user: {user}")
 
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -168,10 +183,16 @@ async def google_auth(google_data: GoogleAuthRequest):
             data={"sub": user.username},
             expires_delta=access_token_expires
         )
+        logger.info(f"Access token created for {user.username}")
         
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user.dict()
+        }
 
-    except ValueError:
+    except ValueError as ve:
+        logger.error(f"Invalid Google token: {ve}")
         # Invalid token
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
