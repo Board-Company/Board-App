@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import 'react-native-gesture-handler'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Import your screens
 import LoginScreen from './screens/login.tsx'
@@ -33,29 +34,30 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <TamaguiProvider config={config}>
+          <AuthProvider>
           <NavigationContainer>
-            <Stack.Navigator initialRouteName="Login">
-              <Stack.Screen 
-                name="Login" 
-                component={LoginScreen} 
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen 
+              <Stack.Navigator initialRouteName="Login">
+                <Stack.Screen 
+                  name="Login" 
+                  component={LoginScreen} 
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen 
                 name="mailLogin" 
                 component={mailLogin} 
                 options={{ headerShown: false }} 
               />
-              <Stack.Screen 
+                <Stack.Screen 
                 name="Register" 
                 component={RegisterScreen} 
                 options={{ headerShown: false }}
               />
-              <Stack.Screen 
+                <Stack.Screen 
                 name="Home" 
                 component={HomeScreen} 
                 options={{ headerShown: false }}
               />
-              <Stack.Screen 
+                <Stack.Screen 
                 name="PlayMenu" 
                 component={PlayMenuScreen} 
                 options={{ headerShown: false }}
@@ -65,9 +67,10 @@ export default function App() {
                 component={PlayScreen} 
                 options={{ headerShown: false }}
               />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </TamaguiProvider>
+              </Stack.Navigator>
+            </NavigationContainer>
+          </AuthProvider>
+      </TamaguiProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
