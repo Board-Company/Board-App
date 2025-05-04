@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, SafeAreaView, ActivityIndicator, Dimensions } from 'react-native';
 import { Chess } from 'chess.js';
-import ChessBoard from '../components/ChessBoard';
+import ChessBoard from '../components/game/ChessBoard';
+import MoveHistory from '../components/game/MoveHistory';
 
 const PlayScreen = () => {
   // Create a reference to the chess.js instance
@@ -11,6 +12,24 @@ const PlayScreen = () => {
   const [gameStatus, setGameStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
+
+  const screenWidth = Dimensions.get('window').width;
+  const boardSize = Math.floor((screenWidth - 32) / 8) * 8;
+  const squareSize = boardSize / 8;
+
+  // Helper to convert square like 'e4' to (x, y) index
+  const squareToPosition = (square: string) => {
+    const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // 0-7
+    const rank = 8 - parseInt(square[1]); // 0-7 (top to bottom)
+    return { x: file, y: rank };
+  };
+
+  // Calculate capturable squares
+  const getCapturableSquares = () => {
+    const moves = chessRef.current.moves({ verbose: true });
+    return moves.filter(m => m.captured).map(m => m.to);
+  };
+  const capturableSquares = getCapturableSquares();
 
   // Check the status of the game
   const checkGameStatus = () => {
@@ -125,22 +144,6 @@ const PlayScreen = () => {
     setGameStatus('White to move');
   }, []);
 
-  // Render the move history list
-  const renderMoveHistory = () => {
-    const moves = [];
-    for (let i = 0; i < moveHistory.length; i += 2) {
-      const moveNumber = Math.floor(i / 2) + 1;
-      const whiteMove = moveHistory[i];
-      const blackMove = moveHistory[i + 1] || '';
-      moves.push(
-        <Text key={i} style={styles.moveHistoryText}>
-          {moveNumber}. {whiteMove} {blackMove}
-        </Text>
-      );
-    }
-    return moves;
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -155,11 +158,34 @@ const PlayScreen = () => {
             <Text style={styles.loadingText}>Thinking...</Text>
           </View>
         )}
-        <ChessBoard
-          fen={fen}
-          onMove={handleMove}
-          playerColor={playerColor}
-        />
+        <View style={{ width: boardSize, height: boardSize }}>
+          <ChessBoard
+            fen={fen}
+            onMove={handleMove}
+            playerColor={playerColor}
+          />
+          {/* Overlay capturable circles using View */}
+          {capturableSquares.map((sq, idx) => {
+            const { x, y } = squareToPosition(sq);
+            return (
+              <View
+                key={sq + idx}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: x * squareSize + 6,
+                  top: y * squareSize + 6,
+                  width: squareSize - 12,
+                  height: squareSize - 12,
+                  borderRadius: (squareSize - 12) / 2,
+                  borderWidth: 3,
+                  borderColor: '#888',
+                  zIndex: 10,
+                }}
+              />
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.controlsContainer}>
@@ -191,12 +217,7 @@ const PlayScreen = () => {
         </View>
       </View>
 
-      <View style={styles.historyContainer}>
-        <Text style={styles.historyTitle}>Move History</Text>
-        <View style={styles.movesList}>
-          {renderMoveHistory()}
-        </View>
-      </View>
+      <MoveHistory moves={moveHistory} />
     </SafeAreaView>
   );
 };
@@ -223,8 +244,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   boardContainer: {
-    width: '100%',
-    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'center',
     position: 'relative',
   },
@@ -282,27 +303,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     marginBottom: 8,
-  },
-  historyContainer: {
-    marginTop: 20,
-    flex: 1,
-  },
-  historyTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  movesList: {
-    backgroundColor: '#3A3A3A',
-    borderRadius: 8,
-    padding: 12,
-    flex: 1,
-  },
-  moveHistoryText: {
-    color: 'white',
-    fontSize: 14,
-    marginBottom: 4,
   },
 });
 

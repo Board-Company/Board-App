@@ -10,18 +10,23 @@ interface ChessBoardProps {
 
 const ChessBoard: React.FC<ChessBoardProps> = ({ fen, onMove, playerColor }) => {
   const screenWidth = Dimensions.get('window').width;
-  const boardSize = screenWidth - 32; // 32 is the total horizontal padding
+  const boardSize = Math.floor((screenWidth - 32) / 8) * 8; // Ensure board size is divisible by 8
 
   return (
     <Chessboard
       fen={fen}
       onMove={onMove}
-      size={boardSize}
+      boardSize={boardSize}
       colors={{
         black: '#769656',
         white: '#eeeed2',
+        lastMoveHighlight: 'rgba(255,255,0, 0.5)',
+        checkmateHighlight: '#E84855',
+        promotionPieceButton: '#FF9B71'
       }}
-      playerColor={playerColor}
+      gestureEnabled={true}
+      withLetters={true}
+      withNumbers={true}
     />
   );
 };
