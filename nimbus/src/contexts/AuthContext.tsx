@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithGoogle, signOut, getStoredAuthData, signInWithEmail } from '../services/auth';
+import { signInWithGoogle, signOut, getStoredAuthData, signInWithUsername } from '../services/auth';
 
 interface User {
   id: string;
@@ -14,7 +14,7 @@ interface AuthContextType {
   error: Error | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithUsername: (username: string, password: string) => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -51,7 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const authData = await signInWithGoogle();
       setUser(authData.user);
     } catch (error) {
-      console.error('Sign in error:', error);
       setError(error as Error);
     } finally {
       setLoading(false);
@@ -65,21 +64,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut();
       setUser(null);
     } catch (error) {
-      console.error('Sign out error:', error);
       setError(error as Error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEmailSignIn = async (email: string, password: string) => {
+  const handleUsernameSignIn = async (username: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
-      const authData = await signInWithEmail(email, password);
+      const authData = await signInWithUsername(username, password);
       setUser(authData.user);
     } catch (error) {
-      console.error('Email sign in error:', error);
       setError(error as Error);
       throw error;
     } finally {
@@ -95,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error,
         signIn: handleSignIn,
         signOut: handleSignOut,
-        signInWithEmail: handleEmailSignIn,
+        signInWithUsername: handleUsernameSignIn,
         isAuthenticated: !!user,
       }}
     >

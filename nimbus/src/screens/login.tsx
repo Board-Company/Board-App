@@ -11,7 +11,7 @@ type RootStackParamList = {
   Settings: undefined;
   Login: undefined;
   Register: undefined;
-  mailLogin: undefined;
+  userLogin: undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
@@ -107,14 +107,14 @@ export default function LoginScreen() {
             color="white"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
-            onPress={() => navigation.navigate('mailLogin')}
+            onPress={() => navigation.navigate('userLogin')}
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
               {/* Simple envelope icon placeholder */}
               <View style={styles.iconPlaceholder}>
                 <Text style={{ color: "white", fontSize: 16 }}>✉️</Text>
               </View>
-              <Text style={{ color: "white", fontSize: 16, marginLeft: 8 }}>Continue with Email</Text>
+              <Text style={{ color: "white", fontSize: 16, marginLeft: 8 }}>Continue with username</Text>
             </XStack>
           </Button>
           

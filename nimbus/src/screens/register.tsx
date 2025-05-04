@@ -1,48 +1,73 @@
-import { Button, YStack, Text , Input} from 'tamagui'
+import { Button, YStack, Text, Input } from 'tamagui'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import React, { useState } from 'react'
-import { Alert } from 'react-native'
-import { register, signInWithEmail } from '../services/auth.tsx'
+import { ToastAndroid } from 'react-native'
+import { register, signInWithUsername } from '../services/auth.tsx'
 import { useAuth } from '../contexts/AuthContext'
 
 type RootStackParamList = {
   Home: undefined;
-  About: undefined;
-  Settings: undefined;
+  Login: undefined;
+  Register: undefined;
+  userLogin: undefined;
+  PlayMenu: undefined;
+  Play: undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
 
-export default function SettingsScreen() {
+export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>()
-  const { signIn } = useAuth()
+  const { signInWithUsername } = useAuth()
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const showError = (message: string) => {
+    ToastAndroid.show(message, ToastAndroid.LONG);
+  };
+
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleRegister = async () => {
-    if (email && username && password) {
+    if (!email || !username || !password) {
+      showError('Please fill all fields');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      showError('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      setLoading(true)
+      await register({ email, username, password });
+      // If we get here, registration was successful
       try {
-        setLoading(true)
-        const success = await register({ email, username, password });
-        if (success) {
-          // Sign in the user after successful registration
-          const authData = await signInWithEmail(email, password);
-          await signIn(); // This will update the auth context
-          navigation.navigate('Home');
-        } else {
-          Alert.alert('Registration failed', 'Please try again');
-        }
+        await signInWithUsername(username, password);
+        // Navigate to home
+        navigation.navigate('Home');
       } catch (error) {
-        console.error('Registration error:', error);
-        Alert.alert('Registration failed', error instanceof Error ? error.message : 'Please try again');
-      } finally {
-        setLoading(false)
+        showError('Registration successful. Please sign in manually.');
+        navigation.navigate('userLogin');
       }
-    } else {
-      Alert.alert('Please fill all fields');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage.includes('Username already registered')) {
+        showError('This username is already taken. Please choose another one.');
+      } else if (errorMessage.includes('Email already registered')) {
+        showError('This email is already registered. Please use another email.');
+      } else {
+        showError('Registration failed. Please try again.');
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -60,7 +85,7 @@ export default function SettingsScreen() {
         </YStack>
 
         {/* Bottom section with buttons */}
-          <YStack style={{ width: "100%", gap: 16, marginBottom: 24 }}>
+        <YStack style={{ width: "100%", gap: 16, marginBottom: 24 }}>
           <Button 
             style={{ 
               backgroundColor: "#A4BE7B",
@@ -77,7 +102,7 @@ export default function SettingsScreen() {
             {loading ? 'Creating Account...' : 'Create Account'}
           </Button>
 
-              <Button 
+          <Button 
             style={{ 
               backgroundColor: "#333333",
               height: 50,
@@ -90,7 +115,7 @@ export default function SettingsScreen() {
             pressStyle={{ opacity: 0.8 }}
             onPress={() => navigation.goBack()}
             disabled={loading}
-            >
+          >
             Go Back
           </Button>
         </YStack>

@@ -11,11 +11,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Import your screens
 import LoginScreen from './screens/login.tsx'
-import mailLogin from './screens/mailLogin.tsx'
 import RegisterScreen from './screens/register.tsx'
 import HomeScreen from './screens/home.tsx'
 import PlayMenuScreen from './screens/playMenu.tsx'
 import PlayScreen from './screens/play.tsx'
+import userLogin from './screens/userLogin.tsx'
 
 // Create Tamagui config
 const config = createTamagui(defaultConfig)
@@ -59,8 +59,8 @@ export default function App() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen 
-                  name="mailLogin" 
-                  component={mailLogin} 
+                  name="userLogin" 
+                  component={userLogin} 
                   options={{ headerShown: false }} 
                 />
                 <Stack.Screen 
