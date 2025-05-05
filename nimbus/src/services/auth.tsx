@@ -112,14 +112,16 @@ export const signInWithGoogle = async (): Promise<AuthResponse> => {
     const signInResponse = await GoogleSignin.signIn();
     console.log('[GoogleSignIn] Full sign in response:', JSON.stringify(signInResponse, null, 2));
     
-    if (!signInResponse.idToken) {
+    // Access idToken from the nested data object
+    const idToken = signInResponse.data?.idToken;
+    if (!idToken) {
       throw new Error('No ID token received from Google Sign-In');
     }
     
     // Send token to your backend
     const backendUrl = `${BASE_URL}/auth/google`;
     console.log('[GoogleSignIn] Preparing to send request to:', backendUrl);
-    const backendPayload = { token: signInResponse.idToken };
+    const backendPayload = { token: idToken };
     console.log('[GoogleSignIn] Backend payload:', JSON.stringify(backendPayload, null, 2));
     
     try {
