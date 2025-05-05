@@ -11,7 +11,7 @@ type RootStackParamList = {
   Settings: undefined;
   Login: undefined;
   Register: undefined;
-  userLogin: undefined;
+  UserLogin: undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
@@ -107,7 +107,7 @@ export default function LoginScreen() {
             color="white"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
-            onPress={() => navigation.navigate('userLogin')}
+            onPress={() => navigation.navigate('UserLogin')}
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
               {/* Simple envelope icon placeholder */}

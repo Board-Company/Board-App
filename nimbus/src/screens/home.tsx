@@ -11,7 +11,7 @@ type RootStackParamList = {
   PlayMenu: undefined;
   Login: undefined;
   Register: undefined;
-  mailLogin: undefined;
+  UserLogin: undefined;
 };
 
 // Create a typed navigation prop

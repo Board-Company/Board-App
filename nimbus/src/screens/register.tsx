@@ -10,7 +10,7 @@ type RootStackParamList = {
   Home: undefined;
   Login: undefined;
   Register: undefined;
-  userLogin: undefined;
+  UserLogin: undefined;
   PlayMenu: undefined;
   Play: undefined;
 }
@@ -55,7 +55,7 @@ export default function RegisterScreen() {
         navigation.navigate('Home');
       } catch (error) {
         showError('Registration successful. Please sign in manually.');
-        navigation.navigate('userLogin');
+        navigation.navigate('UserLogin');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '';

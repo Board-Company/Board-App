@@ -8,6 +8,7 @@ declare module '@react-native-google-signin/google-signin' {
 
   export interface SignInResponse {
     user: User;
+    idToken: string;
   }
 
   export const statusCodes: {
@@ -20,6 +21,7 @@ declare module '@react-native-google-signin/google-signin' {
     static configure(config: {
       webClientId: string;
       offlineAccess?: boolean;
+      scopes?: string[];
     }): void;
     static hasPlayServices(): Promise<boolean>;
     static signIn(): Promise<SignInResponse>;
