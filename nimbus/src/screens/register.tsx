@@ -87,19 +87,14 @@ export default function RegisterScreen() {
         {/* Bottom section with buttons */}
         <YStack style={{ width: "100%", gap: 16, marginBottom: 24 }}>
           <Button 
-            style={{ 
-              backgroundColor: "#A4BE7B",
-              height: 50,
-              width: "100%"
-            }}
-            color="white"
+            style={{ backgroundColor: "#A4BE7B", height: 50, width: "100%" }}
             fontSize="$5"
             fontWeight="bold"
             pressStyle={{ opacity: 0.8 }}
             onPress={handleRegister}
             disabled={loading}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            <Text style={{ color: 'white' }}>{loading ? 'Registering...' : 'Register'}</Text>
           </Button>
 
           <Button 
@@ -110,7 +105,6 @@ export default function RegisterScreen() {
               borderColor: "#A4BE7B",
               borderWidth: 1
             }}
-            color="#A4BE7B"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
             onPress={() => navigation.goBack()}

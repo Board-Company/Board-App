@@ -1,6 +1,7 @@
-import  { GoogleSignin, statusCodes, User as GoogleUser } from '@react-native-google-signin/google-signin';
+
+import { GoogleSignin, statusCodes, User as GoogleUser } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BASE_URL, GOOGLE_WEB_CLIENT_ID } from '@env';
+import { BASE_URL, GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
 
 interface RegisterData {
   email: string;
@@ -26,6 +27,7 @@ const USER_DATA_KEY = 'user_data';
 // Initialize Google Sign-In
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
+  iosClientId: "707897598265-f18r9das4pigimbkt1niife5655ol5lc.apps.googleusercontent.com",
   offlineAccess: true,
   scopes: ['profile', 'email']
 });

@@ -52,7 +52,6 @@ export default function LoginScreen() {
               height: 50,
               width: "100%"
             }}
-            color="white"
             fontSize="$5"
             fontWeight="bold"
             pressStyle={{ opacity: 0.8 }}
@@ -76,7 +75,6 @@ export default function LoginScreen() {
               width: "100%",
               marginBottom: 8
             }}
-            color="white"
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
             onPress={handleGoogleSignIn}
@@ -98,19 +96,12 @@ export default function LoginScreen() {
           
           {/* Email sign in */}
           <Button 
-            style={{ 
-              backgroundColor: "#4A4A4A",
-              height: 50,
-              width: "100%",
-              marginBottom: 8
-            }}
-            color="white"
+            style={{ backgroundColor: "#4A4A4A", height: 50, width: "100%", marginBottom: 8 }}
             fontSize="$4"
             pressStyle={{ opacity: 0.8 }}
             onPress={() => navigation.navigate('UserLogin')}
           >
             <XStack style={{ alignItems: "center", justifyContent: "center" }}>
-              {/* Simple envelope icon placeholder */}
               <View style={styles.iconPlaceholder}>
                 <Text style={{ color: "white", fontSize: 16 }}>✉️</Text>
               </View>

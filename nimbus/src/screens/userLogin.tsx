@@ -80,19 +80,14 @@ export default function UserLogin() {
         {/* Bottom section with buttons */}
           <YStack style={{ width: "100%", gap: 16, marginBottom: 24 }}>
           <Button 
-            style={{ 
-              backgroundColor: "#A4BE7B",
-              height: 50,
-              width: "100%"
-            }}
-            color="white"
+            style={{ backgroundColor: "#A4BE7B", height: 50, width: "100%" }}
             fontSize="$5"
             fontWeight="bold"
             pressStyle={{ opacity: 0.8 }}
             onPress={handleLogin}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            <Text style={{ color: 'white' }}>{loading ? 'Logging in...' : 'Login'}</Text>
           </Button>
         </YStack>
       </YStack>
