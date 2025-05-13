@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "~/.platformio/packages/framework-arduinoespressif32/**",
+                "~/.platformio/packages/framework-arduinoespressif32/cores/esp32",
+                "~/.platformio/packages/framework-arduinoespressif32/variants/esp32",
+                "~/.platformio/packages/framework-arduinoespressif32/libraries/**"
+            ],
+            "defines": [],
+            "compilerPath": "~/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+} 
