@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from typing import Optional
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -12,7 +13,9 @@ from schemas import Token, User, UserCreate, GoogleAuthRequest
 from auth import (
     verify_password, get_password_hash, create_access_token, 
     get_user, authenticate_user, get_current_user, 
-    get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES
+    get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES,
+    generate_code_verifier, generate_code_challenge, get_lichess_auth_url,
+    verify_lichess_token
 )
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -233,6 +236,82 @@ async def google_auth(google_data: GoogleAuthRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error processing Google authentication"
+        )
+
+# Lichess OAuth2 endpoints
+@app.get("/auth/lichess/login")
+async def lichess_login():
+    """Initiate Lichess OAuth2 login flow."""
+    try:
+        # Generate PKCE code verifier and challenge
+        code_verifier = generate_code_verifier()
+        code_challenge = generate_code_challenge(code_verifier)
+        
+        # Store code verifier in session (you might want to use a proper session management)
+        # For now, we'll store it in memory (not recommended for production)
+        app.state.code_verifiers = getattr(app.state, 'code_verifiers', {})
+        app.state.code_verifiers[code_challenge] = code_verifier
+        
+        # Generate and return the authorization URL
+        auth_url = get_lichess_auth_url(code_challenge)
+        logger.info(f"Generated Lichess auth URL with code challenge: {code_challenge}")
+        
+        return {"auth_url": auth_url}
+    except Exception as e:
+        logger.error(f"Error initiating Lichess login: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error initiating Lichess login"
+        )
+
+@app.get("/auth/lichess/callback")
+async def lichess_callback(code: str, state: Optional[str] = None):
+    """Handle Lichess OAuth2 callback."""
+    try:
+        # Get the stored code verifier
+        code_verifiers = getattr(app.state, 'code_verifiers', {})
+        code_verifier = None
+        
+        # Find the code verifier that matches this authorization code
+        # In a production environment, you should use a proper session management
+        # and store the code verifier with the state parameter
+        for stored_verifier in code_verifiers.values():
+            try:
+                # Verify the token with this code verifier
+                user_data = await verify_lichess_token(code, stored_verifier)
+                code_verifier = stored_verifier
+                break
+            except:
+                continue
+        
+        if not code_verifier:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired authorization code"
+            )
+        
+        # Create access token for the user
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user_data["username"]},
+            expires_delta=access_token_expires
+        )
+        
+        # Clean up the used code verifier
+        app.state.code_verifiers.pop(code_verifier, None)
+        
+        # In a production environment, you would redirect to your frontend
+        # with the token and user data
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user_data
+        }
+    except Exception as e:
+        logger.error(f"Error in Lichess callback: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error processing Lichess authentication"
         )
 
 # Run the application

@@ -1,10 +1,15 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
-from typing import Optional
+from typing import Optional, Dict
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
+import secrets
+import hashlib
+import base64
+import httpx
+from urllib.parse import urlencode
 from supabase import create_client, Client
 from schemas import TokenData, User, UserInDB
 from dotenv import load_dotenv
@@ -22,6 +27,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
+# Lichess OAuth Configuration
+LICHESS_CLIENT_ID = os.getenv("LICHESS_CLIENT_ID", "your-client-id")
+LICHESS_REDIRECT_URI = os.getenv("LICHESS_REDIRECT_URI", "http://localhost:8000/auth/lichess/callback")
+LICHESS_AUTH_URL = "https://lichess.org/oauth"
+LICHESS_TOKEN_URL = "https://lichess.org/api/token"
+LICHESS_API_URL = "https://lichess.org/api"
 
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
@@ -145,4 +157,106 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user 
+    return current_user
+
+def generate_code_verifier() -> str:
+    """Generate a code verifier for PKCE."""
+    code_verifier = secrets.token_urlsafe(32)
+    return code_verifier
+
+def generate_code_challenge(code_verifier: str) -> str:
+    """Generate a code challenge from the verifier using SHA256."""
+    sha256_hash = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+    code_challenge = base64.urlsafe_b64encode(sha256_hash).decode('utf-8').rstrip('=')
+    return code_challenge
+
+def get_lichess_auth_url(code_challenge: str) -> str:
+    """Generate the Lichess authorization URL."""
+    params = {
+        'response_type': 'code',
+        'client_id': LICHESS_CLIENT_ID,
+        'redirect_uri': LICHESS_REDIRECT_URI,
+        'scope': 'email:read',
+        'code_challenge': code_challenge,
+        'code_challenge_method': 'S256'
+    }
+    return f"{LICHESS_AUTH_URL}?{urlencode(params)}"
+
+async def exchange_code_for_token(code: str, code_verifier: str) -> Dict:
+    """Exchange the authorization code for an access token."""
+    async with httpx.AsyncClient() as client:
+        data = {
+            'grant_type': 'authorization_code',
+            'client_id': LICHESS_CLIENT_ID,
+            'code': code,
+            'code_verifier': code_verifier,
+            'redirect_uri': LICHESS_REDIRECT_URI
+        }
+        response = await client.post(LICHESS_TOKEN_URL, data=data)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to exchange code for token"
+            )
+        return response.json()
+
+async def get_lichess_user_info(access_token: str) -> Dict:
+    """Get user information from Lichess API."""
+    async with httpx.AsyncClient() as client:
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = await client.get(f"{LICHESS_API_URL}/account", headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to get user info from Lichess"
+            )
+        return response.json()
+
+async def verify_lichess_token(code: str, code_verifier: str):
+    """Verify Lichess token and get or create user."""
+    try:
+        # Exchange code for token
+        token_data = await exchange_code_for_token(code, code_verifier)
+        access_token = token_data['access_token']
+        
+        # Get user info from Lichess
+        user_info = await get_lichess_user_info(access_token)
+        
+        # Extract user data
+        user_email = user_info.get('email')
+        username = user_info.get('username')
+        
+        if not user_email or not username:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid user data from Lichess"
+            )
+        
+        # Check if user exists in database
+        response = supabase.table("users").select("*").eq("email", user_email).execute()
+        
+        if not response.data:
+            # Create new user if doesn't exist
+            new_user = {
+                "email": user_email,
+                "username": username,
+                "auth_provider": "lichess",
+                "lichess_username": username
+            }
+            response = supabase.table("users").insert(new_user).execute()
+            user_data = response.data[0]
+        else:
+            user_data = response.data[0]
+            # Update Lichess username if it has changed
+            if user_data.get('lichess_username') != username:
+                supabase.table("users").update({"lichess_username": username}).eq("email", user_email).execute()
+                user_data['lichess_username'] = username
+
+        return user_data
+    except Exception as e:
+        logger.error(f"Error in Lichess authentication: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Lichess authentication",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) 

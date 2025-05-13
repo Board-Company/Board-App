@@ -6,12 +6,14 @@ import { View, StyleSheet, Image, ActivityIndicator } from 'react-native'
 import { useAuth } from '../contexts/AuthContext'
 
 type RootStackParamList = {
-  Home: undefined;
-  About: undefined;
-  Settings: undefined;
+  MainTabs: undefined;
   Login: undefined;
   Register: undefined;
   UserLogin: undefined;
+  Play: undefined;
+  BotGame: undefined;
+  Puzzle: undefined;
+  LocalGame: undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
@@ -23,7 +25,7 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       await signIn()
-      navigation.navigate('Home')
+      navigation.navigate('MainTabs')
     } catch (error) {
       console.error('Google sign in error:', error)
     }

@@ -7,9 +7,14 @@ import { useAuth } from '../contexts/AuthContext'
 import React, { useState } from 'react'
 
 type RootStackParamList = {
-  Home: undefined;
-  About: undefined;
-  Settings: undefined;
+  MainTabs: undefined;
+  Login: undefined;
+  Register: undefined;
+  UserLogin: undefined;
+  Play: undefined;
+  BotGame: undefined;
+  Puzzle: undefined;
+  LocalGame: undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>
@@ -30,7 +35,7 @@ export default function UserLogin() {
     try {
       setLoading(true);
       await signInWithUsername(username, password);
-      navigation.navigate('Home');
+      navigation.navigate('MainTabs');
     } catch (error) {
       console.error('Login error:', error);
       Alert.alert(
