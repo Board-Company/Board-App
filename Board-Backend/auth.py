@@ -49,6 +49,8 @@ supabase: Client = create_client(supabase_url, supabase_key)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+logger.info(f"LICHESS_REDIRECT_URI: {LICHESS_REDIRECT_URI}")
+
 async def verify_google_token(token: str):
     try:
         # Verify the token
@@ -170,7 +172,7 @@ def generate_code_challenge(code_verifier: str) -> str:
     code_challenge = base64.urlsafe_b64encode(sha256_hash).decode('utf-8').rstrip('=')
     return code_challenge
 
-def get_lichess_auth_url(code_challenge: str) -> str:
+def get_lichess_auth_url(code_challenge: str, state: str) -> str:
     """Generate the Lichess authorization URL."""
     params = {
         'response_type': 'code',
@@ -178,7 +180,8 @@ def get_lichess_auth_url(code_challenge: str) -> str:
         'redirect_uri': LICHESS_REDIRECT_URI,
         'scope': 'email:read',
         'code_challenge': code_challenge,
-        'code_challenge_method': 'S256'
+        'code_challenge_method': 'S256',
+        'state': state
     }
     return f"{LICHESS_AUTH_URL}?{urlencode(params)}"
 
@@ -205,6 +208,7 @@ async def get_lichess_user_info(access_token: str) -> Dict:
     async with httpx.AsyncClient() as client:
         headers = {'Authorization': f'Bearer {access_token}'}
         response = await client.get(f"{LICHESS_API_URL}/account", headers=headers)
+        logger.info(f"Lichess /account response: {response.text}")
         if response.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -213,7 +217,7 @@ async def get_lichess_user_info(access_token: str) -> Dict:
         return response.json()
 
 async def verify_lichess_token(code: str, code_verifier: str):
-    """Verify Lichess token and get or create user."""
+    """Verify Lichess token and get or create Lichess user."""
     try:
         # Exchange code for token
         token_data = await exchange_code_for_token(code, code_verifier)
@@ -223,36 +227,32 @@ async def verify_lichess_token(code: str, code_verifier: str):
         user_info = await get_lichess_user_info(access_token)
         
         # Extract user data
-        user_email = user_info.get('email')
         username = user_info.get('username')
-        
-        if not user_email or not username:
+        if not username:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid user data from Lichess"
+                detail="Invalid user data from Lichess: missing username"
             )
         
-        # Check if user exists in database
-        response = supabase.table("users").select("*").eq("email", user_email).execute()
+        # Try to find Lichess user by username
+        response = supabase.table("lichess_users").select("*").eq("username", username).execute()
         
         if not response.data:
-            # Create new user if doesn't exist
-            new_user = {
-                "email": user_email,
+            # Create new lichess_users row if doesn't exist
+            new_lichess_user = {
                 "username": username,
-                "auth_provider": "lichess",
-                "lichess_username": username
+                "access_token": access_token
             }
-            response = supabase.table("users").insert(new_user).execute()
-            user_data = response.data[0]
+            response = supabase.table("lichess_users").insert(new_lichess_user).execute()
+            lichess_user_data = response.data[0]
         else:
-            user_data = response.data[0]
-            # Update Lichess username if it has changed
-            if user_data.get('lichess_username') != username:
-                supabase.table("users").update({"lichess_username": username}).eq("email", user_email).execute()
-                user_data['lichess_username'] = username
+            lichess_user_data = response.data[0]
+            # Update access_token if changed
+            if lichess_user_data.get('access_token') != access_token:
+                supabase.table("lichess_users").update({"access_token": access_token}).eq("username", username).execute()
+                lichess_user_data['access_token'] = access_token
 
-        return user_data
+        return lichess_user_data
     except Exception as e:
         logger.error(f"Error in Lichess authentication: {str(e)}")
         raise HTTPException(
