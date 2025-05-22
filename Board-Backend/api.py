@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Header
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
@@ -22,6 +22,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 import json
 import secrets
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
@@ -252,7 +253,7 @@ async def google_auth(google_data: GoogleAuthRequest):
 
 # Lichess OAuth2 endpoints
 @app.get("/auth/lichess/login")
-async def lichess_login():
+async def lichess_login(Authorization: Optional[str] = Header(None)):
     try:
         code_verifier = generate_code_verifier()
         code_challenge = generate_code_challenge(code_verifier)
@@ -261,6 +262,11 @@ async def lichess_login():
         # Store code_verifier with state as key
         app.state.code_verifiers = getattr(app.state, 'code_verifiers', {})
         app.state.code_verifiers[state] = code_verifier
+
+        # Store the user's JWT with the state if provided
+        if Authorization:
+            app.state.lichess_login_jwts = getattr(app.state, 'lichess_login_jwts', {})
+            app.state.lichess_login_jwts[state] = Authorization
 
         # Add state to auth URL
         auth_url = get_lichess_auth_url(code_challenge, state)
@@ -274,6 +280,9 @@ async def lichess_login():
             detail="Error initiating Lichess login"
         )
 
+class LinkLichessRequest(BaseModel):
+    lichess_username: str
+
 @app.get("/auth/lichess/callback")
 async def lichess_callback(code: str, state: Optional[str] = None):
     try:
@@ -281,7 +290,6 @@ async def lichess_callback(code: str, state: Optional[str] = None):
         code_verifier = code_verifiers.pop(state, None)  # Remove after use
 
         if not code_verifier:
-            # If no valid code verifier found, redirect to app with error
             error_params = {
                 "error": "invalid_code",
                 "error_description": "Invalid or expired authorization code"
@@ -290,18 +298,56 @@ async def lichess_callback(code: str, state: Optional[str] = None):
                 url=f"boardapp://auth/lichess/callback?{json.dumps(error_params)}"
             )
 
-        # Continue as before...
+        # Get Lichess user data
         user_data = await verify_lichess_token(code, code_verifier)
+
+        # Save or update Lichess user in lichess_users table
+        lichess_user_dict = {
+            "username": user_data["username"],
+            "user_id": user_data.get("id"),
+            "access_token": user_data.get("access_token"),
+            # Add more fields as needed
+        }
+        # Upsert (insert or update) lichess_users
+        supabase.table("lichess_users").upsert(lichess_user_dict, on_conflict=["username"]).execute()
+
+        # If a JWT was provided with this state, link the Lichess account to the app user
+        lichess_login_jwts = getattr(app.state, 'lichess_login_jwts', {})
+        jwt_token = lichess_login_jwts.pop(state, None)
+        if jwt_token:
+            # Validate JWT and get current user
+            from fastapi.security.utils import get_authorization_scheme_param
+            scheme, param = get_authorization_scheme_param(jwt_token)
+            if scheme.lower() == "bearer" and param:
+                try:
+                    current_user = await get_current_active_user(token=param, supabase=supabase)
+                    # Link the Lichess account to the app user
+                    supabase.table("users").update({
+                        "lichess_username": user_data["username"],
+                        "lichess_linked": True,
+                        "auth_provider": "lichess"
+                    }).eq("username", current_user.username).execute()
+                except Exception as e:
+                    logger.error(f"Error linking Lichess to app user: {str(e)}")
+
+        # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user_data["username"]},
             expires_delta=access_token_expires
         )
-        # Prepare success data for the app
+        structured_user_data = {
+            "username": user_data["username"],
+            "email": user_data.get("email"),
+            "lichess_username": user_data["username"],
+            "auth_provider": "lichess",
+            "lichess_rating": user_data.get("perfs", {})
+        }
         success_data = {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": user_data
+            "user": structured_user_data,
+            "lichess_username": user_data["username"]
         }
         encoded_data = json.dumps(success_data)
         return RedirectResponse(
@@ -309,13 +355,93 @@ async def lichess_callback(code: str, state: Optional[str] = None):
         )
     except Exception as e:
         logger.error(f"Error in Lichess callback: {str(e)}")
-        # Redirect to app with error
         error_params = {
             "error": "auth_error",
             "error_description": str(e)
         }
         return RedirectResponse(
             url=f"boardapp://auth/lichess/callback?{json.dumps(error_params)}"
+        )
+
+@app.post("/users/link-lichess")
+async def link_lichess_account(
+    request: LinkLichessRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    try:
+        logger.info(f"Attempting to link Lichess account {request.lichess_username} for user {current_user.username}")
+        
+        # First check if this Lichess account is already linked
+        existing_link = supabase.table("users").select("*").eq("lichess_username", request.lichess_username).execute()
+        if existing_link.data and len(existing_link.data) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This Lichess account is already linked to another user"
+            )
+        
+        response = supabase.table("users").update({
+            "lichess_username": request.lichess_username,
+            "lichess_linked": True,
+            "auth_provider": "lichess"  # Add auth provider info
+        }).eq("username", current_user.username).execute()
+        
+        if not response.data:
+            logger.error(f"Failed to link Lichess account for user {current_user.username}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to link Lichess account"
+            )
+            
+        logger.info(f"Successfully linked Lichess account for user {current_user.username}")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error linking Lichess account: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error linking Lichess account: {str(e)}"
+        )
+
+@app.post("/users/unlink-lichess")
+async def unlink_lichess_account(
+    current_user: User = Depends(get_current_active_user)
+):
+    try:
+        logger.info(f"Attempting to unlink Lichess account for user {current_user.username}")
+        response = supabase.table("users").update({
+            "lichess_username": None,
+            "lichess_linked": False
+        }).eq("username", current_user.username).execute()
+        
+        if not response.data:
+            logger.error(f"Failed to unlink Lichess account for user {current_user.username}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to unlink Lichess account"
+            )
+            
+        logger.info(f"Successfully unlinked Lichess account for user {current_user.username}")
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error unlinking Lichess account: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error unlinking Lichess account: {str(e)}"
+        )
+
+@app.get("/users/lichess-info")
+async def get_lichess_info(current_user: User = Depends(get_current_active_user)):
+    try:
+        if not current_user.lichess_username:
+            return {"lichess": None}
+        lichess_info = supabase.table("lichess_users").select("*").eq("username", current_user.lichess_username).single().execute()
+        return {"lichess": lichess_info.data}
+    except Exception as e:
+        logger.error(f"Error fetching lichess info: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching lichess info: {str(e)}"
         )
 
 # Run the application
