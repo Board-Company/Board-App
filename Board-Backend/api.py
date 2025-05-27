@@ -16,13 +16,15 @@ from auth import (
     get_user, authenticate_user, get_current_user, 
     get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES,
     generate_code_verifier, generate_code_challenge, get_lichess_auth_url,
-    verify_lichess_token
+    verify_lichess_token, SECRET_KEY, ALGORITHM
 )
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import json
 import secrets
 from pydantic import BaseModel
+from jose import jwt, JWTError
+import httpx
 
 # Load environment variables
 load_dotenv()
@@ -304,9 +306,7 @@ async def lichess_callback(code: str, state: Optional[str] = None):
         # Save or update Lichess user in lichess_users table
         lichess_user_dict = {
             "username": user_data["username"],
-            "user_id": user_data.get("id"),
             "access_token": user_data.get("access_token"),
-            # Add more fields as needed
         }
         # Upsert (insert or update) lichess_users
         supabase.table("lichess_users").upsert(lichess_user_dict, on_conflict=["username"]).execute()
@@ -314,28 +314,68 @@ async def lichess_callback(code: str, state: Optional[str] = None):
         # If a JWT was provided with this state, link the Lichess account to the app user
         lichess_login_jwts = getattr(app.state, 'lichess_login_jwts', {})
         jwt_token = lichess_login_jwts.pop(state, None)
-        if jwt_token:
+        if not jwt_token:
+            logger.warning(f"No JWT token found for Lichess linking (state={state})")
+        else:
             # Validate JWT and get current user
             from fastapi.security.utils import get_authorization_scheme_param
             scheme, param = get_authorization_scheme_param(jwt_token)
+            logger.debug(f"Decoded JWT scheme: {scheme}, param: {param}")
             if scheme.lower() == "bearer" and param:
                 try:
-                    current_user = await get_current_active_user(token=param, supabase=supabase)
-                    # Link the Lichess account to the app user
-                    supabase.table("users").update({
-                        "lichess_username": user_data["username"],
-                        "lichess_linked": True,
-                        "auth_provider": "lichess"
-                    }).eq("username", current_user.username).execute()
+                    # Decode the JWT to get the username
+                    payload = jwt.decode(param, SECRET_KEY, algorithms=[ALGORITHM])
+                    username = payload.get("sub")
+                    if not username:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid token: missing username",
+                            headers={"WWW-Authenticate": "Bearer"},
+                        )
+                    
+                    # Get user from database
+                    user_lookup = supabase.table("users").select("*").eq("username", username).single().execute()
+                    logger.debug(f"Supabase user lookup for username {username}: {user_lookup.data}")
+                    
+                    if not user_lookup.data:
+                        logger.error(f"No app user found with username: {username}")
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"User not found: {username}"
+                        )
+                    
+                    # Only link if the user does not already have a lichess_username
+                    if not user_lookup.data.get("lichess_username"):
+                        supabase.table("users").update({
+                            "lichess_username": user_data["username"],
+                            "lichess_linked": True
+                        }).eq("username", username).execute()
+                        logger.info(f"Linked Lichess account {user_data['username']} to app user {username}")
+                    else:
+                        logger.info(f"App user {username} already has a Lichess account linked: {user_lookup.data.get('lichess_username')}")
+                except JWTError as e:
+                    logger.error(f"JWT validation error: {str(e)}")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid token",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
                 except Exception as e:
                     logger.error(f"Error linking Lichess to app user: {str(e)}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error linking Lichess account: {str(e)}"
+                    )
+            else:
+                logger.warning(f"Invalid or missing Bearer token in Authorization header for Lichess linking (state={state})")
 
-        # Create access token
+        # Create access token for Lichess user
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user_data["username"]},
             expires_delta=access_token_expires
         )
+        
         structured_user_data = {
             "username": user_data["username"],
             "email": user_data.get("email"),
@@ -343,12 +383,14 @@ async def lichess_callback(code: str, state: Optional[str] = None):
             "auth_provider": "lichess",
             "lichess_rating": user_data.get("perfs", {})
         }
+        
         success_data = {
             "access_token": access_token,
             "token_type": "bearer",
             "user": structured_user_data,
             "lichess_username": user_data["username"]
         }
+        
         encoded_data = json.dumps(success_data)
         return RedirectResponse(
             url=f"boardapp://auth/lichess/callback?data={encoded_data}"

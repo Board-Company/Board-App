@@ -73,23 +73,7 @@ const SettingsScreen = () => {
             <Text style={styles.accountInfo}>
               Linked as: {lichessUser.lichess_username}
             </Text>
-            {lichessUser.lichess_rating && (
-              <View style={styles.ratingsContainer}>
-                <Text style={styles.ratingTitle}>Ratings:</Text>
-                {lichessUser.lichess_rating.bullet && (
-                  <Text style={styles.ratingText}>Bullet: {lichessUser.lichess_rating.bullet}</Text>
-                )}
-                {lichessUser.lichess_rating.blitz && (
-                  <Text style={styles.ratingText}>Blitz: {lichessUser.lichess_rating.blitz}</Text>
-                )}
-                {lichessUser.lichess_rating.rapid && (
-                  <Text style={styles.ratingText}>Rapid: {lichessUser.lichess_rating.rapid}</Text>
-                )}
-                {lichessUser.lichess_rating.classical && (
-                  <Text style={styles.ratingText}>Classical: {lichessUser.lichess_rating.classical}</Text>
-                )}
-              </View>
-            )}
+          
             <TouchableOpacity 
               style={[styles.button, styles.unlinkButton]} 
               onPress={handleUnlinkLichess}

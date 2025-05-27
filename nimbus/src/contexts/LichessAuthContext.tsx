@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config/constants';
 import queryString from 'query-string';
+import { getStoredAuthData } from '../services/auth';
 
 interface LichessUser {
   username: string;
@@ -33,7 +34,7 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   unlinkLichess: () => Promise<void>;
-  fetchLichessInfo: () => Promise<void>;
+  fetchLichessInfo: (appJwtOverride?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,10 +65,11 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const checkAuthStatus = async () => {
     try {
-      const token = await AsyncStorage.getItem('lichess_token');
-      if (token) {
-        await refreshUserData(token);
-        await fetchLichessInfo();
+      // Use app JWT for all app API calls
+      const authData = await getStoredAuthData();
+      if (authData?.access_token) {
+        await refreshUserData(authData.access_token);
+        await fetchLichessInfo(authData.access_token);
       }
     } catch (err) {
       console.error('Error checking auth status:', err);
@@ -88,31 +90,39 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log('[LichessAuth] Received deep link:', event.url);
       const parsed = queryString.parseUrl(event.url);
       console.log('[LichessAuth] Parsed URL:', parsed);
+      
       const errorData = parsed.query.error ? JSON.parse(parsed.query.error as string) : null;
       const error = errorData?.error || getFirstString(parsed.query.error);
       const errorDescription = errorData?.error_description || getFirstString(parsed.query.error_description);
       const errorStr = errorDescription || error;
+      
       if (errorStr) {
         console.error('[LichessAuth] Auth error:', errorStr);
         throw new Error(errorStr);
       }
+
       const dataStr = parsed.query.data as string;
-      if (dataStr) {
-        console.log('[LichessAuth] Processing auth data');
-        const authData = JSON.parse(dataStr);
-        console.log('[LichessAuth] Parsed auth data:', authData);
-        // Store the Lichess token separately if needed, but do not use it as the app JWT
-        await AsyncStorage.setItem('lichess_token', authData.access_token);
-        // After OAuth, refresh user data and lichess info
-        await checkAuthStatus();
-        setUser(authData.user);
-        setIsAuthenticated(true);
-        setError(null);
-        console.log('[LichessAuth] Successfully processed auth data');
-      } else {
+      if (!dataStr) {
         console.error('[LichessAuth] No data found in deep link');
         throw new Error('No authentication data received');
       }
+
+      console.log('[LichessAuth] Processing auth data');
+      const authData = JSON.parse(dataStr);
+      console.log('[LichessAuth] Parsed auth data:', authData);
+
+      // Store the Lichess token
+      await AsyncStorage.setItem('lichess_token', authData.access_token);
+      
+      // Update state with user data
+      setUser(authData.user);
+      setIsAuthenticated(true);
+      setError(null);
+      
+      // Fetch fresh Lichess info
+      await fetchLichessInfo();
+      
+      console.log('[LichessAuth] Successfully processed auth data');
     } catch (err) {
       console.error('[LichessAuth] Error handling deep link:', err);
       setError(err instanceof Error ? err.message : 'Failed to complete authentication');
@@ -124,23 +134,35 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       setIsLoading(true);
       setError(null);
-      // Use the app user's JWT for Authorization
-      const appToken = await AsyncStorage.getItem('app_token');
+      
+      // Get the app's JWT from auth service
+      const authData = await getStoredAuthData();
+      if (!authData?.access_token) {
+        throw new Error('Please log in to the app first');
+      }
+
+      console.log('[LichessAuth] Starting Lichess login with app JWT');
       const response = await fetch(`${API_URL}/auth/lichess/login`, {
-        headers: appToken ? { 'Authorization': `Bearer ${appToken}` } : undefined,
+        headers: {
+          'Authorization': `Bearer ${authData.access_token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
       const data = await response.json();
       if (!response.ok) {
-        console.error('Backend error:', data);
+        console.error('[LichessAuth] Backend error:', data);
         throw new Error(data.detail || 'Failed to initiate login');
       }
       if (!data.auth_url) {
-        console.error('No auth_url in backend response:', data);
+        console.error('[LichessAuth] No auth_url in backend response:', data);
         throw new Error('No authorization URL received from backend');
       }
+
+      console.log('[LichessAuth] Opening Lichess auth URL');
       await Linking.openURL(data.auth_url);
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('[LichessAuth] Login error:', err);
       setError(err instanceof Error ? err.message : 'Failed to initiate login');
     } finally {
       setIsLoading(false);
@@ -188,9 +210,14 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const fetchLichessInfo = async () => {
+  // Memoize fetchLichessInfo to prevent unnecessary polling
+  const fetchLichessInfo = useCallback(async (appJwtOverride?: string) => {
     try {
-      const token = await AsyncStorage.getItem('lichess_token');
+      let token = appJwtOverride;
+      if (!token) {
+        const authData = await getStoredAuthData();
+        token = authData?.access_token || undefined;
+      }
       if (!token) {
         setLichessInfo(null);
         return;
@@ -209,24 +236,32 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (err) {
       setLichessInfo(null);
     }
-  };
+  }, []);
 
   const unlinkLichess = async () => {
     try {
-      const token = await AsyncStorage.getItem('lichess_token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      // Get the app's JWT for unlinking
+      const authData = await getStoredAuthData();
+      if (!authData?.access_token) {
+        throw new Error('Please log in to the app first');
       }
+
+      console.log('[LichessAuth] Unlinking Lichess account with app JWT');
       const response = await fetch(`${API_URL}/users/unlink-lichess`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${authData.access_token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to unlink Lichess account');
       }
+
+      // Clear Lichess token and update state
+      await AsyncStorage.removeItem('lichess_token');
       if (user) {
         setUser({
           ...user,
@@ -235,6 +270,7 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
       setLichessInfo(null);
+      console.log('[LichessAuth] Successfully unlinked Lichess account');
     } catch (err) {
       console.error('[LichessAuth] Error unlinking account:', err);
       setError(err instanceof Error ? err.message : 'Failed to unlink Lichess account');

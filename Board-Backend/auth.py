@@ -178,7 +178,7 @@ def get_lichess_auth_url(code_challenge: str, state: str) -> str:
         'response_type': 'code',
         'client_id': LICHESS_CLIENT_ID,
         'redirect_uri': LICHESS_REDIRECT_URI,
-        'scope': 'email:read',
+        'scope': 'challenge:write board:play puzzle:read email:read',
         'code_challenge': code_challenge,
         'code_challenge_method': 'S256',
         'state': state

@@ -1,8 +1,7 @@
 import React from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { createTamagui } from '@tamagui/core'
 import { TamaguiProvider } from 'tamagui'
-import { defaultConfig } from '@tamagui/config/v4'
+import tamaguiConfig from '../tamagui.config'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -25,16 +24,7 @@ import UserLogin from './screens/userLogin.tsx'
 import BotGameScreen from './screens/botGame.tsx'
 import PuzzleScreen from './screens/puzzle.tsx'
 import LocalGameScreen from './screens/localGame.tsx'
-
-// Create Tamagui config
-const config = createTamagui(defaultConfig)
-
-type Conf = typeof config
-
-// make imports typed
-declare module '@tamagui/core' {
-  interface TamaguiCustomConfig extends Conf {}
-}
+import OnlineGameScreen from './screens/onlineGame.tsx'
 
 // Create the stack navigator
 const Stack = createNativeStackNavigator()
@@ -65,7 +55,7 @@ const App = () => {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <TamaguiProvider config={config}>
+          <TamaguiProvider config={tamaguiConfig}>
             <AuthProvider>
               <LichessAuthProvider>
                 <NavigationContainer>
@@ -125,6 +115,7 @@ const App = () => {
                     <Stack.Screen name="BotGame" component={BotGameScreen} />
                     <Stack.Screen name="Puzzle" component={PuzzleScreen} />
                     <Stack.Screen name="LocalGame" component={LocalGameScreen} />
+                    <Stack.Screen name="OnlineGame" component={OnlineGameScreen} />
                   </Stack.Navigator>
                 </NavigationContainer>
               </LichessAuthProvider>

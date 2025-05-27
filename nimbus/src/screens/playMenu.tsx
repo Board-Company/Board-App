@@ -1,12 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
+import { Text, YStack, XStack, Button, Select, Adapt, Sheet } from 'tamagui';
+import { useNavigation } from '@react-navigation/native';
+import { ChevronDown } from '@tamagui/lucide-icons';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+  PlayMenu: undefined;
+  OnlineGame: { gameType: string; timeControl: string };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'PlayMenu'>;
 
 const PlayMenuScreen = () => {
   const { isAuthenticated, user, isLoading, error, login, logout, unlinkLichess, lichessInfo, fetchLichessInfo } = useLichessAuth();
   const [lichessProfile, setLichessProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [gameType, setGameType] = useState('standard');
+  const [timeControl, setTimeControl] = useState('600');
+  const navigation = useNavigation<NavigationProp>();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -54,157 +68,174 @@ const PlayMenuScreen = () => {
     }
   };
 
+  const handleStartGame = () => {
+    navigation.navigate('OnlineGame', { gameType, timeControl });
+  };
+
   if (isLoading || profileLoading) {
     return (
-      <View style={styles.container}>
+      <YStack style={{ flex: 1, backgroundColor: '$background', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#FFFFFF" />
-      </View>
+      </YStack>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <YStack style={{ flex: 1, backgroundColor: '$background', padding: '$4' }}>
       {error && (
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={{ color: '$red10', textAlign: 'center', marginBottom: '$4' }}>{error}</Text>
       )}
       {isAuthenticated ? (
-        <View style={styles.content}>
-          <Text style={styles.welcomeText}>
+        <YStack style={{ gap: '$4', alignItems: 'center' }}>
+          <Text style={{ fontSize: 32, color: '$color' }}>
             Welcome, {user?.username}!
           </Text>
           {lichessInfo ? (
             <>
-              <Text style={styles.text}>Lichess Linked: {lichessInfo.username}</Text>
-              {profileError && <Text style={styles.errorText}>{profileError}</Text>}
+              <Text style={{ fontSize: 24, color: '$color' }}>Lichess Linked: {lichessInfo.username}</Text>
+              {profileError && <Text style={{ color: '$red10' }}>{profileError}</Text>}
               {lichessProfile && (
-                <View style={styles.profileContainer}>
-                  <Text style={styles.profileTitle}>Lichess Profile</Text>
-                  <Text style={styles.profileText}>Username: {lichessProfile.username}</Text>
-                  <Text style={styles.profileText}>ID: {lichessProfile.id}</Text>
-                  <Text style={styles.profileText}>Created: {new Date(lichessProfile.createdAt).toLocaleDateString()}</Text>
-                  <Text style={styles.profileText}>Seen: {new Date(lichessProfile.seenAt).toLocaleDateString()}</Text>
+                <YStack style={{ backgroundColor: '$gray', padding: '$4', borderRadius: '$4', width: '100%' }}>
+                  <Text style={{ fontSize: 24, fontWeight: 'bold', color: '$color', marginBottom: 8 }}>Lichess Profile</Text>
+                  <Text style={{ color: '$color' }}>Username: {lichessProfile.username}</Text>
+                  <Text style={{ color: '$color' }}>ID: {lichessProfile.id}</Text>
+                  <Text style={{ color: '$color' }}>Created: {new Date(lichessProfile.createdAt).toLocaleDateString()}</Text>
+                  <Text style={{ color: '$color' }}>Seen: {new Date(lichessProfile.seenAt).toLocaleDateString()}</Text>
                   {lichessProfile.perfs && (
-                    <View style={styles.ratingsContainer}>
-                      <Text style={styles.ratingTitle}>Ratings:</Text>
+                    <YStack style={{ marginTop: '$2' }}>
+                      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '$color', marginBottom: 4 }}>Ratings:</Text>
                       {Object.entries(lichessProfile.perfs).map(([key, value]: [string, any]) => (
                         value.rating && (
-                          <Text key={key} style={styles.ratingText}>{key.charAt(0).toUpperCase() + key.slice(1)}: {value.rating}</Text>
+                          <Text key={key} style={{ color: '$color' }}>
+                            {key.charAt(0).toUpperCase() + key.slice(1)}: {value.rating}
+                          </Text>
                         )
                       ))}
-                    </View>
+                    </YStack>
                   )}
-                </View>
+                </YStack>
               )}
-              <TouchableOpacity 
-                style={[styles.button, styles.unlinkButton]} 
-                onPress={handleUnlink}
-              >
-                <Text style={styles.buttonText}>Unlink Lichess Account</Text>
-              </TouchableOpacity>
+
+              <YStack style={{ gap: '$4', width: '100%', maxWidth: 400 }}>
+                <Select
+                  id="game-type"
+                  value={gameType}
+                  onValueChange={setGameType}
+                >
+                  <Select.Trigger iconAfter={ChevronDown}>
+                    <Select.Value placeholder="Select game type" />
+                  </Select.Trigger>
+
+                  <Adapt when="sm" platform="touch">
+                    <Sheet modal dismissOnSnapToBottom>
+                      <Sheet.Frame>
+                        <Sheet.ScrollView>
+                          <Adapt.Contents />
+                        </Sheet.ScrollView>
+                      </Sheet.Frame>
+                      <Sheet.Overlay />
+                    </Sheet>
+                  </Adapt>
+
+                  <Select.Content>
+                    <Select.ScrollUpButton />
+                    <Select.Viewport>
+                      <Select.Group>
+                        <Select.Label>Game Type</Select.Label>
+                        <Select.Item index={0} value="standard">
+                          <Select.ItemText>Standard Chess</Select.ItemText>
+                        </Select.Item>
+                        <Select.Item index={1} value="chess960">
+                          <Select.ItemText>Chess 960</Select.ItemText>
+                        </Select.Item>
+                      </Select.Group>
+                    </Select.Viewport>
+                    <Select.ScrollDownButton />
+                  </Select.Content>
+                </Select>
+
+                <Select
+                  id="time-control"
+                  value={timeControl}
+                  onValueChange={setTimeControl}
+                >
+                  <Select.Trigger iconAfter={ChevronDown}>
+                    <Select.Value placeholder="Select time control" />
+                  </Select.Trigger>
+
+                  <Adapt when="sm" platform="touch">
+                    <Sheet modal dismissOnSnapToBottom>
+                      <Sheet.Frame>
+                        <Sheet.ScrollView>
+                          <Adapt.Contents />
+                        </Sheet.ScrollView>
+                      </Sheet.Frame>
+                      <Sheet.Overlay />
+                    </Sheet>
+                  </Adapt>
+
+                  <Select.Content>
+                    <Select.ScrollUpButton />
+                    <Select.Viewport>
+                      <Select.Group>
+                        <Select.Label>Time Control</Select.Label>
+                        <Select.Item index={0} value="300">
+                          <Select.ItemText>5 minutes</Select.ItemText>
+                        </Select.Item>
+                        <Select.Item index={1} value="600">
+                          <Select.ItemText>10 minutes</Select.ItemText>
+                        </Select.Item>
+                        <Select.Item index={2} value="900">
+                          <Select.ItemText>15 minutes</Select.ItemText>
+                        </Select.Item>
+                        <Select.Item index={3} value="1800">
+                          <Select.ItemText>30 minutes</Select.ItemText>
+                        </Select.Item>
+                      </Select.Group>
+                    </Select.Viewport>
+                    <Select.ScrollDownButton />
+                  </Select.Content>
+                </Select>
+
+                <Button
+                  style={{ backgroundColor: '$green10' }}
+                  onPress={handleStartGame}
+                  disabled={!gameType || !timeControl}
+                >
+                  <Text style={{ color: 'white', fontSize: 24 }}>Start Game</Text>
+                </Button>
+
+                <Button
+                  style={{ backgroundColor: '$red10' }}
+                  onPress={handleUnlink}
+                >
+                  <Text style={{ color: 'white', fontSize: 24 }}>Unlink Lichess Account</Text>
+                </Button>
+
+                <Button
+                  style={{ backgroundColor: '$green10' }}
+                  onPress={logout}
+                >
+                  <Text style={{ color: 'white', fontSize: 24 }}>Logout</Text>
+                </Button>
+              </YStack>
             </>
           ) : (
-            <TouchableOpacity style={styles.button} onPress={login}>
-              <Text style={styles.buttonText}>Link Lichess Account</Text>
-            </TouchableOpacity>
+            <Button style={{ backgroundColor: '$green10' }} onPress={login}>
+              <Text style={{ color: 'white', fontSize: 24 }}>Link Lichess Account</Text>
+            </Button>
           )}
-          <TouchableOpacity 
-            style={[styles.button, styles.logoutButton]} 
-            onPress={logout}
-          >
-            <Text style={styles.buttonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+        </YStack>
       ) : (
-        <View style={styles.content}>
-          <Text style={styles.text}>Play Online with Lichess</Text>
-          <TouchableOpacity style={styles.button} onPress={login}>
-            <Text style={styles.buttonText}>Login with Lichess</Text>
-          </TouchableOpacity>
-        </View>
+        <YStack style={{ gap: '$4', alignItems: 'center' }}>
+          <Text style={{ fontSize: 32, color: '$color' }}>Play Online with Lichess</Text>
+          <Button style={{ backgroundColor: '$green10' }} onPress={login}>
+            <Text style={{ color: 'white', fontSize: 24 }}>Login with Lichess</Text>
+          </Button>
+        </YStack>
       )}
-    </View>
+    </YStack>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#2A2A2A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  text: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  welcomeText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#7FA650',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: '#FF6B6B',
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  unlinkButton: {
-    backgroundColor: '#E74C3C',  // Red color for unlink
-  },
-  logoutButton: {
-    backgroundColor: '#7FA650',  // Green color for logout
-  },
-  profileContainer: {
-    backgroundColor: '#3A3A3A',
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
-    width: '100%',
-  },
-  profileTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  profileText: {
-    color: 'white',
-    fontSize: 16,
-    marginVertical: 2,
-  },
-  ratingsContainer: {
-    marginTop: 10,
-  },
-  ratingTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  ratingText: {
-    color: 'white',
-    fontSize: 15,
-    marginVertical: 1,
-  },
-});
 
 export default PlayMenuScreen;
