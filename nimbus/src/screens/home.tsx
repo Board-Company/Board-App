@@ -15,6 +15,7 @@ type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   UserLogin: undefined;
+  TestSelect: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -30,9 +31,9 @@ const HomeScreen = () => {
           <Text style={styles.title}>Choose Game Mode</Text>
         </View>
         <View style={styles.menuContainer}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('BotGame')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('TestSelect')}>
             <Icon name="smart-toy" size={32} color="#8CB369" />
-            <Text style={styles.menuText}>Play a Bot</Text>
+            <Text style={styles.menuText}>Testhis  a Bot</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Puzzle')}>
             <Icon name="extension" size={32} color="#8CB369" />
