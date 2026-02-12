@@ -1,97 +1,205 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Nimbus - React Native Chess App
 
-# Getting Started
+> ⚠️ **Work In Progress** - This app is under active development.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+A React Native mobile application for the Board-App smart chess ecosystem. Built without Expo using React Native CLI.
 
-## Step 1: Start Metro
+## Prerequisites
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Before you begin, ensure you have completed the [React Native Environment Setup](https://reactnative.dev/docs/set-up-your-environment):
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **Node.js** v18 or higher
+- **Watchman** (macOS)
+- **JDK 17** (for Android)
+- **Android Studio** with SDK (for Android)
+- **Xcode** (for iOS, macOS only)
+- **CocoaPods** (for iOS)
 
-```sh
-# Using npm
-npm start
+## Quick Start
 
-# OR using Yarn
-yarn start
+### Install Dependencies
+
+```bash
+cd nimbus
+npm install --legacy-peer-deps
 ```
 
-## Step 2: Build and run your app
+> ⚠️ **Important**: This project requires `--legacy-peer-deps` flag for all npm install commands.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### iOS Setup (macOS only)
 
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```bash
+# Install CocoaPods dependencies
+cd ios && pod install && cd ..
 ```
 
-### iOS
+### Run the App
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+**Start Metro Bundler:**
+```bash
+npx react-native start --reset-cache
 ```
 
-Then, and every time you update your native dependencies, run:
+**In a new terminal, run on device/emulator:**
 
-```sh
-bundle exec pod install
+```bash
+# Android
+npx react-native run-android
+
+# iOS
+npx react-native run-ios
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## Package Management
 
-```sh
-# Using npm
-npm run ios
+When adding new packages, always use the legacy peer deps flag:
 
-# OR using Yarn
-yarn ios
+```bash
+npm install <package-name> --legacy-peer-deps
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## Common Commands
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start Metro bundler |
+| `npx react-native start --reset-cache` | Start Metro with cleared cache |
+| `npx react-native run-android` | Build and run on Android |
+| `npx react-native run-ios` | Build and run on iOS |
+| `cd ios && pod install` | Install iOS CocoaPods |
 
-## Step 3: Modify your app
+## Project Structure
 
-Now that you have successfully run the app, let's make changes!
+```
+nimbus/
+├── src/
+│   ├── App.tsx                    # App entry point & navigation
+│   ├── screens/                   # Screen components
+│   │   ├── home.tsx               # Main game menu
+│   │   ├── play.tsx               # Local chess game
+│   │   ├── playMenu.tsx           # Lichess online play
+│   │   ├── chessAI.tsx            # AI Coach (voice enabled)
+│   │   ├── botGame.tsx            # Play vs computer
+│   │   ├── puzzle.tsx             # Chess puzzles
+│   │   ├── localGame.tsx          # Local multiplayer
+│   │   ├── onlineGame.tsx         # Online game screen
+│   │   ├── login.tsx              # Login screen
+│   │   ├── register.tsx           # Registration
+│   │   ├── userLogin.tsx          # Email/password login
+│   │   └── settings.tsx           # App settings
+│   ├── components/                # Reusable components
+│   │   ├── game/
+│   │   │   ├── ChessBoard.tsx     # Chess board UI
+│   │   │   └── MoveHistory.tsx    # Move list display
+│   │   ├── header.tsx             # App header
+│   │   ├── GoogleSignInButton.tsx
+│   │   ├── TimeSelector.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   └── ProtectedRoute.tsx
+│   ├── contexts/                  # React contexts
+│   │   ├── AuthContext.tsx        # Authentication state
+│   │   └── LichessAuthContext.tsx # Lichess auth state
+│   ├── services/                  # API services
+│   │   └── auth.tsx               # Auth API calls
+│   ├── config/
+│   │   └── constants.ts           # App constants
+│   └── types/                     # TypeScript definitions
+├── android/                       # Android native project
+├── ios/                           # iOS native project
+├── assets/                        # Images and static files
+├── tamagui.config.ts              # Tamagui UI configuration
+├── package.json
+├── tsconfig.json
+└── metro.config.js
+```
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Features
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+### Authentication
+- Google Sign-In
+- Email/Password login
+- Lichess OAuth2 integration
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### Chess Gameplay
+- Local games (pass and play)
+- Play against computer bots
+- Online play via Lichess
+- Chess puzzle solving
 
-## Congratulations! :tada:
+### AI Chess Coach
+- Voice input using device microphone
+- Text-based chat
+- Position analysis via FEN
+- Opening and strategy advice
+- Powered by Hugging Face LLMs
 
-You've successfully run and modified your React Native App. :partying_face:
+## Configuration
 
-### Now what?
+### API Endpoints
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+Update the service URLs in the relevant files:
 
-# Troubleshooting
+- **Backend API**: `src/config/constants.ts`
+- **LLM Service**: `src/screens/chessAI.tsx` (LLM_SERVICE_URL)
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+### Permissions
 
-# Learn More
+**Android** (`android/app/src/main/AndroidManifest.xml`):
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
 
-To learn more about React Native, take a look at the following resources:
+**iOS** (`ios/nimbus/Info.plist`):
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>Used for voice commands to Chess AI assistant</string>
+<key>NSSpeechRecognitionUsageDescription</key>
+<string>Used to understand your chess questions</string>
+```
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## Troubleshooting
+
+### Metro Bundler Issues
+```bash
+# Clear cache and restart
+npx react-native start --reset-cache
+```
+
+### iOS Build Fails
+```bash
+# Clean and reinstall pods
+cd ios
+rm -rf Pods Podfile.lock
+pod install
+cd ..
+```
+
+### Android Build Fails
+```bash
+# Clean Android build
+cd android
+./gradlew clean
+cd ..
+```
+
+### Dependency Conflicts
+Always use `--legacy-peer-deps`:
+```bash
+npm install --legacy-peer-deps
+```
+
+## Development Notes
+
+- This project uses **React Native CLI** (not Expo)
+- UI components are built with **Tamagui**
+- Navigation uses **React Navigation** with stack and tab navigators
+- Chess logic powered by **chess.js**
+- Icons from **react-native-vector-icons**
+
+## Related Documentation
+
+- [React Native Docs](https://reactnative.dev/docs/getting-started)
+- [Tamagui Docs](https://tamagui.dev/docs/intro/introduction)
+- [React Navigation](https://reactnavigation.org/docs/getting-started)
+- [chess.js](https://github.com/jhlywa/chess.js)

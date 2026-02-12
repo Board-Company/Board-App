@@ -1,3 +1,5 @@
+// @ts-ignore: No types for rn-eventsource
+import EventSource from 'rn-eventsource';
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Dimensions } from 'react-native';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
@@ -83,12 +85,13 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
       withCredentials: true
     });
 
-    newStream.onmessage = (event) => {
+    newStream.onmessage = (event: any) => {
+      let rawData = event && event.data ? event.data : event;
       try {
-        const data = JSON.parse(event.data);
+        const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
         if (data.type === 'gameFull') {
           setGameState('playing');
-          if (data.state.moves) {
+          if (data.state && data.state.moves) {
             const newGame = new Chess();
             newGame.loadPgn(data.state.moves);
             setGame(newGame);
@@ -105,11 +108,11 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
           }
         }
       } catch (err) {
-        console.error('Error parsing game data:', err);
+        console.error('Error parsing game data:', err, rawData);
       }
     };
 
-    newStream.onerror = (err) => {
+    newStream.onerror = (err: any) => {
       console.error('Stream error:', err);
       setError('Lost connection to game');
       newStream.close();

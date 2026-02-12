@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { View, ActivityIndicator, Modal, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
 import { Text, YStack, XStack, Button, Select, Adapt, Sheet } from 'tamagui';
 import { useNavigation } from '@react-navigation/native';
@@ -24,7 +24,12 @@ const TIME_CONTROL_OPTIONS = [
   { value: '1800', label: '30 minutes' },
 ];
 
-const SelectorButton = ({ label, onPress }) => (
+type SelectorButtonProps = {
+  label: string;
+  onPress: () => void;
+};
+
+const SelectorButton = ({ label, onPress }: SelectorButtonProps) => (
   <Button
     onPress={onPress}
     style={{
@@ -52,7 +57,13 @@ const SelectorButton = ({ label, onPress }) => (
   </Button>
 );
 
-const OptionButton = ({ label, selected, onPress }) => (
+type OptionButtonProps = {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+};
+
+const OptionButton = ({ label, selected, onPress }: OptionButtonProps) => (
   <TouchableOpacity
     onPress={onPress}
     style={{
@@ -87,6 +98,8 @@ const PlayMenuScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [gameTypeModalOpen, setGameTypeModalOpen] = useState(false);
   const [timeControlModalOpen, setTimeControlModalOpen] = useState(false);
+  const [playOnline, setPlayOnline] = useState(false);
+  const [isMatchmaking, setIsMatchmaking] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -135,8 +148,26 @@ const PlayMenuScreen = () => {
   };
 
   const handleStartGame = () => {
-    navigation.navigate('OnlineGame', { gameType, timeControl });
+    if (playOnline) {
+      setIsMatchmaking(true);
+      // TODO: Replace this timeout with real matchmaking API call
+      setTimeout(() => {
+        setIsMatchmaking(false);
+        navigation.navigate('OnlineGame', { gameType, timeControl });
+      }, 2500);
+    } else {
+      navigation.navigate('OnlineGame', { gameType, timeControl });
+    }
   };
+
+  if (isMatchmaking) {
+    return (
+      <YStack flex={1} backgroundColor="#181A20" justifyContent="center" alignItems="center">
+        <ActivityIndicator size="large" color="#8CB369" />
+        <Text color="#8CB369" fontSize={24} marginTop={24}>Finding opponent...</Text>
+      </YStack>
+    );
+  }
 
   if (isLoading || profileLoading) {
     return (
@@ -195,6 +226,17 @@ const PlayMenuScreen = () => {
       {/* Selectors and Buttons */}
       {isAuthenticated && (
         <YStack width="100%" maxWidth={400} gap={16}>
+          <YStack flexDirection="row" alignItems="center" marginBottom={16}>
+            <Text color="#8CB369" fontSize={18} marginRight={12}>
+              Play Online
+            </Text>
+            <Switch
+              value={playOnline}
+              onValueChange={setPlayOnline}
+              thumbColor={playOnline ? "#8CB369" : "#ccc"}
+              trackColor={{ false: "#444", true: "#8CB369" }}
+            />
+          </YStack>
           <YStack style={{ marginTop: 16, marginBottom: 8, gap: 12, width: '100%' }}>
             <SelectorButton
               label={GAME_TYPE_OPTIONS.find(o => o.value === gameType)?.label || 'Select game type'}
