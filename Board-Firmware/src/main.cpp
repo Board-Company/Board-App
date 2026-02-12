@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <math.h>
 
 // Multiplexer control pins
 const int S0_PIN = 5;    // D5
@@ -14,8 +15,8 @@ const int MAGNET_DIRECT_THRESHOLD = 3500;  // Above this is considered magnet di
 
 // Reading configuration
 const long INTERVAL = 2000;  // 2 seconds in milliseconds
-const int READINGS_PER_INTERVAL = 10;  // Take 10 readings over 5 seconds (one every 500ms)
-const int READING_DELAY = 0;  // 500ms between individual readings
+const int READINGS_PER_INTERVAL = 10;  // Take 10 readings per interval
+const int READING_DELAY = 0;  // Delay between individual readings (ms)
 const int NUM_CHANNELS = 4;    // Number of channels to read (0-3)
 
 // State tracking
