@@ -20,39 +20,27 @@ The mobile application allows users to:
 
 The backend handles user authentication, Lichess OAuth integration, and data persistence through Supabase. The firmware reads hall effect sensors on the physical board to detect piece positions, while the LLM service provides natural language chess analysis and coaching using Hugging Face models.
 
-## Development Status
+## Hardware Prototype
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Mobile App (Nimbus) | 🟡 In Progress | Core screens complete, refinements ongoing |
-| Backend Server | 🟡 In Progress | Auth & Lichess integration working |
-| LLM Service | 🟠 Early Stage | Basic structure, needs testing |
-| Firmware | 🟠 Early Stage | Hall sensor reading implemented |
-| Physical Board | 🔴 Not Started | Hardware design pending |
+The hardware prototype is **complete** and fully functional. It consists of:
 
-**Legend:** 🟢 Complete | 🟡 In Progress | 🟠 Early Stage | 🔴 Not Started
+- **ESP32 Development Board** - Main microcontroller handling sensor data processing
+- **Hall Effect Sensors** - Detect magnetic chess pieces on the board
+- **16-Channel Analog Multiplexer (CD74HC4067)** - Expands ESP32's single ADC input to read multiple sensors
+- **4-Channel Sensor Array** - Currently configured to read 4 hall sensors simultaneously
 
-## Features
+### Firmware Capabilities
 
-### Implemented
-- ✅ User authentication (Google Sign-In, email/password)
-- ✅ Lichess OAuth2 integration
-- ✅ Local chess gameplay
-- ✅ Basic navigation and UI structure
-- ✅ Chess board rendering
+The firmware (`Board-Firmware/src/main.cpp`) implements:
 
-### In Progress
-- 🔄 AI Chess Coach with voice input
-- 🔄 Online play via Lichess
-- 🔄 Bot gameplay
-- 🔄 Puzzle solving
+- ✅ **Multiplexer Control** - Switches between sensor channels automatically
+- ✅ **Hall Sensor Reading** - Reads analog values from hall effect sensors via 12-bit ADC
+- ✅ **State Detection** - Tracks magnet states: No Magnet, Approaching, Directly Over, Leaving
+- ✅ **Data Processing** - Calculates averages and standard deviation for noise reduction
+- ✅ **Serial Communication** - Outputs sensor values at 115200 baud for real-time monitoring
+- ✅ **Threshold-Based Detection** - Configurable thresholds for different magnet proximity levels
 
-### Planned
-- 📋 Physical board integration
-- 📋 Real-time game synchronization
-- 📋 Advanced position analysis
-- 📋 Training modules
-- 📋 Game history and statistics
+The prototype successfully reads sensor data from multiple channels, processes it to detect piece positions, and outputs formatted data via serial communication. The hardware is ready for integration with the mobile application.
 
 ## Tech Stack
 
@@ -193,7 +181,7 @@ Board-App/
 │
 ├── Board-Firmware/                # ESP32 Smart Board Firmware
 │   ├── src/
-│   │   └── main.cpp               # Hall sensor reading & communication
+│   │   └── main.cpp               # Hall sensor reading, multiplexer control, state tracking
 │   ├── platformio.ini             # PlatformIO configuration
 │   └── hall_sensor_data.csv       # Sensor calibration data
 │
