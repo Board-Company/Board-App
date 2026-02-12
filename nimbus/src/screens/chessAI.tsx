@@ -10,10 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Dimensions,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
+import { Chess } from 'chess.js';
+import ChessBoard from '../components/game/ChessBoard';
 
 // LLM Service configuration
 const LLM_SERVICE_URL = 'http://localhost:8001'; // Update with your actual LLM service URL
@@ -22,6 +26,18 @@ type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  moveExecuted?: string; // Track if this message resulted in a move
+};
+
+type ParsedMove = {
+  move_san?: string;
+  move_uci?: string;
+  from_square?: string;
+  to_square?: string;
+  piece?: string;
+  is_castling?: boolean;
+  castling_side?: string;
+  promotion?: string;
 };
 
 const ChessAIScreen = () => {
@@ -30,7 +46,7 @@ const ChessAIScreen = () => {
     {
       id: '1',
       role: 'assistant',
-      content: "Hello! I'm your Chess AI assistant. Ask me about openings, strategies, position analysis, or any chess-related questions! You can type or tap the microphone to speak.",
+      content: "Hello! I'm your Chess AI assistant. You can speak or type moves like 'knight to f3' or 'castle kingside' and I'll move the pieces for you! Ask me questions or make your move.",
     },
   ]);
   const [inputText, setInputText] = useState('');
@@ -38,6 +54,16 @@ const ChessAIScreen = () => {
   const [fenInput, setFenInput] = useState('');
   const [showFenInput, setShowFenInput] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Chess game state
+  const chessRef = useRef(new Chess());
+  const [fen, setFen] = useState(chessRef.current.fen());
+  const [playerColor] = useState<'w' | 'b'>('w');
+  const [lastMove, setLastMove] = useState<{from: string; to: string} | null>(null);
+  const [showBoard, setShowBoard] = useState(true);
+  
+  const screenWidth = Dimensions.get('window').width;
+  const boardSize = Math.min(screenWidth - 32, 300);
   
   // Voice recognition state
   const [isListening, setIsListening] = useState(false);
@@ -132,6 +158,89 @@ const ChessAIScreen = () => {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
   };
 
+  // Check if the input looks like a move command
+  const isMoveCommand = (text: string): boolean => {
+    const movePatterns = [
+      /move\s+\w+/i,
+      /\w+\s+to\s+[a-h][1-8]/i,
+      /castle/i,
+      /^[a-h][1-8]$/i,
+      /^[KQRBN][a-h]?[1-8]?x?[a-h][1-8]/i,
+      /knight|bishop|rook|queen|king|pawn/i,
+      /takes|capture/i,
+    ];
+    return movePatterns.some(pattern => pattern.test(text.trim()));
+  };
+
+  // Execute a move on the chess board
+  const executeMove = (parsedMove: ParsedMove): boolean => {
+    try {
+      let move = null;
+      
+      // Try castling first
+      if (parsedMove.is_castling) {
+        const castleMove = parsedMove.castling_side === 'kingside' ? 'O-O' : 'O-O-O';
+        move = chessRef.current.move(castleMove);
+      }
+      // Try SAN notation
+      else if (parsedMove.move_san) {
+        move = chessRef.current.move(parsedMove.move_san);
+      }
+      // Try UCI notation
+      else if (parsedMove.move_uci || (parsedMove.from_square && parsedMove.to_square)) {
+        const from = parsedMove.from_square || parsedMove.move_uci?.substring(0, 2);
+        const to = parsedMove.to_square || parsedMove.move_uci?.substring(2, 4);
+        if (from && to) {
+          move = chessRef.current.move({ from, to, promotion: parsedMove.promotion?.[0]?.toLowerCase() });
+        }
+      }
+      
+      if (move) {
+        setFen(chessRef.current.fen());
+        setLastMove({ from: move.from, to: move.to });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error executing move:', error);
+      return false;
+    }
+  };
+
+  // Parse move command using LLM service
+  const parseMoveCommand = async (command: string): Promise<{success: boolean; parsedMove?: ParsedMove; explanation: string}> => {
+    try {
+      const response = await fetch(`${LLM_SERVICE_URL}/parse-move`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          command: command,
+          current_fen: chessRef.current.fen(),
+          player_color: chessRef.current.turn() === 'w' ? 'white' : 'black',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to parse move');
+      }
+
+      const data = await response.json();
+      return {
+        success: data.success,
+        parsedMove: data.parsed_move,
+        explanation: data.explanation,
+      };
+    } catch (error) {
+      console.error('Error parsing move:', error);
+      return {
+        success: false,
+        explanation: 'Could not connect to AI service to parse move.',
+      };
+    }
+  };
+
   const sendChatMessage = async (userMessage: string) => {
     if (!userMessage.trim()) return;
 
@@ -146,38 +255,89 @@ const ChessAIScreen = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${LLM_SERVICE_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert chess coach and analyst. Help users improve their chess skills, explain strategies, analyze positions, and answer chess-related questions concisely.',
-            },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
-            { role: 'user', content: userMessage },
-          ],
-          max_tokens: 512,
-          temperature: 0.7,
-        }),
-      });
+      // Check if this looks like a move command
+      if (isMoveCommand(userMessage)) {
+        const parseResult = await parseMoveCommand(userMessage);
+        
+        if (parseResult.success && parseResult.parsedMove) {
+          const moveExecuted = executeMove(parseResult.parsedMove);
+          
+          if (moveExecuted) {
+            const moveNotation = parseResult.parsedMove.move_san || 
+              `${parseResult.parsedMove.from_square}-${parseResult.parsedMove.to_square}`;
+            
+            const assistantMsg: Message = {
+              id: generateMessageId(),
+              role: 'assistant',
+              content: `✓ Move executed: ${moveNotation}\n\n${chessRef.current.turn() === 'w' ? "White" : "Black"} to move.`,
+              moveExecuted: moveNotation,
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+            
+            // Check game status
+            if (chessRef.current.isCheckmate()) {
+              const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
+              Alert.alert('Checkmate!', `${winner} wins!`);
+            } else if (chessRef.current.isDraw()) {
+              Alert.alert('Draw', 'The game is a draw!');
+            } else if (chessRef.current.isCheck()) {
+              setMessages(prev => [...prev, {
+                id: generateMessageId(),
+                role: 'assistant',
+                content: '♚ Check!',
+              }]);
+            }
+          } else {
+            const assistantMsg: Message = {
+              id: generateMessageId(),
+              role: 'assistant',
+              content: `❌ Invalid move. ${parseResult.explanation}\n\nMake sure the move is legal in the current position.`,
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+          }
+        } else {
+          const assistantMsg: Message = {
+            id: generateMessageId(),
+            role: 'assistant',
+            content: `❓ I couldn't understand that move. ${parseResult.explanation}\n\nTry saying something like "knight to f3" or "pawn to e4".`,
+          };
+          setMessages(prev => [...prev, assistantMsg]);
+        }
+      } else {
+        // Regular chat message - use the chat endpoint
+        const response = await fetch(`${LLM_SERVICE_URL}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert chess coach and analyst. Help users improve their chess skills, explain strategies, analyze positions, and answer chess-related questions concisely. Current position FEN: ${chessRef.current.fen()}`,
+              },
+              ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: userMessage },
+            ],
+            max_tokens: 512,
+            temperature: 0.7,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response from AI');
+        if (!response.ok) {
+          throw new Error('Failed to get response from AI');
+        }
+
+        const data = await response.json();
+
+        const assistantMsg: Message = {
+          id: generateMessageId(),
+          role: 'assistant',
+          content: data.content || 'Sorry, I could not generate a response.',
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
       }
-
-      const data = await response.json();
-
-      const assistantMsg: Message = {
-        id: generateMessageId(),
-        role: 'assistant',
-        content: data.content || 'Sorry, I could not generate a response.',
-      };
-
-      setMessages(prev => [...prev, assistantMsg]);
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMsg: Message = {
@@ -189,6 +349,44 @@ const ChessAIScreen = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle manual moves on the board
+  const handleBoardMove = (move: { from: string; to: string }) => {
+    try {
+      const result = chessRef.current.move({
+        from: move.from,
+        to: move.to,
+        promotion: 'q',
+      });
+
+      if (result) {
+        setFen(chessRef.current.fen());
+        setLastMove({ from: result.from, to: result.to });
+        
+        const moveMsg: Message = {
+          id: generateMessageId(),
+          role: 'assistant',
+          content: `You played: ${result.san}`,
+          moveExecuted: result.san,
+        };
+        setMessages(prev => [...prev, moveMsg]);
+      }
+    } catch (error) {
+      console.log('Invalid move');
+    }
+  };
+
+  // Reset the board
+  const resetBoard = () => {
+    chessRef.current.reset();
+    setFen(chessRef.current.fen());
+    setLastMove(null);
+    setMessages(prev => [...prev, {
+      id: generateMessageId(),
+      role: 'assistant',
+      content: '♟️ Board reset! New game started. White to move.',
+    }]);
   };
 
   const analyzePosition = async () => {
@@ -254,10 +452,10 @@ const ChessAIScreen = () => {
   };
 
   const quickPrompts = [
-    "Best openings for beginners?",
-    "Explain the Italian Game",
-    "Tips for endgame play",
-    "How to improve tactics?",
+    "Knight to f3",
+    "Pawn to e4",
+    "Castle kingside",
+    "What should I play?",
   ];
 
   return (
@@ -273,12 +471,36 @@ const ChessAIScreen = () => {
         </TouchableOpacity>
         <View style={styles.headerTitle}>
           <Icon name="psychology" size={28} color="#8CB369" />
-          <Text style={styles.title}>Chess AI Assistant</Text>
+          <Text style={styles.title}>Chess AI Coach</Text>
         </View>
-        <TouchableOpacity onPress={clearChat} style={styles.clearButton}>
-          <Icon name="delete-outline" size={24} color="#888" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={() => setShowBoard(!showBoard)} style={styles.headerIconButton}>
+            <Icon name={showBoard ? "visibility-off" : "visibility"} size={22} color="#888" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={resetBoard} style={styles.headerIconButton}>
+            <Icon name="refresh" size={22} color="#888" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Chess Board */}
+      {showBoard && (
+        <View style={styles.boardContainer}>
+          <View style={styles.boardWrapper}>
+            <ChessBoard
+              fen={fen}
+              onMove={handleBoardMove}
+              playerColor={playerColor}
+            />
+          </View>
+          <View style={styles.turnIndicator}>
+            <View style={[styles.turnDot, { backgroundColor: chessRef.current.turn() === 'w' ? '#fff' : '#333' }]} />
+            <Text style={styles.turnText}>
+              {chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Messages */}
       <ScrollView
@@ -426,8 +648,42 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  clearButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  headerIconButton: {
     padding: 8,
+  },
+  boardContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#222',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  boardWrapper: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#8CB369',
+  },
+  turnIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  turnDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+  turnText: {
+    color: '#aaa',
+    fontSize: 14,
   },
   messagesContainer: {
     flex: 1,

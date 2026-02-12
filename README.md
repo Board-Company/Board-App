@@ -1,9 +1,7 @@
 # Board-App - Smart Chess Board Application
 
-> ⚠️ **Work In Progress** - This project is under active development. Features may be incomplete, unstable, or subject to change.
-
-![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
-![Version](https://img.shields.io/badge/Version-0.1.0--alpha-blue)
+![Version](https://img.shields.io/badge/Version-0.1.0-blue)
+![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-green)
 
 ---
 
@@ -11,36 +9,44 @@
 
 Board-App is a comprehensive smart chess board ecosystem that combines hardware, mobile, and AI technologies to create an enhanced chess playing experience. The project consists of a React Native mobile application (Nimbus), a FastAPI backend server, ESP32-based firmware for physical board integration, and an LLM-powered chess coaching assistant.
 
-The mobile application allows users to:
-- Play chess against bots or online opponents via Lichess integration
-- Solve chess puzzles to improve tactical skills
-- Get real-time AI coaching and position analysis through voice or text
-- Connect to a physical smart chess board for over-the-board play with digital tracking
-- Authenticate via Google or traditional email/password
+### Key Features
 
-The backend handles user authentication, Lichess OAuth integration, and data persistence through Supabase. The firmware reads hall effect sensors on the physical board to detect piece positions, while the LLM service provides natural language chess analysis and coaching using Hugging Face models.
+- **Voice-Controlled Chess** - Speak your moves naturally: "Knight to f3", "Castle kingside", "Queen takes d5"
+- **AI Chess Coach** - Get real-time coaching, position analysis, and strategy advice
+- **Online Play** - Play against opponents worldwide via Lichess integration
+- **Smart Board Integration** - Connect to a physical chess board with automatic piece detection
+- **Puzzle Training** - Improve tactical skills with chess puzzles
+- **Multi-Platform** - Available on both iOS and Android
+
+## Voice-Controlled Chess AI
+
+The Chess AI Coach allows you to play chess using natural language voice commands:
+
+**Supported Commands:**
+- "Move knight to f3" / "Knight f3"
+- "Pawn to e4" / "e4"
+- "Castle kingside" / "Castle queenside"
+- "Queen takes d5" / "Bishop captures c6"
+- "Promote to queen"
+
+The AI parses your voice input, validates the move against the current position, and executes it on the board - all hands-free!
+
+**Additional AI Capabilities:**
+- Position analysis and evaluation
+- Opening recommendations
+- Strategic advice tailored to your position
+- Endgame guidance
 
 ## Hardware Prototype
 
-The hardware prototype is **complete** and fully functional. It consists of:
+The hardware prototype is **complete** and fully functional:
 
 - **ESP32 Development Board** - Main microcontroller handling sensor data processing
 - **Hall Effect Sensors** - Detect magnetic chess pieces on the board
-- **16-Channel Analog Multiplexer (CD74HC4067)** - Expands ESP32's single ADC input to read multiple sensors
-- **4-Channel Sensor Array** - Currently configured to read 4 hall sensors simultaneously
+- **16-Channel Analog Multiplexer** - Reads multiple sensors simultaneously
+- **Real-time Detection** - Tracks piece positions with state detection (approaching, over, leaving)
 
-### Firmware Capabilities
-
-The firmware (`Board-Firmware/src/main.cpp`) implements:
-
-- ✅ **Multiplexer Control** - Switches between sensor channels automatically
-- ✅ **Hall Sensor Reading** - Reads analog values from hall effect sensors via 12-bit ADC
-- ✅ **State Detection** - Tracks magnet states: No Magnet, Approaching, Directly Over, Leaving
-- ✅ **Data Processing** - Calculates averages and standard deviation for noise reduction
-- ✅ **Serial Communication** - Outputs sensor values at 115200 baud for real-time monitoring
-- ✅ **Threshold-Based Detection** - Configurable thresholds for different magnet proximity levels
-
-The prototype successfully reads sensor data from multiple channels, processes it to detect piece positions, and outputs formatted data via serial communication. The hardware is ready for integration with the mobile application.
+The firmware implements multiplexer control, 12-bit ADC readings, noise reduction algorithms, and serial communication for seamless integration with the mobile app.
 
 ## Tech Stack
 
@@ -50,6 +56,7 @@ The prototype successfully reads sensor data from multiple channels, processes i
 | Backend | Python, FastAPI, Supabase |
 | LLM Service | Python, Hugging Face, FastAPI |
 | Firmware | C++, PlatformIO, ESP32 |
+| Voice Recognition | @react-native-voice/voice |
 | Authentication | JWT, Google OAuth, Lichess OAuth2 |
 
 ## Requirements
@@ -61,111 +68,43 @@ The prototype successfully reads sensor data from multiple channels, processes i
 - **Android Studio** or **Xcode** for mobile development
 - **PlatformIO** for firmware development (optional)
 
-## Installation & Setup
+## Quick Start
 
-### 1. Clone the Repository
+### 1. Clone & Setup
 
 ```bash
 git clone <repository-url>
 cd Board-App
 ```
 
-### 2. Backend Server Setup
+### 2. Start Backend Server
 
 ```bash
 cd Board-Backend
-
-# Install dependencies using Poetry
 python -m poetry install
-
-# Create .env file with required variables
-# SUPABASE_URL=your_supabase_url
-# SUPABASE_KEY=your_supabase_key
-# GOOGLE_CLIENT_ID=your_google_client_id
-# SECRET_KEY=your_jwt_secret
-
-# Run the server
 python -m poetry run python api.py
 ```
 
-The backend runs on `http://localhost:8000`
-
-### 3. LLM Service Setup
+### 3. Start LLM Service
 
 ```bash
 cd Board-LLM
-
-# Install dependencies using Poetry
 python -m poetry install
-
-# Create .env file
-# HF_API_TOKEN=your_huggingface_token
-# DEFAULT_MODEL=mistralai/Mistral-7B-Instruct-v0.3
-
-# Run the LLM service
 python -m poetry run python llm_service.py
 ```
 
-The LLM service runs on `http://localhost:8001`
-
-### 4. Mobile App Setup
+### 4. Run Mobile App
 
 ```bash
 cd nimbus
-
-# Install dependencies (must use legacy-peer-deps)
 npm install --legacy-peer-deps
 
-# For iOS (macOS only)
+# iOS
 cd ios && pod install && cd ..
-
-# Run on Android
-npx react-native run-android
-
-# Run on iOS
 npx react-native run-ios
-```
 
-See `nimbus/README.md` for detailed mobile development instructions.
-
-### 5. Firmware Setup (Optional)
-
-```bash
-cd Board-Firmware
-
-# Open with PlatformIO IDE or use CLI
-pio run
-
-# Upload to ESP32
-pio run --target upload
-```
-
-## Running the Project
-
-For full functionality, run the following in separate terminals:
-
-**Terminal 1 - Backend Server:**
-```bash
-cd Board-Backend
-python -m poetry run python api.py
-```
-
-**Terminal 2 - LLM Service:**
-```bash
-cd Board-LLM
-python -m poetry run python llm_service.py
-```
-
-**Terminal 3 - Mobile App (Metro):**
-```bash
-cd nimbus
-npx react-native start --reset-cache
-```
-
-**Terminal 4 - Mobile App (Build):**
-```bash
-cd nimbus
-npx react-native run-android  # or run-ios
+# Android
+npx react-native run-android
 ```
 
 ## Project Structure
@@ -173,50 +112,27 @@ npx react-native run-android  # or run-ios
 ```
 Board-App/
 ├── Board-Backend/                 # FastAPI Backend Server
-│   ├── api.py                     # Main API endpoints
-│   ├── auth.py                    # Authentication logic
-│   ├── schemas.py                 # Pydantic models
-│   ├── pyproject.toml             # Poetry dependencies
-│   └── Dockerfile                 # Container configuration
+│   ├── api.py                     # Authentication, Lichess OAuth, user management
+│   ├── auth.py                    # JWT & OAuth logic
+│   └── schemas.py                 # Pydantic models
 │
 ├── Board-Firmware/                # ESP32 Smart Board Firmware
-│   ├── src/
-│   │   └── main.cpp               # Hall sensor reading, multiplexer control, state tracking
-│   ├── platformio.ini             # PlatformIO configuration
-│   └── hall_sensor_data.csv       # Sensor calibration data
+│   └── src/main.cpp               # Hall sensor reading, multiplexer control
 │
-├── Board-LLM/                     # Hugging Face LLM Service
-│   ├── llm_service.py             # FastAPI LLM endpoints
-│   ├── schemas.py                 # Request/response models
-│   ├── pyproject.toml             # Poetry dependencies
-│   └── README.md                  # LLM service documentation
+├── Board-LLM/                     # AI Chess Coach Service
+│   ├── llm_service.py             # Chat, analysis, move parsing endpoints
+│   └── schemas.py                 # Request/response models
 │
-├── nimbus/                        # React Native Mobile App
-│   ├── src/
-│   │   ├── screens/               # App screens
-│   │   │   ├── home.tsx           # Main menu
-│   │   │   ├── play.tsx           # Local game screen
-│   │   │   ├── playMenu.tsx       # Online play / Lichess
-│   │   │   ├── chessAI.tsx        # AI Coach with voice input
-│   │   │   ├── puzzle.tsx         # Puzzle solving
-│   │   │   ├── botGame.tsx        # Play against bot
-│   │   │   └── settings.tsx       # App settings
-│   │   ├── components/            # Reusable components
-│   │   │   ├── game/
-│   │   │   │   ├── ChessBoard.tsx # Chess board renderer
-│   │   │   │   └── MoveHistory.tsx
-│   │   │   └── header.tsx
-│   │   ├── contexts/              # React contexts
-│   │   │   ├── AuthContext.tsx    # User authentication
-│   │   │   └── LichessAuthContext.tsx
-│   │   ├── services/              # API services
-│   │   └── App.tsx                # App entry & navigation
-│   ├── android/                   # Android native code
-│   ├── ios/                       # iOS native code
-│   ├── package.json               # NPM dependencies
-│   └── README.md                  # Mobile app documentation
-│
-└── README.md                      # This file
+└── nimbus/                        # React Native Mobile App
+    └── src/
+        ├── screens/
+        │   ├── chessAI.tsx        # Voice-controlled AI Coach
+        │   ├── playMenu.tsx       # Lichess online play
+        │   ├── play.tsx           # Local games
+        │   └── puzzle.tsx         # Puzzle training
+        ├── components/
+        │   └── game/ChessBoard.tsx
+        └── contexts/              # Auth & Lichess contexts
 ```
 
 ## API Endpoints
@@ -225,72 +141,52 @@ Board-App/
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/token` | POST | User login, returns JWT |
+| `/token` | POST | User login |
 | `/register` | POST | User registration |
-| `/users/me` | GET | Get current user info |
-| `/auth/google` | POST | Google OAuth authentication |
-| `/auth/lichess/login` | GET | Initiate Lichess OAuth |
-| `/auth/lichess/callback` | GET | Lichess OAuth callback |
-| `/users/lichess-info` | GET | Get linked Lichess account |
-| `/health` | GET | Health check |
+| `/auth/google` | POST | Google OAuth |
+| `/auth/lichess/login` | GET | Lichess OAuth |
+| `/users/me` | GET | Current user info |
+| `/users/lichess-info` | GET | Linked Lichess account |
 
 ### LLM Service (Port 8001)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/chat` | POST | Chat completion with LLM |
-| `/analyze-chess` | POST | Analyze chess position (FEN) |
-| `/models` | GET | List available models |
-| `/health` | GET | Health check |
+| `/parse-move` | POST | Parse voice/text move commands |
+| `/chat` | POST | AI coaching chat |
+| `/analyze-chess` | POST | Position analysis |
+| `/models` | GET | Available AI models |
 
 ## Environment Variables
 
 ### Board-Backend (.env)
 ```
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_KEY=your_supabase_anon_key
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-SECRET_KEY=your_jwt_secret_key
-LICHESS_CLIENT_ID=your_lichess_client_id
-LICHESS_REDIRECT_URI=your_redirect_uri
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+GOOGLE_CLIENT_ID=your_google_client_id
+SECRET_KEY=your_jwt_secret
 ```
 
 ### Board-LLM (.env)
 ```
-HF_API_TOKEN=your_huggingface_api_token
+HF_API_TOKEN=your_huggingface_token
 DEFAULT_MODEL=mistralai/Mistral-7B-Instruct-v0.3
 ```
 
-## Troubleshooting
+## Mobile App Permissions
 
-### Mobile App Issues
-- Always use `--legacy-peer-deps` when installing npm packages
-- Clear cache with `npx react-native start --reset-cache`
-- For iOS: Run `cd ios && pod install` after adding native dependencies
+**iOS** - Add to `Info.plist`:
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>Voice commands for chess moves</string>
+<key>NSSpeechRecognitionUsageDescription</key>
+<string>Speech recognition for move input</string>
+```
 
-### Backend Issues
-- Ensure Supabase credentials are correct
-- Check that all required tables exist in Supabase
-
-### LLM Service Issues
-- Verify Hugging Face API token has proper permissions
-- Some models require accepting terms on Hugging Face website
-
-## Known Issues
-
-As this project is in active development, you may encounter:
-
-- Incomplete features or placeholder functionality
-- UI/UX inconsistencies across screens
-- API endpoints that may change without notice
-- Missing error handling in some areas
-- Documentation that may not reflect latest changes
-
-Please report issues via the project's issue tracker.
-
-## Contributing
-
-This project is currently in private development. Contribution guidelines will be added once the project reaches a more stable state.
+**Android** - Add to `AndroidManifest.xml`:
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
 
 ## License
 

@@ -12,7 +12,12 @@ from schemas import (
     ChessAnalysisResponse,
     HealthResponse,
     MessageRole,
+    MoveCommandRequest,
+    MoveCommandResponse,
+    ParsedMove,
 )
+import re
+import json
 
 # Load environment variables
 load_dotenv()
@@ -201,6 +206,211 @@ Provide:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing position: {str(e)}",
         )
+
+
+@app.post("/parse-move", response_model=MoveCommandResponse)
+async def parse_move_command(request: MoveCommandRequest):
+    """
+    Parse a natural language move command into a structured chess move.
+    
+    Examples of supported commands:
+    - "move knight to f3"
+    - "pawn to e4"
+    - "castle kingside" / "castle queenside"
+    - "queen takes on d5"
+    - "bishop to b5"
+    - "e4" (direct algebraic notation)
+    - "knight f3" / "Nf3"
+    """
+    try:
+        client = get_hf_client()
+        command = request.command.lower().strip()
+        
+        logger.info(f"Parsing move command: '{command}' for position: {request.current_fen}")
+        
+        # First, try to parse common patterns directly (faster than LLM)
+        parsed = try_direct_parse(command)
+        if parsed:
+            logger.info(f"Direct parse successful: {parsed}")
+            return MoveCommandResponse(
+                success=True,
+                parsed_move=parsed,
+                explanation=f"Parsed move: {parsed.move_san or parsed.to_square}",
+                confidence=0.95,
+            )
+        
+        # Use LLM for more complex/ambiguous commands
+        system_prompt = """You are a chess move parser. Given a natural language command, extract the chess move.
+        
+IMPORTANT: Respond ONLY with a JSON object, no other text. Use this exact format:
+{
+    "success": true/false,
+    "move_san": "Nf3" or null,
+    "from_square": "g1" or null,
+    "to_square": "f3" or null,
+    "piece": "knight/bishop/rook/queen/king/pawn" or null,
+    "is_castling": true/false,
+    "castling_side": "kingside/queenside" or null,
+    "promotion": "queen/rook/bishop/knight" or null,
+    "explanation": "brief explanation"
+}
+
+Chess piece names: king, queen, rook, bishop, knight, pawn
+Squares: a1-h8
+Castling: O-O (kingside), O-O-O (queenside)"""
+
+        user_prompt = f"""Parse this chess command: "{request.command}"
+Current position (FEN): {request.current_fen}
+Player color: {request.player_color}
+
+Respond with JSON only."""
+
+        prompt = f"<|system|>\n{system_prompt}\n<|user|>\n{user_prompt}\n<|assistant|>\n"
+        
+        response = client.text_generation(
+            prompt,
+            model=DEFAULT_MODEL,
+            max_new_tokens=256,
+            temperature=0.1,  # Low temperature for more deterministic output
+            top_p=0.9,
+            do_sample=True,
+            return_full_text=False,
+        )
+        
+        logger.debug(f"LLM response: {response}")
+        
+        # Parse the JSON response
+        try:
+            # Extract JSON from response (handle markdown code blocks)
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                result = json.loads(json_match.group())
+                
+                parsed_move = ParsedMove(
+                    move_san=result.get("move_san"),
+                    from_square=result.get("from_square"),
+                    to_square=result.get("to_square"),
+                    piece=result.get("piece"),
+                    is_castling=result.get("is_castling", False),
+                    castling_side=result.get("castling_side"),
+                    promotion=result.get("promotion"),
+                )
+                
+                # Generate UCI notation if we have from/to squares
+                if parsed_move.from_square and parsed_move.to_square:
+                    uci = f"{parsed_move.from_square}{parsed_move.to_square}"
+                    if parsed_move.promotion:
+                        uci += parsed_move.promotion[0].lower()
+                    parsed_move.move_uci = uci
+                
+                return MoveCommandResponse(
+                    success=result.get("success", True),
+                    parsed_move=parsed_move,
+                    explanation=result.get("explanation", "Move parsed by AI"),
+                    confidence=0.8,
+                )
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM JSON response: {e}")
+        
+        return MoveCommandResponse(
+            success=False,
+            parsed_move=None,
+            explanation="Could not understand the move command. Try saying something like 'knight to f3' or 'castle kingside'.",
+            confidence=0.0,
+        )
+        
+    except Exception as e:
+        logger.error(f"Error parsing move command: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error parsing move: {str(e)}",
+        )
+
+
+def try_direct_parse(command: str) -> ParsedMove | None:
+    """Try to parse common move patterns directly without LLM."""
+    command = command.lower().strip()
+    
+    # Castling patterns
+    if any(x in command for x in ["castle king", "castles king", "king side castle", "short castle", "o-o"]):
+        if "queen" not in command and "long" not in command:
+            return ParsedMove(
+                move_san="O-O",
+                is_castling=True,
+                castling_side="kingside",
+                piece="king",
+            )
+    
+    if any(x in command for x in ["castle queen", "castles queen", "queen side castle", "long castle", "o-o-o"]):
+        return ParsedMove(
+            move_san="O-O-O",
+            is_castling=True,
+            castling_side="queenside",
+            piece="king",
+        )
+    
+    # Direct algebraic notation (e.g., "e4", "Nf3", "Bxc6")
+    san_pattern = r'^([KQRBN])?([a-h])?([1-8])?(x)?([a-h][1-8])(=[QRBN])?(\+|#)?$'
+    san_match = re.match(san_pattern, command.replace(" ", ""), re.IGNORECASE)
+    if san_match:
+        return ParsedMove(
+            move_san=command.replace(" ", "").upper() if command[0].upper() in "KQRBN" else command.replace(" ", ""),
+            to_square=san_match.group(5),
+        )
+    
+    # Piece name mappings
+    piece_map = {
+        "knight": "N", "horse": "N",
+        "bishop": "B",
+        "rook": "R", "castle": "R", "tower": "R",
+        "queen": "Q",
+        "king": "K",
+        "pawn": "",
+    }
+    
+    # Pattern: "[piece] to [square]" or "move [piece] to [square]"
+    move_pattern = r'(?:move\s+)?(\w+)\s+(?:to\s+)?([a-h][1-8])'
+    match = re.search(move_pattern, command)
+    if match:
+        piece_name = match.group(1)
+        to_square = match.group(2)
+        
+        piece_letter = piece_map.get(piece_name, "")
+        if piece_letter is not None or piece_name in ["pawn", "a", "b", "c", "d", "e", "f", "g", "h"]:
+            san = f"{piece_letter}{to_square}" if piece_letter else to_square
+            return ParsedMove(
+                move_san=san,
+                to_square=to_square,
+                piece=piece_name if piece_name in piece_map else "pawn",
+            )
+    
+    # Pattern: "[piece] takes [square]" or "[piece] captures [square]"
+    capture_pattern = r'(\w+)\s+(?:takes?|captures?|x)\s+(?:on\s+)?([a-h][1-8])'
+    match = re.search(capture_pattern, command)
+    if match:
+        piece_name = match.group(1)
+        to_square = match.group(2)
+        
+        piece_letter = piece_map.get(piece_name, "")
+        if piece_letter is not None:
+            san = f"{piece_letter}x{to_square}" if piece_letter else f"x{to_square}"
+            return ParsedMove(
+                move_san=san,
+                to_square=to_square,
+                piece=piece_name if piece_name in piece_map else "pawn",
+            )
+    
+    # Simple square only (for pawn moves): "e4", "d5"
+    square_pattern = r'^([a-h][1-8])$'
+    match = re.match(square_pattern, command.strip())
+    if match:
+        return ParsedMove(
+            move_san=match.group(1),
+            to_square=match.group(1),
+            piece="pawn",
+        )
+    
+    return None
 
 
 @app.get("/models")

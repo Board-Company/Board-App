@@ -75,3 +75,31 @@ class HealthResponse(BaseModel):
     model_loaded: bool
     version: str
 
+
+class MoveCommandRequest(BaseModel):
+    """Request to parse a move command from natural language."""
+    command: str = Field(..., description="Natural language move command (e.g., 'move knight to f3', 'castle kingside')")
+    current_fen: str = Field(..., description="Current board position in FEN notation")
+    player_color: Optional[str] = Field(default="white", description="Player's color: 'white' or 'black'")
+
+
+class ParsedMove(BaseModel):
+    """A parsed chess move."""
+    move_san: Optional[str] = Field(None, description="Move in Standard Algebraic Notation (e.g., 'Nf3', 'e4', 'O-O')")
+    move_uci: Optional[str] = Field(None, description="Move in UCI format (e.g., 'g1f3', 'e2e4')")
+    from_square: Optional[str] = Field(None, description="Source square (e.g., 'g1')")
+    to_square: Optional[str] = Field(None, description="Destination square (e.g., 'f3')")
+    piece: Optional[str] = Field(None, description="Piece being moved (e.g., 'knight', 'pawn')")
+    promotion: Optional[str] = Field(None, description="Promotion piece if applicable")
+    is_castling: bool = Field(default=False, description="Whether this is a castling move")
+    castling_side: Optional[str] = Field(None, description="'kingside' or 'queenside' if castling")
+
+
+class MoveCommandResponse(BaseModel):
+    """Response from parsing a move command."""
+    success: bool = Field(..., description="Whether a valid move was parsed")
+    parsed_move: Optional[ParsedMove] = Field(None, description="The parsed move details")
+    explanation: str = Field(..., description="Explanation or error message")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence in the parsed move")
+    alternative_moves: Optional[List[str]] = Field(None, description="Alternative interpretations if ambiguous")
+
