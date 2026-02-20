@@ -78,6 +78,11 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.nimbus.boardapp"
+    packaging {
+        resources {
+            pickFirsts += ["META-INF/androidx.localbroadcastmanager_localbroadcastmanager.version"]
+        }
+    }
     defaultConfig {
         applicationId "com.nimbus.boardapp"
         minSdkVersion rootProject.ext.minSdkVersion
