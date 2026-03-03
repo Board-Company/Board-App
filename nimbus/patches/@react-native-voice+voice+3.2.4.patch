@@ -1,0 +1,17 @@
+diff --git a/android/build.gradle b/android/build.gradle
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -57,11 +57,9 @@ allprojects {
+     }
+ }
+ 
+-def supportVersion = rootProject.hasProperty('supportLibVersion') ? rootProject.supportLibVersion : DEFAULT_SUPPORT_LIB_VERSION
+-
+ dependencies {
+     implementation fileTree(dir: 'libs', include: ['*.jar'])
+     testImplementation 'junit:junit:4.12'
+-    implementation "com.android.support:appcompat-v7:${supportVersion}"
++    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.facebook.react:react-native:+'
+ }
+ 

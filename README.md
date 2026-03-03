@@ -82,7 +82,7 @@ cd Board-App
 ```bash
 cd Board-Backend
 python -m poetry install
-python -m poetry run python api.py
+poetry run python api.py 
 ```
 
 ### 3. Start LLM Service
