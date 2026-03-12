@@ -12,10 +12,7 @@ COPY pyproject.toml poetry.lock* /app/
 RUN poetry config virtualenvs.create false
 
 # Install dependencies
-RUN poetry install --no-dev --no-interaction --no-ansi
-
-# Add passlib and bcrypt which might be missing from dependencies
-RUN pip install passlib[bcrypt]
+RUN poetry install --only main --no-interaction --no-ansi
 
 # Copy the rest of the application
 COPY . /app/
@@ -30,4 +27,4 @@ RUN addgroup --system app && \
 USER app
 
 # Command to run the application
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["poetry", "run", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
