@@ -160,12 +160,71 @@ Board-App/
 ## Environment Variables
 
 ### Board-Backend (.env)
+
+Create `Board-Backend/.env` (copy from `Board-Backend/.env.example`). Required for the backend:
+
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
 GOOGLE_CLIENT_ID=your_google_client_id
 SECRET_KEY=your_jwt_secret
 ```
+
+See [Setting up Supabase](#setting-up-supabase) below for how to get `SUPABASE_URL` and `SUPABASE_KEY`.
+
+---
+
+## Setting up Supabase
+
+The backend uses Supabase for user accounts and Lichess linking. If your project was deprecated or you need a fresh database:
+
+### 1. Create a new Supabase project
+
+1. Go to [supabase.com](https://supabase.com) and sign in.
+2. **New project** → choose org, name, database password, region.
+3. Wait for the project to be ready.
+
+### 2. Create the tables
+
+1. In the Supabase dashboard, open **SQL Editor**.
+2. **New query**.
+3. Copy the contents of `Board-Backend/supabase_schema.sql` and run it.
+
+This creates the `users` and `lichess_users` tables the backend expects.
+
+### 3. Get your URL and key
+
+1. In the dashboard, go to **Project Settings** (gear) → **API**.
+2. Copy **Project URL** → use as `SUPABASE_URL`.
+3. Copy **service_role** key (under "Project API keys") → use as `SUPABASE_KEY`.  
+   Use the service role so the backend can read/write without Row Level Security. Keep this key secret.
+
+### 4. Configure the backend
+
+In `Board-Backend/.env` set:
+
+```bash
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_KEY=eyJhbGc...your_service_role_key
+SECRET_KEY=any_long_random_string_for_jwt_signing
+```
+
+Then start the backend:
+
+```bash
+cd Board-Backend
+python -m poetry install
+poetry run python api.py
+```
+
+### 5. (Optional) Restore from your old cluster backup
+
+If you have a Supabase backup (e.g. `db_cluster-13-06-2025@04-25-42.backup (1).gz`) and want to bring over existing users and Lichess links:
+
+1. Create the tables first (step 2 above) with `Board-Backend/supabase_schema.sql`.
+2. In the Supabase SQL Editor, run **`Board-Backend/restore_from_backup.sql`**.
+
+That file restores the users and `lichess_users` rows extracted from the backup. **Note:** Lichess access tokens from the backup may be expired; users can re-link their Lichess account in the app.
 
 ### Board-LLM (.env)
 ```
