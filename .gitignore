@@ -79,3 +79,7 @@ dist/
 .env.supabase
 
 .cursor
+.run-services/
+__pycache__/
+*.pyc
+*.log
