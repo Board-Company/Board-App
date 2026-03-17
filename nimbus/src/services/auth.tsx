@@ -23,6 +23,7 @@ interface AuthResponse {
 const AUTH_DATA_KEY = 'auth_data';
 const AUTH_TOKEN_KEY = 'auth_token';
 const USER_DATA_KEY = 'user_data';
+const API_BASE_URL = BASE_URL.replace(/\/+$/, '');
 
 // Initialize Google Sign-In
 GoogleSignin.configure({
@@ -83,7 +84,7 @@ const getCachedAuthData = async (): Promise<AuthResponse | null> => {
 
 export const register = async (data: RegisterData): Promise<boolean> => {
   try {
-    const response = await fetch(`${BASE_URL}/register`, {
+    const response = await fetch(`${API_BASE_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -202,7 +203,7 @@ export const signInWithUsername = async (username: string, password: string): Pr
     formData.append('username', username);
     formData.append('password', password);
     
-    const response = await fetch(`${BASE_URL}/token`, {
+    const response = await fetch(`${API_BASE_URL}/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formData.toString(),

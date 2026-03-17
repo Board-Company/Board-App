@@ -13,5 +13,5 @@ class GameState(BaseModel):
     move_history: list[str]
     player_ids: list[str] 
     status: str
-    timestamp: datetime
+    timestamp: datetime 
 

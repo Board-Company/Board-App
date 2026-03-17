@@ -7,11 +7,10 @@ import { register, signInWithUsername } from '../services/auth.tsx'
 import { useAuth } from '../contexts/AuthContext'
 
 type RootStackParamList = {
-  Home: undefined;
   Login: undefined;
   Register: undefined;
   UserLogin: undefined;
-  PlayMenu: undefined;
+  MainTabs: undefined;
   Play: undefined;
 }
 
@@ -51,8 +50,10 @@ export default function RegisterScreen() {
       // If we get here, registration was successful
       try {
         await signInWithUsername(username, password);
-        // Navigate to home
-        navigation.navigate('Home');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        });
       } catch (error) {
         showError('Registration successful. Please sign in manually.');
         navigation.navigate('UserLogin');

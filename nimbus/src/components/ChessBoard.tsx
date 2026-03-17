@@ -1,6 +1,6 @@
-import React from 'react';
-import { Dimensions } from 'react-native';
-import Chessboard from 'react-native-chessboard';
+import React, { forwardRef } from 'react';
+import { Dimensions, StyleSheet, View } from 'react-native';
+import Chessboard, { ChessboardRef } from 'react-native-chessboard';
 
 interface ChessBoardProps {
   fen: string;
@@ -8,27 +8,36 @@ interface ChessBoardProps {
   playerColor: 'w' | 'b';
 }
 
-const ChessBoard: React.FC<ChessBoardProps> = ({ fen, onMove, playerColor }) => {
+const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(({ fen, onMove, playerColor }, ref) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.floor((screenWidth - 32) / 8) * 8; // Ensure board size is divisible by 8
 
   return (
-    <Chessboard
-      fen={fen}
-      onMove={onMove}
-      boardSize={boardSize}
-      colors={{
-        black: '#769656',
-        white: '#eeeed2',
-        lastMoveHighlight: 'rgba(255,255,0, 0.5)',
-        checkmateHighlight: '#E84855',
-        promotionPieceButton: '#FF9B71'
-      }}
-      gestureEnabled={true}
-      withLetters={true}
-      withNumbers={true}
-    />
+    <View style={playerColor === 'b' ? styles.rotatedBoard : undefined}>
+      <Chessboard
+        ref={ref}
+        fen={fen}
+        onMove={onMove}
+        boardSize={boardSize}
+        colors={{
+          black: '#769656',
+          white: '#eeeed2',
+          lastMoveHighlight: 'rgba(255,255,0, 0.5)',
+          checkmateHighlight: '#E84855',
+          promotionPieceButton: '#FF9B71'
+        }}
+        gestureEnabled={true}
+        withLetters={true}
+        withNumbers={true}
+      />
+    </View>
   );
-};
+});
+
+const styles = StyleSheet.create({
+  rotatedBoard: {
+    transform: [{ rotate: '180deg' }],
+  },
+});
 
 export default ChessBoard; 
