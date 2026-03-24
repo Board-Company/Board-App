@@ -12,6 +12,7 @@ type RootStackParamList = {
   BotGame: undefined;
   Puzzle: undefined;
   Play: undefined;
+  LocalGame: undefined;
   Login: undefined;
   Register: undefined;
   UserLogin: undefined;
@@ -40,7 +41,7 @@ const HomeScreen = () => {
             <Icon name="extension" size={32} color="#8CB369" />
             <Text style={styles.menuText}>Puzzle</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Play')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('LocalGame')}>
             <Icon name="people" size={32} color="#8CB369" />
             <Text style={styles.menuText}>Local Game</Text>
           </TouchableOpacity>

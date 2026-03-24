@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { Dimensions, Image, StyleSheet, View } from 'react-native';
 import Chessboard, { ChessboardRef } from 'react-native-chessboard';
+import { PIECES } from 'react-native-chessboard/lib/commonjs/constants';
 
 interface ChessBoardProps {
   fen: string;
@@ -11,6 +12,7 @@ interface ChessBoardProps {
 const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(({ fen, onMove, playerColor }, ref) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.floor((screenWidth - 32) / 8) * 8; // Ensure board size is divisible by 8
+  const pieceSize = boardSize / 8;
 
   return (
     <View style={playerColor === 'b' ? styles.rotatedBoard : undefined}>
@@ -29,6 +31,15 @@ const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(({ fen, onMove, pl
         gestureEnabled={true}
         withLetters={true}
         withNumbers={true}
+        renderPiece={piece => (
+          <Image
+            source={PIECES[piece]}
+            style={[
+              { width: pieceSize, height: pieceSize },
+              playerColor === 'b' && styles.uprightPiece,
+            ]}
+          />
+        )}
       />
     </View>
   );
@@ -38,6 +49,9 @@ const styles = StyleSheet.create({
   rotatedBoard: {
     transform: [{ rotate: '180deg' }],
   },
+  uprightPiece: {
+    transform: [{ rotate: '180deg' }],
+  },
 });
 
-export default ChessBoard; 
+export default React.memo(ChessBoard); 

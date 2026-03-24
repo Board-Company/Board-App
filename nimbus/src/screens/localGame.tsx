@@ -1,25 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
+import type { ChessboardRef } from 'react-native-chessboard';
+
+type ChessboardMoveEvent = {
+  move: {
+    from: string;
+    to: string;
+    san?: string;
+    promotion?: string;
+  };
+  state: {
+    fen: string;
+  };
+};
+
+type RootStackParamList = {
+  MainTabs: undefined;
+  LocalGame: undefined;
+};
 
 const LocalGameScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const chessRef = useRef(new Chess());
+  const boardRef = useRef<ChessboardRef>(null);
   const [fen, setFen] = useState(chessRef.current.fen());
   const [gameStatus, setGameStatus] = useState('White to move');
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
-  const [boardInstanceKey, setBoardInstanceKey] = useState(0);
+  const [boardOrientation, setBoardOrientation] = useState<'w' | 'b'>(chessRef.current.turn());
 
-  const syncGameState = (forceBoardRefresh = false) => {
+  const syncGameState = () => {
     const nextFen = chessRef.current.fen();
     setFen(nextFen);
     setMoveHistory(chessRef.current.history());
-
-    if (forceBoardRefresh) {
-      setBoardInstanceKey(current => current + 1);
-    }
+    setBoardOrientation(chessRef.current.turn());
   };
 
   const checkGameStatus = () => {
@@ -63,16 +82,18 @@ const LocalGameScreen = () => {
     setGameStatus(`${chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move`);
   };
 
-  const handleMove = (move: { from: string; to: string }) => {
+  const handleMove = ({ move, state }: ChessboardMoveEvent) => {
     try {
-      const result = chessRef.current.move({
-        from: move.from,
-        to: move.to,
-        promotion: 'q',
-      });
+      const result = move.san
+        ? chessRef.current.move(move.san)
+        : chessRef.current.move({
+            from: move.from,
+            to: move.to,
+            promotion: move.promotion ?? 'q',
+          });
 
       if (!result) {
-        return;
+        chessRef.current.load(state.fen);
       }
 
       syncGameState();
@@ -84,7 +105,11 @@ const LocalGameScreen = () => {
 
   const startNewGame = () => {
     chessRef.current.reset();
-    syncGameState(true);
+    const nextFen = chessRef.current.fen();
+    setFen(nextFen);
+    setMoveHistory([]);
+    setBoardOrientation(chessRef.current.turn());
+    boardRef.current?.resetBoard(nextFen);
     setGameStatus('White to move');
   };
 
@@ -94,13 +119,12 @@ const LocalGameScreen = () => {
       return;
     }
 
-    syncGameState(true);
+    const nextFen = chessRef.current.fen();
+    setFen(nextFen);
+    setMoveHistory(chessRef.current.history());
+    setBoardOrientation(chessRef.current.turn());
+    boardRef.current?.resetBoard(nextFen);
     checkGameStatus();
-  };
-
-  const handleColorChange = (color: 'w' | 'b') => {
-    setPlayerColor(color);
-    setBoardInstanceKey(current => current + 1);
   };
 
   useEffect(() => {
@@ -111,17 +135,25 @@ const LocalGameScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Local Game</Text>
-        <Text style={styles.subtitle}>Pass and play on one device</Text>
-        <Text style={styles.status}>{gameStatus}</Text>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs')}>
+            <Icon name="arrow-back" size={24} color="#8CB369" />
+          </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Local Game</Text>
+            <Text style={styles.subtitle}>Pass and play on one device</Text>
+            <Text style={styles.status}>{gameStatus}</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
       </View>
 
       <View style={styles.boardContainer}>
         <ChessBoard
-          key={boardInstanceKey}
+          ref={boardRef}
           fen={fen}
           onMove={handleMove}
-          playerColor={playerColor}
+          playerColor={boardOrientation}
         />
       </View>
 
@@ -131,21 +163,6 @@ const LocalGameScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity style={styles.secondaryButton} onPress={undoMove}>
           <Text style={styles.buttonText}>Undo</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={[styles.secondaryButton, playerColor === 'w' && styles.selectedButton]}
-          onPress={() => handleColorChange('w')}
-        >
-          <Text style={styles.buttonText}>White Side</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.secondaryButton, playerColor === 'b' && styles.selectedButton]}
-          onPress={() => handleColorChange('b')}
-        >
-          <Text style={styles.buttonText}>Black Side</Text>
         </TouchableOpacity>
       </View>
 
@@ -162,8 +179,24 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    alignItems: 'center',
     marginBottom: 16,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerSpacer: {
+    width: 40,
   },
   title: {
     color: 'white',

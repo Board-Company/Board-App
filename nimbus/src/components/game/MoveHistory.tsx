@@ -76,4 +76,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MoveHistory; 
+export default React.memo(MoveHistory); 
