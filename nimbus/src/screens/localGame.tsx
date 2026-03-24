@@ -3,22 +3,23 @@ import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'r
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
-import type { ChessboardRef } from 'react-native-chessboard';
 
 const LocalGameScreen = () => {
   const chessRef = useRef(new Chess());
-  const boardRef = useRef<ChessboardRef>(null);
   const [fen, setFen] = useState(chessRef.current.fen());
   const [gameStatus, setGameStatus] = useState('White to move');
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
   const [boardInstanceKey, setBoardInstanceKey] = useState(0);
 
-  const updateBoardState = () => {
+  const syncGameState = (forceBoardRefresh = false) => {
     const nextFen = chessRef.current.fen();
     setFen(nextFen);
     setMoveHistory(chessRef.current.history());
-    boardRef.current?.resetBoard(nextFen);
+
+    if (forceBoardRefresh) {
+      setBoardInstanceKey(current => current + 1);
+    }
   };
 
   const checkGameStatus = () => {
@@ -74,7 +75,7 @@ const LocalGameScreen = () => {
         return;
       }
 
-      updateBoardState();
+      syncGameState();
       checkGameStatus();
     } catch (error) {
       console.log('Invalid local move:', error);
@@ -83,10 +84,7 @@ const LocalGameScreen = () => {
 
   const startNewGame = () => {
     chessRef.current.reset();
-    const nextFen = chessRef.current.fen();
-    setFen(nextFen);
-    setMoveHistory([]);
-    boardRef.current?.resetBoard(nextFen);
+    syncGameState(true);
     setGameStatus('White to move');
   };
 
@@ -96,7 +94,7 @@ const LocalGameScreen = () => {
       return;
     }
 
-    updateBoardState();
+    syncGameState(true);
     checkGameStatus();
   };
 
@@ -106,7 +104,7 @@ const LocalGameScreen = () => {
   };
 
   useEffect(() => {
-    updateBoardState();
+    syncGameState();
     checkGameStatus();
   }, []);
 
@@ -121,7 +119,6 @@ const LocalGameScreen = () => {
       <View style={styles.boardContainer}>
         <ChessBoard
           key={boardInstanceKey}
-          ref={boardRef}
           fen={fen}
           onMove={handleMove}
           playerColor={playerColor}
