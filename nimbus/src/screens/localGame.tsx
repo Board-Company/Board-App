@@ -3,6 +3,7 @@ import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, Vi
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
@@ -56,6 +57,7 @@ const formatClock = (milliseconds: number) => {
 
 const LocalGameScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const chessRef = useRef(new Chess());
   const boardRef = useRef<ChessboardRef>(null);
   const clockHistoryRef = useRef<Array<{ white: number; black: number }>>([]);
@@ -285,7 +287,7 @@ const LocalGameScreen = () => {
   }, [isGameOver, selectedTimeControl]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs')}>
@@ -376,6 +378,9 @@ const LocalGameScreen = () => {
         <TouchableOpacity style={styles.secondaryButton} onPress={undoMove}>
           <Text style={styles.buttonText}>Undo</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.modeActionsRow}>
         <TouchableOpacity style={styles.secondaryButton} onPress={returnToSetup}>
           <Text style={styles.buttonText}>Change Mode</Text>
         </TouchableOpacity>
@@ -396,7 +401,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -492,8 +497,14 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 22,
     flexWrap: 'wrap',
+  },
+  modeActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 14,
+    marginBottom: 6,
   },
   modeBanner: {
     backgroundColor: '#333333',

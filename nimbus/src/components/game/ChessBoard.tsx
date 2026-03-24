@@ -34,7 +34,9 @@ const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(({ fen, onMove, pl
         renderPiece={piece => (
           <Image
             source={PIECES[piece]}
+            resizeMode="contain"
             style={[
+              styles.piece,
               { width: pieceSize, height: pieceSize },
               playerColor === 'b' && styles.uprightPiece,
             ]}
@@ -48,6 +50,9 @@ const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(({ fen, onMove, pl
 const styles = StyleSheet.create({
   rotatedBoard: {
     transform: [{ rotate: '180deg' }],
+  },
+  piece: {
+    alignSelf: 'center',
   },
   uprightPiece: {
     transform: [{ rotate: '180deg' }],
