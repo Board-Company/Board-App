@@ -19,6 +19,8 @@ dependencies = [
     "loguru (>=0.7.3,<0.8.0)",
     "google-auth-oauthlib (>=1.2.2,<2.0.0)",
     "requests (>=2.32.3,<3.0.0)",
+    "redis[hiredis] (>=5.0.0,<6)",
+    "chess (>=1.10.0,<2)",
 ]
 
 [tool.poetry]

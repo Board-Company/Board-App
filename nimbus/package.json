@@ -3,12 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "android": "react-native run-android --no-packager",
+    "ios": "react-native run-ios --no-packager",
+    "android:with-packager": "react-native run-android",
+    "ios:with-packager": "react-native run-ios",
     "lint": "eslint .",
     "postinstall": "node scripts/apply-voice-patch.js",
-    "start": "react-native start",
-    "start:fast": "react-native start --reset-cache",
+    "start": "bash scripts/free-metro-port.sh && react-native start",
+    "start:fast": "bash scripts/free-metro-port.sh && react-native start --reset-cache",
     "test": "jest"
   },
   "dependencies": {

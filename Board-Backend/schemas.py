@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 class Token(BaseModel):
     access_token: str
@@ -10,6 +11,9 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: Optional[str] = None
     username: str
     email: Optional[str] = None
     disabled: Optional[bool] = None

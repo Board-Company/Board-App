@@ -183,11 +183,11 @@ fi
 sleep 3
 
 if [[ "$START_ANDROID" == true ]]; then
-  start_service "Nimbus Android" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-android
+  start_service "Nimbus Android" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-android --no-packager
 fi
 
 if [[ "$START_IOS" == true ]]; then
-  start_service "Nimbus iOS" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-ios
+  start_service "Nimbus iOS" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-ios --no-packager
 fi
 
 echo

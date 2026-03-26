@@ -17,8 +17,8 @@ Usage: ./open-services-in-terminal.sh [options]
 Opens Terminal.app tabs for Board services.
 
 Options:
-  --android  Also open a tab for npx react-native run-android
-  --ios      Also open a tab for npx react-native run-ios
+  --android  Also open a tab for run-android (uses existing Metro tab; --no-packager)
+  --ios      Also open a tab for run-ios (uses existing Metro tab; --no-packager)
   --help     Show this help message
 EOF
 }
@@ -59,8 +59,9 @@ fi
 backend_cmd="cd '$BACKEND_DIR' && poetry run python api.py"
 llm_cmd="cd '$LLM_DIR' && poetry run python llm_service.py"
 metro_cmd="cd '$NIMBUS_DIR' && npm run start:fast"
-android_cmd="cd '$NIMBUS_DIR' && npx react-native run-android"
-ios_cmd="cd '$NIMBUS_DIR' && npx react-native run-ios"
+# Metro already runs in a prior tab; avoid a second packager from the RN CLI.
+android_cmd="cd '$NIMBUS_DIR' && npx react-native run-android --no-packager"
+ios_cmd="cd '$NIMBUS_DIR' && npx react-native run-ios --no-packager"
 
 APPLE_SCRIPT="$(mktemp -t open-board-services).applescript"
 

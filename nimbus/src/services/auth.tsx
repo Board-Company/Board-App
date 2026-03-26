@@ -12,7 +12,8 @@ interface RegisterData {
 interface AuthResponse {
   access_token: string;
   user: {
-    id: string;
+    id?: string;
+    username?: string;
     email: string;
     name: string;
     picture?: string;
@@ -195,6 +196,14 @@ export const signOut = async (): Promise<void> => {
 
 export const getStoredAuthData = async (): Promise<AuthResponse | null> => {
   return getCachedAuthData();
+};
+
+export const getAccessToken = async (): Promise<string | null> => {
+  try {
+    return await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
 };
 
 export const signInWithUsername = async (username: string, password: string): Promise<AuthResponse> => {

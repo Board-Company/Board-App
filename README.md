@@ -59,6 +59,19 @@ The firmware implements multiplexer control, 12-bit ADC readings, noise reductio
 | Voice Recognition | @react-native-voice/voice |
 | Authentication | JWT, Google OAuth, Lichess OAuth2 |
 
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `nimbus/` | React Native mobile app |
+| `Board-Backend/` | FastAPI backend |
+| `Board-LLM/` | Chess coach LLM service |
+| `Board-Firmware/` | ESP32 firmware (PlatformIO) |
+| [docs/plans/](docs/plans/) | Technical plans; superseded plans go in [docs/plans/archive/](docs/plans/archive/) |
+| [tools/hardware-sim/](tools/hardware-sim/) | Optional Python hall-effect / magnet visualization scripts |
+
+Root shell scripts (`install-all-deps.sh`, `run-services.sh`, `open-services-in-terminal.sh`) stay at the repo root for IDE tasks and quick access.
+
 ## Requirements
 
 - **Node.js** v18+ (https://nodejs.org/)

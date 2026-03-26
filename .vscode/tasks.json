@@ -18,6 +18,22 @@
       "problemMatcher": []
     },
     {
+      "label": "Nimbus: Metro (reset cache)",
+      "type": "shell",
+      "command": "npm run start:fast",
+      "options": {
+        "cwd": "${workspaceFolder}/nimbus"
+      },
+      "detail": "Frees port 8081 if needed, then starts Metro with --reset-cache.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Open Board Services",
       "type": "process",
       "command": "${workspaceFolder}/open-services-in-terminal.sh",

@@ -18,6 +18,7 @@ type RootStackParamList = {
   UserLogin: undefined;
   TestSelect: undefined;
   ChessAI: undefined;
+  FriendGame: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -44,6 +45,10 @@ const HomeScreen = () => {
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('LocalGame')}>
             <Icon name="people" size={32} color="#8CB369" />
             <Text style={styles.menuText}>Local Game</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('FriendGame')}>
+            <Icon name="group" size={32} color="#8CB369" />
+            <Text style={styles.menuText}>Play with friend</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Lichess')}>
             <Icon name="public" size={32} color="#8CB369" />

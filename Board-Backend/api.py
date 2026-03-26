@@ -1,5 +1,7 @@
+from contextlib import asynccontextmanager
+
+import redis.asyncio as redis_async
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Header
-from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,10 +9,15 @@ from typing import Optional
 from datetime import timedelta
 from dotenv import load_dotenv
 import os
-from supabase import create_client, Client
 import uvicorn
 from loguru import logger
-from schemas import Token, User, UserCreate, GoogleAuthRequest
+from schemas import Token, User, UserCreate, GoogleAuthRequest, UserInDB
+
+
+def _user_public_dict(user: UserInDB) -> dict:
+    data = user.model_dump() if hasattr(user, "model_dump") else user.dict()
+    data.pop("hashed_password", None)
+    return data
 from auth import (
     verify_password, get_password_hash, create_access_token, 
     get_user, authenticate_user, get_current_user, 
@@ -32,8 +39,28 @@ load_dotenv()
 # Configure logger
 logger.add("api.log", rotation="10 MB", level="DEBUG")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    client = redis_async.from_url(redis_url, decode_responses=True)
+    try:
+        await client.ping()
+        logger.info("Redis connected at {}", redis_url)
+    except Exception as e:
+        logger.error("Redis connection failed ({}). Set REDIS_URL or start Redis.", e)
+        raise
+    app.state.redis = client
+    yield
+    await client.aclose()
+    logger.info("Redis connection closed")
+
+
 # Configure FastAPI app
-app = FastAPI(title="Board API", description="Backend API for Board Application")
+app = FastAPI(
+    title="Board API",
+    description="Backend API for Board Application",
+    lifespan=lifespan,
+)
 
 # Add CORS middleware
 app.add_middleware(
@@ -44,20 +71,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Supabase client
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
+from supabase_client import supabase
 
-#initialize google client
+# initialize google client
 google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 
-# Replace the current logging section with this:
-if supabase_url and supabase_key:
-    logger.info("Supabase configuration successfully loaded")
-else:
-    logger.error("Missing Supabase configuration")
+logger.info("Supabase configuration successfully loaded")
 
-supabase: Client = create_client(supabase_url, supabase_key)
+from game.routes import router as game_router
+
+app.include_router(game_router, prefix="/games", tags=["games"])
 
 # Routes
 @app.post("/token", response_model=Token)
@@ -84,7 +107,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": user.dict()
+            "user": _user_public_dict(user),
         }
     except Exception as e:
         logger.error(f"Error during authentication: {str(e)}")
@@ -220,7 +243,7 @@ async def google_auth(google_data: GoogleAuthRequest):
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to create user"
                 )
-            user = User(**user_dict)
+            user = UserInDB(**response.data[0])
         else:
             user = existing_user
             logger.info(f"Using existing user: {user}")
@@ -236,7 +259,7 @@ async def google_auth(google_data: GoogleAuthRequest):
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": user.dict()
+            "user": _user_public_dict(user),
         }
 
     except ValueError as ve:
