@@ -1,0 +1,55 @@
+diff --git a/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx b/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx
+index ded8edc..fea5c04 100644
+--- a/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx
++++ b/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx
+@@ -14,12 +14,13 @@ import { useReversePiecePosition } from '../../notation';
+ type PlaceholderDotProps = {
+   x: number;
+   y: number;
++  occupied: boolean;
+   selectableSquares: Animated.SharedValue<Square[]>;
+   moveTo?: (to: Square) => void;
+ };
+ 
+ const PlaceholderDot: React.FC<PlaceholderDotProps> = React.memo(
+-  ({ x, y, selectableSquares, moveTo }) => {
++  ({ x, y, occupied, selectableSquares, moveTo }) => {
+     const { pieceSize } = useChessboardProps();
+     const { toPosition, toTranslation } = useReversePiecePosition();
+ 
+@@ -64,8 +65,9 @@ const PlaceholderDot: React.FC<PlaceholderDotProps> = React.memo(
+       >
+         <Animated.View
+           style={[
+-            { borderRadius: pieceSize },
+-            styles.placeholder,
++            occupied
++              ? [styles.capturePlaceholder, { borderRadius: pieceSize, borderWidth: pieceSize / 10 }]
++              : [styles.placeholder, { borderRadius: pieceSize }],
+             rPlaceholderStyle,
+           ]}
+         />
+@@ -85,6 +87,11 @@ const styles = StyleSheet.create({
+     backgroundColor: 'black',
+     opacity: 0.2,
+   },
++  capturePlaceholder: {
++    flex: 1,
++    backgroundColor: 'transparent',
++    borderColor: 'rgba(0, 0, 0, 0.35)',
++  },
+ });
+ 
+ export { PlaceholderDot };
+diff --git a/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx b/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx
+index c73a97c..5330825 100644
+--- a/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx
++++ b/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx
+@@ -24,6 +24,7 @@ const SuggestedDots: React.FC = React.memo(() => {
+               key={`${x}-${y}`}
+               x={x}
+               y={y}
++              occupied={board[y]?.[x] != null}
+               selectableSquares={selectableSquares}
+               moveTo={moveTo}
+             />
