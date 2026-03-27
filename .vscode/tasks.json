@@ -53,13 +53,33 @@
       "problemMatcher": []
     },
     {
+      "label": "Start Board Microservices",
+      "type": "process",
+      "command": "${workspaceFolder}/run-services.sh",
+      "args": [
+        "--android",
+        "--reset-cache"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "detail": "Starts Board-Backend, Board-LLM, Nimbus Metro, and Android with health checks in one managed task.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run Board Services",
       "dependsOrder": "sequence",
       "dependsOn": [
         "Install Board Dependencies",
-        "Open Board Services"
+        "Start Board Microservices"
       ],
-      "detail": "Installs dependencies, then opens Terminal tabs for backend, LLM, Metro reset-cache, and Android.",
+      "detail": "Installs dependencies, then starts all microservices with managed logs and health checks.",
       "group": {
         "kind": "build",
         "isDefault": true

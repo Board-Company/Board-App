@@ -69,6 +69,32 @@ require_directory() {
   fi
 }
 
+free_port() {
+  local port="$1"
+  local service_name="$2"
+  local pids=()
+
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] && pids+=("$pid")
+  done < <(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+
+  if [[ ${#pids[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Port $port is in use; stopping existing $service_name process(es): ${pids[*]}"
+  for pid in "${pids[@]}"; do
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+
+  sleep 1
+  for pid in "${pids[@]}"; do
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+  done
+}
+
 check_optional_env_file() {
   local file_path="$1"
   local label="$2"
@@ -150,6 +176,7 @@ start_service() {
 require_command npm
 require_command npx
 require_command python3
+require_command lsof
 require_directory "$BACKEND_DIR"
 require_directory "$LLM_DIR"
 require_directory "$NIMBUS_DIR"
@@ -167,6 +194,10 @@ APP_LOG="$LOG_DIR/app.log"
 : >"$LLM_LOG"
 : >"$METRO_LOG"
 : >"$APP_LOG"
+
+# Ensure reruns don't fail with "address already in use".
+free_port 8000 "Board-Backend"
+free_port 8001 "Board-LLM"
 
 start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python api.py; else python3 -m poetry run python api.py; fi"
 wait_for_http "http://127.0.0.1:8000/health" "Board-Backend" || true

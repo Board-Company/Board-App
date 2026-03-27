@@ -1,0 +1,6 @@
+2026-03-26 20:28:35.285 | WARNING  | llm_service:get_hf_client:57 - HF_API_TOKEN not set. Some models may not be accessible.
+2026-03-26 20:28:35.285 | WARNING  | llm_service:get_hf_client:57 - HF_API_TOKEN not set. Some models may not be accessible.
+2026-03-26 20:31:58.285 | WARNING  | llm_service:get_hf_client:57 - HF_API_TOKEN not set. Some models may not be accessible.
+2026-03-26 20:31:58.285 | WARNING  | llm_service:get_hf_client:57 - HF_API_TOKEN not set. Some models may not be accessible.
+2026-03-26 20:32:55.327 | WARNING  | llm_service:get_hf_client:57 - HF_API_TOKEN not set. Some models may not be accessible.
+2026-03-26 20:32:55.327 | WARNING  | llm_service:get_hf_client:57 - HF_API_TOKEN not set. Some models may not be accessible.
