@@ -199,14 +199,20 @@ export const getStoredAuthData = async (): Promise<AuthResponse | null> => {
 
 export const signInWithUsername = async (username: string, password: string): Promise<AuthResponse> => {
   try {
-    const formData = new URLSearchParams();
-    formData.append('username', username);
-    formData.append('password', password);
-    
-    const response = await fetch(`${API_BASE_URL}/token`, {
+    const loginUrl = `${API_BASE_URL}/token`;
+    const formBody = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+
+    console.log('[UsernameSignIn] BASE_URL:', BASE_URL);
+    console.log('[UsernameSignIn] API_BASE_URL:', API_BASE_URL);
+    console.log('[UsernameSignIn] loginUrl:', loginUrl);
+
+    const response = await fetch(loginUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: formBody,
     });
     
     if (!response.ok) {
@@ -218,6 +224,7 @@ export const signInWithUsername = async (username: string, password: string): Pr
     await cacheAuthData(data);
     return data;
   } catch (error) {
+    console.error('[UsernameSignIn] Request failed:', error);
     throw error;
   }
 };
