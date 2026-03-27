@@ -27,6 +27,8 @@ import LocalGameScreen from './screens/localGame.tsx'
 import OnlineGameScreen from './screens/onlineGame.tsx'
 import ChessAIScreen from './screens/chessAI.tsx'
 import FriendGameScreen from './screens/friendGame.tsx'
+import LocalGameHistoryScreen from './screens/localGameHistory.tsx'
+import LocalGameReviewScreen from './screens/localGameReview.tsx'
 
 // Create the stack navigator
 const Stack = createNativeStackNavigator()
@@ -117,6 +119,8 @@ const App = () => {
                     <Stack.Screen name="BotGame" component={BotGameScreen} />
                     <Stack.Screen name="Puzzle" component={PuzzleScreen} />
                     <Stack.Screen name="LocalGame" component={LocalGameScreen} />
+                    <Stack.Screen name="LocalGameHistory" component={LocalGameHistoryScreen} />
+                    <Stack.Screen name="LocalGameReview" component={LocalGameReviewScreen} />
                     <Stack.Screen name="OnlineGame" component={OnlineGameScreen} />
                     <Stack.Screen name="FriendGame" component={FriendGameScreen} />
                     <Stack.Screen name="ChessAI" component={ChessAIScreen} />

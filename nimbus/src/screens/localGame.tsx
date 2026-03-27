@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
 import type { ChessboardRef } from 'react-native-chessboard';
+import { saveCompletedLocalGame } from '../services/localGameHistory';
 
 type TimeControl = {
   label: string;
@@ -30,6 +32,7 @@ type ChessboardMoveEvent = {
 type RootStackParamList = {
   MainTabs: undefined;
   LocalGame: undefined;
+  LocalGameHistory: undefined;
 };
 
 const TIME_CONTROLS: TimeControl[] = [
@@ -40,6 +43,8 @@ const TIME_CONTROLS: TimeControl[] = [
   { label: '10 | 0', minutes: 10, incrementSeconds: 0, category: 'Rapid' },
   { label: '15 | 10', minutes: 15, incrementSeconds: 10, category: 'Classical' },
 ];
+
+const STARTING_FEN = new Chess().fen();
 
 const formatClock = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
@@ -54,8 +59,36 @@ const formatClock = (milliseconds: number) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+type GameClocksProps = {
+  currentTurn: 'w' | 'b';
+  isGameOver: boolean;
+  selectedTimeControl: TimeControl;
+  whiteTimeMs: number;
+  blackTimeMs: number;
+};
+
+const GameClocks = memo(
+  ({ currentTurn, isGameOver, selectedTimeControl, whiteTimeMs, blackTimeMs }: GameClocksProps) => (
+    <View style={styles.clockRow}>
+      <View style={[styles.clockCard, currentTurn === 'w' && !isGameOver && styles.activeClockCard]}>
+        <Text style={styles.clockLabel}>White</Text>
+        <Text style={styles.clockValue}>
+          {selectedTimeControl.minutes === 0 ? 'No clock' : formatClock(whiteTimeMs)}
+        </Text>
+      </View>
+      <View style={[styles.clockCard, currentTurn === 'b' && !isGameOver && styles.activeClockCard]}>
+        <Text style={styles.clockLabel}>Black</Text>
+        <Text style={styles.clockValue}>
+          {selectedTimeControl.minutes === 0 ? 'No clock' : formatClock(blackTimeMs)}
+        </Text>
+      </View>
+    </View>
+  ),
+);
+
 const LocalGameScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const chessRef = useRef(new Chess());
   const boardRef = useRef<ChessboardRef>(null);
   const clockHistoryRef = useRef<Array<{ white: number; black: number }>>([]);
@@ -66,28 +99,63 @@ const LocalGameScreen = () => {
   const [gameStatus, setGameStatus] = useState('White to move');
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [currentTurn, setCurrentTurn] = useState<'w' | 'b'>(chessRef.current.turn());
-  const [boardOrientation, setBoardOrientation] = useState<'w' | 'b'>(chessRef.current.turn());
+  const [boardOrientation, setBoardOrientation] = useState<'w' | 'b'>('w');
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl>(TIME_CONTROLS[0]);
   const [whiteTimeMs, setWhiteTimeMs] = useState(0);
   const [blackTimeMs, setBlackTimeMs] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isSetupScreen, setIsSetupScreen] = useState(true);
+  const hasSavedCurrentGameRef = useRef(false);
 
-  const syncGameState = () => {
+  const persistCompletedGame = useCallback(
+    async (
+      result: string,
+      resultType: 'checkmate' | 'stalemate' | 'repetition' | 'insufficient-material' | 'draw' | 'timeout',
+    ) => {
+      if (hasSavedCurrentGameRef.current || chessRef.current.history().length === 0) {
+        return;
+      }
+
+      hasSavedCurrentGameRef.current = true;
+
+      try {
+        await saveCompletedLocalGame({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          playedAt: new Date().toISOString(),
+          result,
+          resultType,
+          timeControlLabel: selectedTimeControl.label,
+          timeControlCategory: selectedTimeControl.category,
+          initialFen: STARTING_FEN,
+          finalFen: chessRef.current.fen(),
+          moves: chessRef.current.history(),
+          pgn: chessRef.current.pgn(),
+          whiteTimeMs: whiteTimeRef.current,
+          blackTimeMs: blackTimeRef.current,
+        });
+      } catch (error) {
+        hasSavedCurrentGameRef.current = false;
+        console.warn('Failed to save completed local game', error);
+      }
+    },
+    [selectedTimeControl],
+  );
+
+  const syncGameState = useCallback(() => {
     const nextFen = chessRef.current.fen();
     const nextTurn = chessRef.current.turn();
     setFen(nextFen);
     setMoveHistory(chessRef.current.history());
     setCurrentTurn(nextTurn);
-    setBoardOrientation(nextTurn);
-  };
+  }, []);
 
-  const checkGameStatus = () => {
+  const checkGameStatus = useCallback(() => {
     if (chessRef.current.isCheckmate()) {
       const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
       const message = `Checkmate! ${winner} wins`;
       setIsGameOver(true);
       setGameStatus(message);
+      persistCompletedGame(message, 'checkmate');
       Alert.alert('Game Over', message);
       return;
     }
@@ -95,6 +163,7 @@ const LocalGameScreen = () => {
     if (chessRef.current.isStalemate()) {
       setIsGameOver(true);
       setGameStatus('Stalemate');
+      persistCompletedGame('Stalemate', 'stalemate');
       Alert.alert('Game Over', 'Stalemate!');
       return;
     }
@@ -102,6 +171,7 @@ const LocalGameScreen = () => {
     if (chessRef.current.isThreefoldRepetition()) {
       setIsGameOver(true);
       setGameStatus('Draw by repetition');
+      persistCompletedGame('Draw by repetition', 'repetition');
       Alert.alert('Game Over', 'Draw by repetition!');
       return;
     }
@@ -109,6 +179,7 @@ const LocalGameScreen = () => {
     if (chessRef.current.isInsufficientMaterial()) {
       setIsGameOver(true);
       setGameStatus('Draw by insufficient material');
+      persistCompletedGame('Draw by insufficient material', 'insufficient-material');
       Alert.alert('Game Over', 'Draw by insufficient material!');
       return;
     }
@@ -116,6 +187,7 @@ const LocalGameScreen = () => {
     if (chessRef.current.isDraw()) {
       setIsGameOver(true);
       setGameStatus('Draw');
+      persistCompletedGame('Draw', 'draw');
       Alert.alert('Game Over', 'Draw!');
       return;
     }
@@ -128,9 +200,19 @@ const LocalGameScreen = () => {
     }
 
     setGameStatus(`${chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move`);
-  };
+  }, [persistCompletedGame]);
 
-  const handleMove = ({ move, state }: ChessboardMoveEvent) => {
+  const resetClocks = useCallback((timeControl: TimeControl) => {
+    const startingTime = timeControl.minutes * 60 * 1000;
+    whiteTimeRef.current = startingTime;
+    blackTimeRef.current = startingTime;
+    lastTickTimestampRef.current = null;
+    setWhiteTimeMs(startingTime);
+    setBlackTimeMs(startingTime);
+    clockHistoryRef.current = [];
+  }, []);
+
+  const handleMove = useCallback(({ move, state }: ChessboardMoveEvent) => {
     try {
       const movingColor = chessRef.current.turn();
       const result = move.san
@@ -168,53 +250,42 @@ const LocalGameScreen = () => {
     } catch (error) {
       console.log('Invalid local move:', error);
     }
-  };
-
-  const resetClocks = (timeControl: TimeControl) => {
-    const startingTime = timeControl.minutes * 60 * 1000;
-    whiteTimeRef.current = startingTime;
-    blackTimeRef.current = startingTime;
-    lastTickTimestampRef.current = null;
-    setWhiteTimeMs(startingTime);
-    setBlackTimeMs(startingTime);
-    clockHistoryRef.current = [];
-  };
+  }, [checkGameStatus, resetClocks, selectedTimeControl, syncGameState]);
 
   const applyTimeControl = useCallback((timeControl: TimeControl) => {
     setSelectedTimeControl(timeControl);
     resetClocks(timeControl);
     chessRef.current.reset();
+    hasSavedCurrentGameRef.current = false;
     syncGameState();
-    boardRef.current?.resetBoard(chessRef.current.fen());
     setIsGameOver(false);
     setGameStatus('White to move');
     setIsSetupScreen(false);
-  }, []);
+  }, [resetClocks, syncGameState]);
 
-  const startNewGame = () => {
+  const startNewGame = useCallback(() => {
     chessRef.current.reset();
+    hasSavedCurrentGameRef.current = false;
     const nextFen = chessRef.current.fen();
     setFen(nextFen);
     setMoveHistory([]);
-    setBoardOrientation(chessRef.current.turn());
     setCurrentTurn(chessRef.current.turn());
     resetClocks(selectedTimeControl);
-    boardRef.current?.resetBoard(nextFen);
     setIsGameOver(false);
     setGameStatus('White to move');
-  };
+  }, [resetClocks, selectedTimeControl]);
 
-  const returnToSetup = () => {
+  const returnToSetup = useCallback(() => {
     chessRef.current.reset();
+    hasSavedCurrentGameRef.current = false;
     syncGameState();
     resetClocks(selectedTimeControl);
-    boardRef.current?.resetBoard(chessRef.current.fen());
     setIsGameOver(false);
     setGameStatus('White to move');
     setIsSetupScreen(true);
-  };
+  }, [resetClocks, selectedTimeControl, syncGameState]);
 
-  const undoMove = () => {
+  const undoMove = useCallback(() => {
     const undoneMove = chessRef.current.undo();
     if (!undoneMove) {
       return;
@@ -223,9 +294,7 @@ const LocalGameScreen = () => {
     const nextFen = chessRef.current.fen();
     setFen(nextFen);
     setMoveHistory(chessRef.current.history());
-    setBoardOrientation(chessRef.current.turn());
     setCurrentTurn(chessRef.current.turn());
-    boardRef.current?.resetBoard(nextFen);
     const previousClockState = clockHistoryRef.current.pop();
     if (previousClockState) {
       whiteTimeRef.current = previousClockState.white;
@@ -235,8 +304,9 @@ const LocalGameScreen = () => {
       setBlackTimeMs(previousClockState.black);
     }
     setIsGameOver(false);
+    hasSavedCurrentGameRef.current = false;
     checkGameStatus();
-  };
+  }, [checkGameStatus]);
 
   useEffect(() => {
     syncGameState();
@@ -266,6 +336,7 @@ const LocalGameScreen = () => {
         if (nextWhiteTime === 0) {
           setIsGameOver(true);
           setGameStatus('White flagged - Black wins');
+          persistCompletedGame('White flagged - Black wins', 'timeout');
           Alert.alert('Game Over', 'White ran out of time. Black wins.');
         }
       } else {
@@ -276,6 +347,7 @@ const LocalGameScreen = () => {
         if (nextBlackTime === 0) {
           setIsGameOver(true);
           setGameStatus('Black flagged - White wins');
+          persistCompletedGame('Black flagged - White wins', 'timeout');
           Alert.alert('Game Over', 'Black ran out of time. White wins.');
         }
       }
@@ -285,7 +357,7 @@ const LocalGameScreen = () => {
   }, [isGameOver, selectedTimeControl]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs')}>
@@ -298,7 +370,9 @@ const LocalGameScreen = () => {
             </Text>
             {!isSetupScreen && <Text style={styles.status}>{gameStatus}</Text>}
           </View>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('LocalGameHistory')}>
+            <Icon name="history" size={24} color="#8CB369" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -349,16 +423,13 @@ const LocalGameScreen = () => {
         </View>
       ) : (
         <>
-      <View style={styles.clockRow}>
-        <View style={[styles.clockCard, currentTurn === 'w' && !isGameOver && styles.activeClockCard]}>
-          <Text style={styles.clockLabel}>White</Text>
-          <Text style={styles.clockValue}>{selectedTimeControl.minutes === 0 ? 'No clock' : formatClock(whiteTimeMs)}</Text>
-        </View>
-        <View style={[styles.clockCard, currentTurn === 'b' && !isGameOver && styles.activeClockCard]}>
-          <Text style={styles.clockLabel}>Black</Text>
-          <Text style={styles.clockValue}>{selectedTimeControl.minutes === 0 ? 'No clock' : formatClock(blackTimeMs)}</Text>
-        </View>
-      </View>
+      <GameClocks
+        currentTurn={currentTurn}
+        isGameOver={isGameOver}
+        selectedTimeControl={selectedTimeControl}
+        whiteTimeMs={whiteTimeMs}
+        blackTimeMs={blackTimeMs}
+      />
 
       <View style={styles.boardContainer}>
         <ChessBoard
@@ -366,19 +437,33 @@ const LocalGameScreen = () => {
           fen={fen}
           onMove={handleMove}
           playerColor={boardOrientation}
+          moveAnimationDuration={80}
         />
       </View>
 
-      <View style={styles.controls}>
-        <TouchableOpacity style={styles.button} onPress={startNewGame}>
-          <Text style={styles.buttonText}>New Game</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} onPress={undoMove}>
-          <Text style={styles.buttonText}>Undo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} onPress={returnToSetup}>
-          <Text style={styles.buttonText}>Change Mode</Text>
-        </TouchableOpacity>
+      <View style={styles.actionPanel}>
+        <Text style={styles.helperText}>Tap a piece to preview its legal moves, then tap a highlighted destination.</Text>
+
+        <View style={styles.primaryActionsRow}>
+          <TouchableOpacity style={[styles.button, styles.primaryActionButton]} onPress={startNewGame}>
+            <Text style={styles.buttonText}>New Game</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.secondaryButton, styles.primaryActionButton]} onPress={undoMove}>
+            <Text style={styles.buttonText}>Undo</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.secondaryActionsRow}>
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.secondaryActionWide]}
+            onPress={() => setBoardOrientation(current => (current === 'w' ? 'b' : 'w'))}
+          >
+            <Text style={styles.buttonText}>Flip Board</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.secondaryButton, styles.secondaryActionWide]} onPress={returnToSetup}>
+            <Text style={styles.buttonText}>Change Mode</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.footerSpacer} />
@@ -396,7 +481,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -435,6 +520,36 @@ const styles = StyleSheet.create({
   boardContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  helperText: {
+    color: '#C8D5B9',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  actionPanel: {
+    backgroundColor: '#333333',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 14,
+    gap: 12,
+  },
+  primaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  primaryActionButton: {
+    flex: 1,
+    marginHorizontal: 0,
+  },
+  secondaryActionWide: {
+    flex: 1,
+    marginHorizontal: 0,
   },
   setupScreen: {
     flex: 1,
@@ -492,7 +607,7 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 22,
     flexWrap: 'wrap',
   },
   modeBanner: {
@@ -562,14 +677,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginHorizontal: 8,
+    minHeight: 54,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   secondaryButton: {
     backgroundColor: '#5D5D5D',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginHorizontal: 8,
+    minHeight: 54,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
     color: 'white',
@@ -582,7 +701,7 @@ const styles = StyleSheet.create({
     borderColor: 'white',
   },
   footerSpacer: {
-    height: 72,
+    height: 84,
   },
 });
 
