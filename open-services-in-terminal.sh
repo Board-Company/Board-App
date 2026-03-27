@@ -56,8 +56,9 @@ if [[ "$START_ANDROID" == false && "$START_IOS" == false ]]; then
   START_ANDROID=true
 fi
 
-backend_cmd="cd '$BACKEND_DIR' && poetry run python api.py"
-llm_cmd="cd '$LLM_DIR' && poetry run python llm_service.py"
+poetry_run_cmd='if command -v poetry >/dev/null 2>&1; then poetry run; else python3 -m poetry run; fi'
+backend_cmd="cd '$BACKEND_DIR' && $poetry_run_cmd python api.py"
+llm_cmd="cd '$LLM_DIR' && $poetry_run_cmd python llm_service.py"
 metro_cmd="cd '$NIMBUS_DIR' && npm run start:fast"
 # Metro already runs in a prior tab; avoid a second packager from the RN CLI.
 android_cmd="cd '$NIMBUS_DIR' && npx react-native run-android --no-packager"

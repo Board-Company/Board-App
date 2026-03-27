@@ -25,13 +25,29 @@ import BotGameScreen from './screens/botGame.tsx'
 import PuzzleScreen from './screens/puzzle.tsx'
 import LocalGameScreen from './screens/localGame.tsx'
 import OnlineGameScreen from './screens/onlineGame.tsx'
-import ChessAIScreen from './screens/chessAI.tsx'
 import FriendGameScreen from './screens/friendGame.tsx'
+import ChessAIScreen from './screens/chessAI.tsx'
 import LocalGameHistoryScreen from './screens/localGameHistory.tsx'
 import LocalGameReviewScreen from './screens/localGameReview.tsx'
 
+type RootStackParamList = {
+  Login: undefined
+  Register: undefined
+  UserLogin: undefined
+  MainTabs: undefined
+  Play: undefined
+  BotGame: undefined
+  Puzzle: undefined
+  LocalGame: undefined
+  LocalGameHistory: undefined
+  LocalGameReview: { gameId: string }
+  OnlineGame: { gameType: string; timeControl: string }
+  FriendGame: undefined
+  ChessAI: undefined
+}
+
 // Create the stack navigator
-const Stack = createNativeStackNavigator()
+const Stack = createNativeStackNavigator<RootStackParamList>()
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {

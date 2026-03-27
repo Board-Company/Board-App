@@ -147,9 +147,9 @@ start_service() {
   echo "Log: $log_file"
 }
 
-require_command poetry
 require_command npm
 require_command npx
+require_command python3
 require_directory "$BACKEND_DIR"
 require_directory "$LLM_DIR"
 require_directory "$NIMBUS_DIR"
@@ -168,10 +168,10 @@ APP_LOG="$LOG_DIR/app.log"
 : >"$METRO_LOG"
 : >"$APP_LOG"
 
-start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" poetry run python api.py
+start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python api.py; else python3 -m poetry run python api.py; fi"
 wait_for_http "http://127.0.0.1:8000/health" "Board-Backend" || true
 
-start_service "Board-LLM" "$LLM_DIR" "$LLM_LOG" poetry run python llm_service.py
+start_service "Board-LLM" "$LLM_DIR" "$LLM_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python llm_service.py; else python3 -m poetry run python llm_service.py; fi"
 wait_for_http "http://127.0.0.1:8001/health" "Board-LLM" || true
 
 if [[ "$RESET_METRO_CACHE" == true ]]; then
