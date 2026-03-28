@@ -145,7 +145,7 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: '#2A2A2A',
   },
   content: {
     paddingHorizontal: 14,
@@ -153,11 +153,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroCard: {
-    backgroundColor: '#131313',
+    backgroundColor: '#333333',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: '#435C33',
   },
   eyebrow: {
     color: '#8CB369',
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   heroSubtitle: {
-    color: '#AEB8A8',
+    color: '#C8D5B9',
     fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
@@ -196,12 +196,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionCard: {
-    backgroundColor: '#151515',
+    backgroundColor: '#333333',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: '#435C33',
     minHeight: 64,
     alignItems: 'center',
     flexDirection: 'row',
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   actionSubtitle: {
-    color: '#9EAA96',
+    color: '#C8D5B9',
     fontSize: 11,
     lineHeight: 14,
     marginTop: 2,
