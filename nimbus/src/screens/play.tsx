@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, SafeAreaView, ActivityIndicator, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Dimensions } from 'react-native';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
@@ -145,7 +145,7 @@ const PlayScreen = () => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Nimbus Chess</Text>
         <Text style={styles.status}>{gameStatus}</Text>
@@ -163,6 +163,7 @@ const PlayScreen = () => {
             fen={fen}
             onMove={handleMove}
             playerColor={playerColor}
+            moveAnimationDuration={10}
           />
           {/* Overlay capturable circles using View */}
           {capturableSquares.map((sq, idx) => {
@@ -218,7 +219,7 @@ const PlayScreen = () => {
       </View>
 
       <MoveHistory moves={moveHistory} />
-    </SafeAreaView>
+    </View>
   );
 };
 

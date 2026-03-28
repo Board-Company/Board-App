@@ -63,7 +63,7 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "detail": "Starts Board-Backend, Board-LLM, Nimbus Metro, and Android with health checks in one managed task.",
+      "detail": "Starts Board-Backend, Board-LLM, Nimbus Metro, and Android with health checks in one managed task using active-arch-only for faster Android debug builds.",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -77,9 +77,9 @@
       "dependsOrder": "sequence",
       "dependsOn": [
         "Install Board Dependencies",
-        "Start Board Microservices"
+        "Open Board Services"
       ],
-      "detail": "Installs dependencies, then starts all microservices with managed logs and health checks.",
+      "detail": "Installs dependencies, then opens Board services in separate Terminal tabs.",
       "group": {
         "kind": "build",
         "isDefault": true

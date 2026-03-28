@@ -9,7 +9,6 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import { getAccessToken } from '../services/auth';
@@ -232,7 +231,7 @@ const FriendGameScreen = () => {
 
   if (phase === 'lobby') {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>Play a friend</Text>
           <Text style={styles.hint}>
@@ -255,23 +254,23 @@ const FriendGameScreen = () => {
             <Text style={styles.btnText}>Join game</Text>
           </TouchableOpacity>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!state) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <ActivityIndicator size="large" color="#8CB369" />
         <TouchableOpacity style={styles.btn} onPress={leaveLobby}>
           <Text style={styles.btnText}>Back</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={leaveLobby}>
           <Text style={styles.link}>Leave</Text>
@@ -293,9 +292,15 @@ const FriendGameScreen = () => {
           {state.invite_code}
         </Text>
       ) : null}
-      <ChessBoard key={state.fen + state.updated_at} fen={state.fen} onMove={handleMove} playerColor={playerColor} />
+      <ChessBoard
+        key={state.fen + state.updated_at}
+        fen={state.fen}
+        onMove={handleMove}
+        playerColor={playerColor}
+        moveAnimationDuration={10}
+      />
       <Text style={styles.moves}>{state.move_history.join(' ')}</Text>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -491,6 +491,7 @@ const ChessAIScreen = () => {
               fen={fen}
               onMove={handleBoardMove}
               playerColor={playerColor}
+              moveAnimationDuration={10}
             />
           </View>
           <View style={styles.turnIndicator}>

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config/constants';
 import queryString from 'query-string';
 import { getStoredAuthData } from '../services/auth';
+import { useAuth } from './AuthContext';
 
 interface LichessUser {
   username: string;
@@ -48,6 +49,7 @@ export const useLichessAuth = () => {
 };
 
 export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated: isAppAuthenticated, loading: isAppAuthLoading } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<LichessUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,29 +57,12 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [lichessInfo, setLichessInfo] = useState<LichessInfo | null>(null);
 
   useEffect(() => {
-    checkAuthStatus();
     // Set up URL event listener for OAuth callback
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => {
       subscription.remove();
     };
   }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      // Use app JWT for all app API calls
-      const authData = await getStoredAuthData();
-      if (authData?.access_token) {
-        await refreshUserData(authData.access_token);
-        await fetchLichessInfo(authData.access_token);
-      }
-    } catch (err) {
-      console.error('Error checking auth status:', err);
-      setError('Failed to check authentication status');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getFirstString = (val: string | (string | null)[] | undefined | null) => {
     if (typeof val === 'string') return val;
@@ -237,6 +222,44 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setLichessInfo(null);
     }
   }, []);
+
+  const checkAuthStatus = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      // Use app JWT for all app API calls
+      const authData = await getStoredAuthData();
+      if (authData?.access_token) {
+        await refreshUserData(authData.access_token);
+        await fetchLichessInfo(authData.access_token);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        setLichessInfo(null);
+      }
+    } catch (err) {
+      console.error('Error checking auth status:', err);
+      setError('Failed to check authentication status');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchLichessInfo]);
+
+  useEffect(() => {
+    if (isAppAuthLoading) {
+      return;
+    }
+
+    if (!isAppAuthenticated) {
+      setUser(null);
+      setIsAuthenticated(false);
+      setLichessInfo(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    checkAuthStatus();
+  }, [checkAuthStatus, isAppAuthenticated, isAppAuthLoading]);
 
   const unlinkLichess = async () => {
     try {

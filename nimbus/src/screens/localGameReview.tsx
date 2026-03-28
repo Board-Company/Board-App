@@ -1,9 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
@@ -17,18 +25,6 @@ type RootStackParamList = {
   LocalGameReview: { gameId: string };
 };
 
-const buildFens = (game: LocalGameRecord) => {
-  const chess = new Chess(game.initialFen);
-  const fens = [game.initialFen];
-
-  game.moves.forEach(move => {
-    chess.move(move);
-    fens.push(chess.fen());
-  });
-
-  return fens;
-};
-
 const PIECE_VALUES: Record<string, number> = {
   p: 1,
   n: 3,
@@ -40,9 +36,7 @@ const PIECE_VALUES: Record<string, number> = {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const getEvaluation = (fen: string) => {
-  const chess = new Chess(fen);
-
+const getEvaluationFromChess = (chess: Chess) => {
   if (chess.isCheckmate()) {
     return chess.turn() === 'w'
       ? { score: -100, label: 'M0', advantage: 'Black is winning' }
@@ -79,40 +73,87 @@ const getEvaluation = (fen: string) => {
   };
 };
 
+const getEvaluation = (fen: string) => getEvaluationFromChess(new Chess(fen));
+
+/** Single replay pass; material eval runs only for the current ply (not for every move on load). */
+const buildFenReplay = (game: LocalGameRecord): string[] => {
+  const chess = new Chess(game.initialFen);
+  const fens: string[] = [chess.fen()];
+  for (const move of game.moves) {
+    chess.move(move);
+    fens.push(chess.fen());
+  }
+  return fens;
+};
+
+const noopOnMove = () => {};
+
 const LocalGameReviewScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'LocalGameReview'>>();
+  const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  /** Smaller than full-width board: matches nested padding so it does not overflow safe layout. */
+  const reviewBoardMaxWidth = Math.max(0, windowWidth - 80);
   const [game, setGame] = useState<LocalGameRecord | null>(null);
   const [moveIndex, setMoveIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
     getCompletedLocalGameById(route.params.gameId).then(next => {
       if (cancelled) {
         return;
       }
       setGame(next);
       if (next) {
-        setMoveIndex(next.moves.length);
+        setMoveIndex(next.moves.length > 0 ? 1 : 0);
       } else {
         setMoveIndex(0);
       }
+      setIsLoading(false);
     });
     return () => {
       cancelled = true;
     };
   }, [route.params.gameId]);
 
-  const fens = useMemo(() => (game ? buildFens(game) : []), [game]);
-  const currentFen = game ? fens[moveIndex] ?? game.finalFen : new Chess().fen();
+  const fenReplay = useMemo(() => (game ? buildFenReplay(game) : []), [game]);
+  const currentFen =
+    game && fenReplay.length > 0
+      ? (fenReplay[moveIndex] ?? fenReplay[fenReplay.length - 1])
+      : (game?.finalFen ?? new Chess().fen());
   const currentMove = game && moveIndex > 0 ? game.moves[moveIndex - 1] : null;
   const evaluation = useMemo(() => getEvaluation(currentFen), [currentFen]);
   const whiteShare = clamp(((evaluation.score + 12) / 24) * 100, 0, 100);
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('LocalGameHistory')}
+          >
+            <Icon name="arrow-back" size={24} color="#8CB369" />
+          </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Game Review</Text>
+          </View>
+          <View style={styles.iconButton} />
+        </View>
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#8CB369" />
+          <Text style={styles.loadingText}>Loading game review...</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (!game) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.iconButton}
@@ -129,13 +170,19 @@ const LocalGameReviewScreen = () => {
           <Text style={styles.emptyTitle}>Game not found</Text>
           <Text style={styles.emptySubtitle}>This saved game may have been removed from storage.</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 12) + 20 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('LocalGameHistory')}>
             <Icon name="arrow-back" size={24} color="#8CB369" />
@@ -165,7 +212,16 @@ const LocalGameReviewScreen = () => {
 
         <View style={styles.boardCard}>
           <View style={styles.boardContainer}>
-            <ChessBoard fen={currentFen} onMove={() => {}} playerColor="w" gestureEnabled={false} />
+            {/* Remount per step: react-native-chessboard only reads initial `fen` once (no prop sync). */}
+            <ChessBoard
+              key={`${game.id}-${moveIndex}`}
+              fen={currentFen}
+              onMove={noopOnMove}
+              playerColor="w"
+              gestureEnabled={false}
+              moveAnimationDuration={0}
+              maxBoardWidth={reviewBoardMaxWidth}
+            />
           </View>
         </View>
 
@@ -216,7 +272,7 @@ const LocalGameReviewScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -224,15 +280,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#2A2A2A',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   scrollContent: {
-    paddingBottom: 28,
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   iconButton: {
     width: 40,
@@ -246,24 +302,24 @@ const styles = StyleSheet.create({
   },
   title: {
     color: 'white',
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   subtitle: {
     color: '#8CB369',
-    fontSize: 15,
-    marginTop: 6,
+    fontSize: 13,
+    marginTop: 4,
     textAlign: 'center',
   },
   summaryCard: {
     backgroundColor: '#333333',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
   },
   summaryMode: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   summaryText: {
@@ -292,10 +348,12 @@ const styles = StyleSheet.create({
   },
   boardCard: {
     backgroundColor: '#333333',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    marginBottom: 16,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    alignSelf: 'center',
+    maxWidth: '100%',
   },
   boardContainer: {
     alignItems: 'center',
@@ -303,9 +361,9 @@ const styles = StyleSheet.create({
   },
   evalCard: {
     backgroundColor: '#333333',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 18,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
   },
   evalCardHeader: {
     flexDirection: 'row',
@@ -352,14 +410,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 24,
+    gap: 8,
+    marginTop: 12,
   },
   controlButton: {
     backgroundColor: '#8CB369',
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   disabledButton: {
     backgroundColor: '#5D5D5D',
@@ -384,6 +442,12 @@ const styles = StyleSheet.create({
     color: '#C8D5B9',
     fontSize: 14,
     marginTop: 8,
+    textAlign: 'center',
+  },
+  loadingText: {
+    color: '#C8D5B9',
+    fontSize: 14,
+    marginTop: 12,
     textAlign: 'center',
   },
 });

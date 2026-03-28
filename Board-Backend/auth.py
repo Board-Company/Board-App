@@ -112,6 +112,20 @@ async def get_user(username: str, supabase: Client):
         logger.error(f"Error getting user: {str(e)}")
         return None
 
+
+async def get_user_by_email(email: str, supabase: Client):
+    """Lookup by email — used for Google sign-in when identity is the verified email."""
+    try:
+        if not email:
+            return None
+        response = supabase.table("users").select("*").eq("email", email).execute()
+        if response.data:
+            return UserInDB(**response.data[0])
+        return None
+    except Exception as e:
+        logger.error(f"Error getting user by email: {str(e)}")
+        return None
+
 async def authenticate_user(username: str, password: str, supabase: Client):
     logger.info(f"Attempting to authenticate user: {username}")
     user = await get_user(username, supabase)

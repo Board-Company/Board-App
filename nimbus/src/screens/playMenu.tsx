@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Modal, TouchableOpacity, ScrollView, Switch } from 'react-native';
-import { useLichessAuth } from '../contexts/LichessAuthContext';
-import { Text, YStack, XStack, Button, Select, Adapt, Sheet } from 'tamagui';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronDown } from '@tamagui/lucide-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import Header from '../components/header';
+import { useLichessAuth } from '../contexts/LichessAuthContext';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -17,6 +26,7 @@ const GAME_TYPE_OPTIONS = [
   { value: 'standard', label: 'Standard Chess' },
   { value: 'chess960', label: 'Chess 960' },
 ];
+
 const TIME_CONTROL_OPTIONS = [
   { value: '300', label: '5 minutes' },
   { value: '600', label: '10 minutes' },
@@ -24,358 +34,540 @@ const TIME_CONTROL_OPTIONS = [
   { value: '1800', label: '30 minutes' },
 ];
 
-type SelectorButtonProps = {
+type PickerButtonProps = {
   label: string;
+  value: string;
   onPress: () => void;
 };
 
-const SelectorButton = ({ label, onPress }: SelectorButtonProps) => (
-  <Button
-    onPress={onPress}
-    style={{
-      backgroundColor: '#23262F',
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: '#8CB369',
-      width: '100%',
-      height: 52,
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexDirection: 'row',
-      paddingHorizontal: 20,
-      marginBottom: 12,
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-    }}
-  >
-    <Text color="#8CB369" fontSize={18} fontWeight="bold">
-      {label}
-    </Text>
-    <ChevronDown color="#8CB369" size={22} />
-  </Button>
-);
+function PickerButton({ label, value, onPress }: PickerButtonProps) {
+  return (
+    <TouchableOpacity activeOpacity={0.9} style={styles.selectorCard} onPress={onPress}>
+      <Text style={styles.selectorLabel}>{label}</Text>
+      <View style={styles.selectorValueRow}>
+        <Text style={styles.selectorValue}>{value}</Text>
+        <Icon name="expand-more" size={22} color="#8CB369" />
+      </View>
+    </TouchableOpacity>
+  );
+}
 
-type OptionButtonProps = {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
+type OptionModalProps = {
+  visible: boolean;
+  title: string;
+  options: Array<{ value: string; label: string }>;
+  selectedValue: string;
+  onSelect: (value: string) => void;
+  onClose: () => void;
 };
 
-const OptionButton = ({ label, selected, onPress }: OptionButtonProps) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={{
-      width: '100%',
-      paddingVertical: 18,
-      marginBottom: 8,
-      backgroundColor: selected ? '#8CB369' : '#23262F',
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: '#8CB369',
-      alignItems: 'center',
-      flexDirection: 'row',
-      justifyContent: 'center',
-    }}
-  >
-    <Text color={selected ? '#fff' : '#8CB369'} fontSize={18} fontWeight={selected ? 'bold' : 'normal'}>
-      {label}
-    </Text>
-    {selected && (
-      <Text style={{ marginLeft: 8, color: '#fff', fontSize: 18 }}>✓</Text>
-    )}
-  </TouchableOpacity>
-);
+function OptionModal({ visible, title, options, selectedValue, onSelect, onClose }: OptionModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>{title}</Text>
+          <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+            {options.map(option => {
+              const selected = option.value === selectedValue;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  activeOpacity={0.9}
+                  style={[styles.modalOption, selected && styles.modalOptionSelected]}
+                  onPress={() => {
+                    onSelect(option.value);
+                    onClose();
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, selected && styles.modalOptionTextSelected]}>
+                    {option.label}
+                  </Text>
+                  {selected ? <Icon name="check" size={20} color="#111111" /> : null}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <TouchableOpacity activeOpacity={0.9} style={styles.modalCancelButton} onPress={onClose}>
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 const PlayMenuScreen = () => {
-  const { isAuthenticated, user, isLoading, error, login, logout, unlinkLichess, lichessInfo, fetchLichessInfo } = useLichessAuth();
+  const { isAuthenticated, user, isLoading, login, unlinkLichess, lichessInfo, fetchLichessInfo } = useLichessAuth();
   const [lichessProfile, setLichessProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
   const [gameType, setGameType] = useState('standard');
   const [timeControl, setTimeControl] = useState('600');
-  const navigation = useNavigation<NavigationProp>();
   const [gameTypeModalOpen, setGameTypeModalOpen] = useState(false);
   const [timeControlModalOpen, setTimeControlModalOpen] = useState(false);
   const [playOnline, setPlayOnline] = useState(false);
   const [isMatchmaking, setIsMatchmaking] = useState(false);
+  const navigation = useNavigation<NavigationProp>();
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchLichessInfo();
     }
-  }, [isAuthenticated, fetchLichessInfo]);
+  }, [fetchLichessInfo, isAuthenticated]);
 
-  // Fetch live Lichess profile info from Lichess API using access_token
   useEffect(() => {
     const fetchProfile = async () => {
-      if (lichessInfo && lichessInfo.access_token) {
-        setProfileLoading(true);
-        setProfileError(null);
-        try {
-          const response = await fetch('https://lichess.org/api/account', {
-            headers: {
-              'Authorization': `Bearer ${lichessInfo.access_token}`,
-              'Accept': 'application/json',
-            },
-          });
-          if (!response.ok) {
-            throw new Error('Failed to fetch Lichess profile');
-          }
-          const data = await response.json();
-          setLichessProfile(data);
-        } catch (err: any) {
-          setProfileError(err.message || 'Failed to fetch Lichess profile');
-          setLichessProfile(null);
-        } finally {
-          setProfileLoading(false);
-        }
-      } else {
+      if (!lichessInfo?.access_token) {
         setLichessProfile(null);
+        return;
+      }
+
+      setProfileLoading(true);
+      try {
+        const response = await fetch('https://lichess.org/api/account', {
+          headers: {
+            Authorization: `Bearer ${lichessInfo.access_token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch Lichess profile');
+        }
+
+        const data = await response.json();
+        setLichessProfile(data);
+      } catch {
+        setLichessProfile(null);
+      } finally {
+        setProfileLoading(false);
       }
     };
+
     fetchProfile();
   }, [lichessInfo]);
+
+  const handleStartGame = () => {
+    if (playOnline) {
+      setIsMatchmaking(true);
+      setTimeout(() => {
+        setIsMatchmaking(false);
+        navigation.navigate('OnlineGame', { gameType, timeControl });
+      }, 2500);
+      return;
+    }
+
+    navigation.navigate('OnlineGame', { gameType, timeControl });
+  };
 
   const handleUnlink = async () => {
     try {
       await unlinkLichess();
       setLichessProfile(null);
-    } catch (err) {
-      // Error is already handled in the context
+    } catch {
+      // handled in context
     }
   };
 
-  const handleStartGame = () => {
-    if (playOnline) {
-      setIsMatchmaking(true);
-      // TODO: Replace this timeout with real matchmaking API call
-      setTimeout(() => {
-        setIsMatchmaking(false);
-        navigation.navigate('OnlineGame', { gameType, timeControl });
-      }, 2500);
-    } else {
-      navigation.navigate('OnlineGame', { gameType, timeControl });
-    }
-  };
+  const displayName = user?.lichess_username || user?.username || 'Player';
+  const selectedGameType = GAME_TYPE_OPTIONS.find(option => option.value === gameType)?.label ?? 'Select game type';
+  const selectedTime = TIME_CONTROL_OPTIONS.find(option => option.value === timeControl)?.label ?? 'Select time';
 
   if (isMatchmaking) {
     return (
-      <YStack flex={1} backgroundColor="#181A20" justifyContent="center" alignItems="center">
+      <View style={styles.centerState}>
         <ActivityIndicator size="large" color="#8CB369" />
-        <Text color="#8CB369" fontSize={24} marginTop={24}>Finding opponent...</Text>
-      </YStack>
+        <Text style={styles.centerStateTitle}>Finding opponent...</Text>
+        <Text style={styles.centerStateSubtitle}>Nimbus is searching for a match on Lichess.</Text>
+      </View>
     );
   }
 
   if (isLoading || profileLoading) {
     return (
-      <YStack style={{ flex: 1, backgroundColor: '$background', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-      </YStack>
+      <View style={styles.centerState}>
+        <ActivityIndicator size="large" color="#8CB369" />
+        <Text style={styles.centerStateTitle}>Loading online play</Text>
+      </View>
     );
   }
 
   return (
-    <YStack flex={1} backgroundColor="#181A20" padding={24} alignItems="center">
-      {/* Heading */}
-      <Text fontSize={32} color="#8CB369" fontWeight="bold" marginBottom={8} marginTop={16} textAlign="center">
-        {isAuthenticated ? `Welcome, ${user?.username}!` : 'Play Online with Lichess'}
-      </Text>
-
-      {/* Lichess Linked Info */}
-      {isAuthenticated && lichessInfo && (
-        <Text fontSize={18} color="#B0B0B0" marginBottom={24} textAlign="center">
-          Lichess Linked: <Text color="#8CB369" fontWeight="bold">{lichessInfo.username}</Text>
-        </Text>
-      )}
-
-      {/* Profile Card */}
-      {isAuthenticated && lichessProfile && (
-        <YStack
-          backgroundColor="#23262F"
-          borderRadius={16}
-          padding={20}
-          width="100%"
-          maxWidth={400}
-          marginBottom={24}
-          shadowColor="#000"
-          shadowOpacity={0.1}
-          shadowRadius={8}
-          shadowOffset={{ width: 0, height: 2 }}
-        >
-          <Text fontSize={22} fontWeight="bold" color="#8CB369" marginBottom={12}>
-            Lichess Profile
+    <View style={styles.container}>
+      <Header />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>Nimbus Online</Text>
+          <Text style={styles.heroTitle}>
+            {isAuthenticated ? `Ready to play, ${displayName}?` : 'Connect Lichess to start playing online'}
           </Text>
-          <Text color="#fff" marginBottom={4}>Username: {lichessProfile.username}</Text>
-          <Text color="#fff" marginBottom={4}>ID: {lichessProfile.id}</Text>
-          <Text fontSize={18} fontWeight="bold" color="#8CB369" marginBottom={8} marginTop={8}>
-            Ratings:
+          <Text style={styles.heroSubtitle}>
+            Keep the Nimbus look while choosing your mode, time control, and matchmaking style.
           </Text>
-          {lichessProfile.perfs && Object.entries(lichessProfile.perfs).map(([key, value]: [string, any]) => (
-            value.rating && (
-              <Text key={key} color="#fff" marginBottom={2}>
-                {key.charAt(0).toUpperCase() + key.slice(1)}: {value.rating}
-              </Text>
-            )
-          ))}
-        </YStack>
-      )}
+        </View>
 
-      {/* Selectors and Buttons */}
-      {isAuthenticated && (
-        <YStack width="100%" maxWidth={400} gap={16}>
-          <YStack flexDirection="row" alignItems="center" marginBottom={16}>
-            <Text color="#8CB369" fontSize={18} marginRight={12}>
-              Play Online
-            </Text>
-            <Switch
-              value={playOnline}
-              onValueChange={setPlayOnline}
-              thumbColor={playOnline ? "#8CB369" : "#ccc"}
-              trackColor={{ false: "#444", true: "#8CB369" }}
-            />
-          </YStack>
-          <YStack style={{ marginTop: 16, marginBottom: 8, gap: 12, width: '100%' }}>
-            <SelectorButton
-              label={GAME_TYPE_OPTIONS.find(o => o.value === gameType)?.label || 'Select game type'}
-              onPress={() => setGameTypeModalOpen(true)}
-            />
-            <Modal
-              visible={gameTypeModalOpen}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setGameTypeModalOpen(false)}
-            >
-              <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                <View style={{ height: '40%', backgroundColor: '#23262F', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, alignItems: 'center' }}>
-                  <View style={{ width: 40, height: 5, backgroundColor: '#444', borderRadius: 3, alignSelf: 'center', marginBottom: 16 }} />
-                  <Text color="#8CB369" fontSize={18} marginBottom={16}>Select Game Type</Text>
-                  {GAME_TYPE_OPTIONS.map(option => (
-                    <OptionButton
-                      key={option.value}
-                      label={option.label}
-                      selected={gameType === option.value}
-                      onPress={() => {
-                        setGameType(option.value);
-                        setGameTypeModalOpen(false);
-                      }}
-                    />
-                  ))}
-                  <Button
-                    onPress={() => setGameTypeModalOpen(false)}
-                    style={{
-                      marginTop: 24,
-                      backgroundColor: 'transparent',
-                      borderColor: '#8CB369',
-                      borderWidth: 1,
-                      borderRadius: 8,
-                      width: 120,
-                    }}
-                  >
-                    <Text color="#8CB369" fontSize={18}>Cancel</Text>
-                  </Button>
+        {isAuthenticated ? (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Account</Text>
+              <View style={styles.infoCard}>
+                <View style={styles.infoRow}>
+                  <View>
+                    <Text style={styles.infoLabel}>Linked account</Text>
+                    <Text style={styles.infoValue}>{lichessInfo?.username || displayName}</Text>
+                  </View>
+                  <TouchableOpacity activeOpacity={0.9} style={styles.secondaryPillButton} onPress={handleUnlink}>
+                    <Text style={styles.secondaryPillButtonText}>Unlink</Text>
+                  </TouchableOpacity>
                 </View>
+                {lichessProfile ? (
+                  <View style={styles.ratingGrid}>
+                    {Object.entries(lichessProfile.perfs ?? {})
+                      .filter(([, value]: [string, any]) => Boolean(value?.rating))
+                      .slice(0, 4)
+                      .map(([key, value]: [string, any]) => (
+                        <View key={key} style={styles.ratingCard}>
+                          <Text style={styles.ratingLabel}>{key}</Text>
+                          <Text style={styles.ratingValue}>{value.rating}</Text>
+                        </View>
+                      ))}
+                  </View>
+                ) : (
+                  <Text style={styles.helperText}>Lichess profile data will appear here once it loads.</Text>
+                )}
               </View>
-            </Modal>
-            <SelectorButton
-              label={TIME_CONTROL_OPTIONS.find(o => o.value === timeControl)?.label || 'Select time control'}
-              onPress={() => setTimeControlModalOpen(true)}
-            />
-            <Modal
-              visible={timeControlModalOpen}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setTimeControlModalOpen(false)}
-            >
-              <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                <View style={{
-                  height: '40%',
-                  backgroundColor: '#23262F',
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  padding: 24,
-                  alignItems: 'center'
-                }}>
-                  <View
-                    style={{
-                      width: 60,
-                      height: 7,
-                      backgroundColor: '#B0B0B0',
-                      borderRadius: 4,
-                      alignSelf: 'center',
-                      marginBottom: 12,
-                      marginTop: 4,
-                      opacity: 0.8,
-                    }}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Game Setup</Text>
+              <View style={styles.infoCard}>
+                <View style={styles.toggleRow}>
+                  <View>
+                    <Text style={styles.infoValue}>Use Matchmaking</Text>
+                    <Text style={styles.helperText}>Toggle queue-based pairing before launching the game.</Text>
+                  </View>
+                  <Switch
+                    value={playOnline}
+                    onValueChange={setPlayOnline}
+                    thumbColor={playOnline ? '#8CB369' : '#D0D0D0'}
+                    trackColor={{ false: '#4A4A4A', true: '#314420' }}
                   />
-                  <Text
-                    style={{
-                      color: '#B0B0B0',
-                      fontSize: 14,
-                      textAlign: 'center',
-                      marginBottom: 12,
-                      opacity: 0.8,
-                    }}
-                  >
-                    Swipe down to close
-                  </Text>
-                  <Text color="#8CB369" fontSize={18} marginBottom={16}>Select Time Control</Text>
-                  <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
-                    {TIME_CONTROL_OPTIONS.map(option => (
-                      <OptionButton
-                        key={option.value}
-                        label={option.label}
-                        selected={timeControl === option.value}
-                        onPress={() => {
-                          setTimeControl(option.value);
-                          setTimeControlModalOpen(false);
-                        }}
-                      />
-                    ))}
-                  </ScrollView>
-                  <Button
-                    onPress={() => setTimeControlModalOpen(false)}
-                    style={{
-                      marginTop: 24,
-                      backgroundColor: 'transparent',
-                      borderColor: '#8CB369',
-                      borderWidth: 1,
-                      borderRadius: 8,
-                      width: 120,
-                    }}
-                  >
-                    <Text color="#8CB369" fontSize={18}>Cancel</Text>
-                  </Button>
                 </View>
+
+                <PickerButton
+                  label="Game Type"
+                  value={selectedGameType}
+                  onPress={() => setGameTypeModalOpen(true)}
+                />
+                <PickerButton
+                  label="Time Control"
+                  value={selectedTime}
+                  onPress={() => setTimeControlModalOpen(true)}
+                />
+
+                <TouchableOpacity activeOpacity={0.92} style={styles.primaryButton} onPress={handleStartGame}>
+                  <Text style={styles.primaryButtonText}>Start Online Game</Text>
+                </TouchableOpacity>
               </View>
-            </Modal>
-          </YStack>
+            </View>
+          </>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Connect</Text>
+            <View style={styles.infoCard}>
+              <Text style={styles.infoValue}>Link your Lichess account</Text>
+              <Text style={styles.helperText}>
+                Sign in once to unlock online games, matchmaking, and account syncing inside Nimbus.
+              </Text>
+              <TouchableOpacity activeOpacity={0.92} style={styles.primaryButton} onPress={login}>
+                <Text style={styles.primaryButtonText}>Login With Lichess</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </ScrollView>
 
-          <Button
-            backgroundColor="#8CB369"
-            borderRadius={8}
-            marginBottom={8}
-            onPress={handleStartGame}
-            disabled={!gameType || !timeControl}
-          >
-            <Text color="#fff" fontSize={20}>Start Game</Text>
-          </Button>
-        
-        </YStack>
-      )}
-
-      {/* Not Authenticated */}
-      {!isAuthenticated && (
-        <YStack gap={24} alignItems="center" marginTop={32}>
-          <Button backgroundColor="#8CB369" borderRadius={8} onPress={login}>
-            <Text color="#fff" fontSize={24}>Login with Lichess</Text>
-          </Button>
-        </YStack>
-      )}
-    </YStack>
+      <OptionModal
+        visible={gameTypeModalOpen}
+        title="Select Game Type"
+        options={GAME_TYPE_OPTIONS}
+        selectedValue={gameType}
+        onSelect={setGameType}
+        onClose={() => setGameTypeModalOpen(false)}
+      />
+      <OptionModal
+        visible={timeControlModalOpen}
+        title="Select Time Control"
+        options={TIME_CONTROL_OPTIONS}
+        selectedValue={timeControl}
+        onSelect={setTimeControl}
+        onClose={() => setTimeControlModalOpen(false)}
+      />
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#202020',
+  },
+  content: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 120,
+    gap: 20,
+  },
+  heroCard: {
+    backgroundColor: '#2D2D2D',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#3C3C3C',
+  },
+  eyebrow: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+  },
+  heroSubtitle: {
+    color: '#C7C7C7',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 10,
+  },
+  section: {
+    gap: 12,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    paddingHorizontal: 4,
+  },
+  infoCard: {
+    backgroundColor: '#2F2F2F',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#3C3C3C',
+    gap: 14,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoLabel: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  infoValue: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '800',
+  },
+  helperText: {
+    color: '#B8B8B8',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  ratingGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -6,
+  },
+  ratingCard: {
+    width: '50%',
+    paddingHorizontal: 6,
+    paddingBottom: 12,
+  },
+  ratingLabel: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  ratingValue: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    backgroundColor: '#292929',
+    borderRadius: 16,
+    overflow: 'hidden',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    minHeight: 64,
+  },
+  selectorCard: {
+    backgroundColor: '#292929',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#3C3C3C',
+    minHeight: 82,
+    justifyContent: 'center',
+  },
+  selectorLabel: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  selectorValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  selectorValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    flex: 1,
+  },
+  primaryButton: {
+    backgroundColor: '#8CB369',
+    borderRadius: 18,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  primaryButtonText: {
+    color: '#111111',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  secondaryPillButton: {
+    backgroundColor: '#232F1A',
+    borderRadius: 14,
+    minHeight: 40,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryPillButtonText: {
+    color: '#8CB369',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  centerState: {
+    flex: 1,
+    backgroundColor: '#202020',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  centerStateTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 18,
+    textAlign: 'center',
+  },
+  centerStateSubtitle: {
+    color: '#B8B8B8',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#2D2D2D',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 24,
+    minHeight: 360,
+    maxHeight: '72%',
+  },
+  modalHandle: {
+    width: 54,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#6C6C6C',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalList: {
+    flexGrow: 0,
+  },
+  modalOption: {
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: '#292929',
+    borderWidth: 1,
+    borderColor: '#3C3C3C',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#8CB369',
+    borderColor: '#8CB369',
+  },
+  modalOptionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalOptionTextSelected: {
+    color: '#111111',
+  },
+  modalCancelButton: {
+    minHeight: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4A4A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  modalCancelText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
 
 export default PlayMenuScreen;

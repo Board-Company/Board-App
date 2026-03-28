@@ -1,13 +1,12 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chess } from 'chess.js';
+import type { ChessboardRef } from 'react-native-chessboard';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
-import type { ChessboardRef } from 'react-native-chessboard';
 import { saveCompletedLocalGame } from '../services/localGameHistory';
 
 type TimeControl = {
@@ -88,9 +87,8 @@ const GameClocks = memo(
 
 const LocalGameScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
   const chessRef = useRef(new Chess());
-  const boardRef = useRef<ChessboardRef>(null);
+  const chessboardRef = useRef<ChessboardRef>(null);
   const clockHistoryRef = useRef<Array<{ white: number; black: number }>>([]);
   const lastTickTimestampRef = useRef<number | null>(null);
   const whiteTimeRef = useRef(0);
@@ -141,22 +139,31 @@ const LocalGameScreen = () => {
     [selectedTimeControl],
   );
 
-  const syncGameState = useCallback(() => {
-    const nextFen = chessRef.current.fen();
+  const syncGameState = useCallback((options?: { syncHistory?: boolean; syncFen?: boolean }) => {
+    const shouldSyncHistory = options?.syncHistory ?? true;
+    const shouldSyncFen = options?.syncFen ?? true;
     const nextTurn = chessRef.current.turn();
-    setFen(nextFen);
-    setMoveHistory(chessRef.current.history());
+    if (shouldSyncFen) {
+      setFen(chessRef.current.fen());
+    }
+    if (shouldSyncHistory) {
+      setMoveHistory(chessRef.current.history());
+    }
     setCurrentTurn(nextTurn);
   }, []);
 
-  const checkGameStatus = useCallback(() => {
+  const checkGameStatus = useCallback((options?: { showAlert?: boolean }) => {
+    const showAlert = options?.showAlert ?? true;
+
     if (chessRef.current.isCheckmate()) {
       const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
       const message = `Checkmate! ${winner} wins`;
       setIsGameOver(true);
       setGameStatus(message);
       persistCompletedGame(message, 'checkmate');
-      Alert.alert('Game Over', message);
+      if (showAlert) {
+        Alert.alert('Game Over', message);
+      }
       return;
     }
 
@@ -164,7 +171,9 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Stalemate');
       persistCompletedGame('Stalemate', 'stalemate');
-      Alert.alert('Game Over', 'Stalemate!');
+      if (showAlert) {
+        Alert.alert('Game Over', 'Stalemate!');
+      }
       return;
     }
 
@@ -172,7 +181,9 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw by repetition');
       persistCompletedGame('Draw by repetition', 'repetition');
-      Alert.alert('Game Over', 'Draw by repetition!');
+      if (showAlert) {
+        Alert.alert('Game Over', 'Draw by repetition!');
+      }
       return;
     }
 
@@ -180,7 +191,9 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw by insufficient material');
       persistCompletedGame('Draw by insufficient material', 'insufficient-material');
-      Alert.alert('Game Over', 'Draw by insufficient material!');
+      if (showAlert) {
+        Alert.alert('Game Over', 'Draw by insufficient material!');
+      }
       return;
     }
 
@@ -188,7 +201,9 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw');
       persistCompletedGame('Draw', 'draw');
-      Alert.alert('Game Over', 'Draw!');
+      if (showAlert) {
+        Alert.alert('Game Over', 'Draw!');
+      }
       return;
     }
 
@@ -225,32 +240,38 @@ const LocalGameScreen = () => {
 
       if (!result) {
         chessRef.current.load(state.fen);
-      }
+        setMoveHistory(chessRef.current.history());
+        chessboardRef.current?.resetBoard(state.fen);
+        syncGameState({ syncHistory: false, syncFen: true });
+      } else {
+        setMoveHistory(previous => [...previous, result.san]);
+        clockHistoryRef.current.push({
+          white: whiteTimeRef.current,
+          black: blackTimeRef.current,
+        });
 
-      clockHistoryRef.current.push({
-        white: whiteTimeRef.current,
-        black: blackTimeRef.current,
-      });
-
-      if (selectedTimeControl.minutes > 0 && selectedTimeControl.incrementSeconds > 0) {
-        const incrementMs = selectedTimeControl.incrementSeconds * 1000;
-        if (movingColor === 'w') {
-          const nextWhiteTime = whiteTimeRef.current + incrementMs;
-          whiteTimeRef.current = nextWhiteTime;
-          setWhiteTimeMs(nextWhiteTime);
-        } else {
-          const nextBlackTime = blackTimeRef.current + incrementMs;
-          blackTimeRef.current = nextBlackTime;
-          setBlackTimeMs(nextBlackTime);
+        if (selectedTimeControl.minutes > 0 && selectedTimeControl.incrementSeconds > 0) {
+          const incrementMs = selectedTimeControl.incrementSeconds * 1000;
+          if (movingColor === 'w') {
+            const nextWhiteTime = whiteTimeRef.current + incrementMs;
+            whiteTimeRef.current = nextWhiteTime;
+            setWhiteTimeMs(nextWhiteTime);
+          } else {
+            const nextBlackTime = blackTimeRef.current + incrementMs;
+            blackTimeRef.current = nextBlackTime;
+            setBlackTimeMs(nextBlackTime);
+          }
         }
+
+        // Library board already updated; skip setFen so ChessBoard memo does not re-render the tree.
+        syncGameState({ syncHistory: false, syncFen: false });
       }
 
-      syncGameState();
       checkGameStatus();
     } catch (error) {
       console.log('Invalid local move:', error);
     }
-  }, [checkGameStatus, resetClocks, selectedTimeControl, syncGameState]);
+  }, [checkGameStatus, selectedTimeControl, syncGameState]);
 
   const applyTimeControl = useCallback((timeControl: TimeControl) => {
     setSelectedTimeControl(timeControl);
@@ -261,7 +282,8 @@ const LocalGameScreen = () => {
     setIsGameOver(false);
     setGameStatus('White to move');
     setIsSetupScreen(false);
-  }, [resetClocks, syncGameState]);
+    checkGameStatus({ showAlert: false });
+  }, [checkGameStatus, resetClocks, syncGameState]);
 
   const startNewGame = useCallback(() => {
     chessRef.current.reset();
@@ -270,10 +292,12 @@ const LocalGameScreen = () => {
     setFen(nextFen);
     setMoveHistory([]);
     setCurrentTurn(chessRef.current.turn());
+    chessboardRef.current?.resetBoard(nextFen);
     resetClocks(selectedTimeControl);
     setIsGameOver(false);
     setGameStatus('White to move');
-  }, [resetClocks, selectedTimeControl]);
+    checkGameStatus({ showAlert: false });
+  }, [checkGameStatus, resetClocks, selectedTimeControl]);
 
   const returnToSetup = useCallback(() => {
     chessRef.current.reset();
@@ -283,7 +307,8 @@ const LocalGameScreen = () => {
     setIsGameOver(false);
     setGameStatus('White to move');
     setIsSetupScreen(true);
-  }, [resetClocks, selectedTimeControl, syncGameState]);
+    checkGameStatus({ showAlert: false });
+  }, [checkGameStatus, resetClocks, selectedTimeControl, syncGameState]);
 
   const undoMove = useCallback(() => {
     const undoneMove = chessRef.current.undo();
@@ -295,6 +320,7 @@ const LocalGameScreen = () => {
     setFen(nextFen);
     setMoveHistory(chessRef.current.history());
     setCurrentTurn(chessRef.current.turn());
+    chessboardRef.current?.resetBoard(nextFen);
     const previousClockState = clockHistoryRef.current.pop();
     if (previousClockState) {
       whiteTimeRef.current = previousClockState.white;
@@ -305,14 +331,14 @@ const LocalGameScreen = () => {
     }
     setIsGameOver(false);
     hasSavedCurrentGameRef.current = false;
-    checkGameStatus();
+    checkGameStatus({ showAlert: false });
   }, [checkGameStatus]);
 
   useEffect(() => {
     syncGameState();
-    checkGameStatus();
+    checkGameStatus({ showAlert: false });
     resetClocks(selectedTimeControl);
-  }, []);
+  }, [checkGameStatus, resetClocks, selectedTimeControl, syncGameState]);
 
   useEffect(() => {
     if (selectedTimeControl.minutes === 0 || isGameOver) {
@@ -357,7 +383,7 @@ const LocalGameScreen = () => {
   }, [isGameOver, selectedTimeControl]);
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs')}>
@@ -433,11 +459,11 @@ const LocalGameScreen = () => {
 
       <View style={styles.boardContainer}>
         <ChessBoard
-          ref={boardRef}
+          ref={chessboardRef}
           fen={fen}
           onMove={handleMove}
           playerColor={boardOrientation}
-          moveAnimationDuration={80}
+          moveAnimationDuration={0}
         />
       </View>
 
@@ -470,7 +496,7 @@ const LocalGameScreen = () => {
       <MoveHistory moves={moveHistory} />
         </>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

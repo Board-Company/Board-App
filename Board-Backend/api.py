@@ -17,10 +17,14 @@ from schemas import Token, User, UserCreate, GoogleAuthRequest, UserInDB
 def _user_public_dict(user: UserInDB) -> dict:
     data = user.model_dump() if hasattr(user, "model_dump") else user.dict()
     data.pop("hashed_password", None)
+    # Mobile app expects `name` for display; DB stores `username`
+    display_name = data.get("username") or data.get("email") or "Player"
+    if not data.get("name"):
+        data["name"] = display_name
     return data
 from auth import (
     verify_password, get_password_hash, create_access_token, 
-    get_user, authenticate_user, get_current_user, 
+    get_user, get_user_by_email, authenticate_user, get_current_user, 
     get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES,
     generate_code_verifier, generate_code_challenge, get_lichess_auth_url,
     verify_lichess_token, SECRET_KEY, ALGORITHM
@@ -109,8 +113,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             "token_type": "bearer",
             "user": _user_public_dict(user),
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error during authentication: {str(e)}")
+        logger.exception(f"Error during authentication: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Authentication error: {str(e)}"
@@ -136,6 +142,8 @@ async def register_user(user_data: UserCreate):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error checking email existence: {str(e)}")
         raise HTTPException(
@@ -183,6 +191,8 @@ async def register_user(user_data: UserCreate):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create user - empty response"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error creating user: {str(e)}")
         import traceback
@@ -208,8 +218,14 @@ async def health_check():
 @app.post("/auth/google", response_model=Token)
 async def google_auth(google_data: GoogleAuthRequest):
     try:
-        logger.info(f"Received Google token: {google_data.token}")
-        # Verify the Google token
+        if not google_client_id:
+            logger.error("GOOGLE_CLIENT_ID is not set; cannot verify Google ID tokens")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server Google OAuth is not configured",
+            )
+        logger.info("Received Google ID token for verification")
+        # Verify the Google token (audience must match OAuth "Web application" client ID)
         try:
             idinfo = id_token.verify_oauth2_token(
                 google_data.token, requests.Request(), google_client_id)
@@ -222,9 +238,9 @@ async def google_auth(google_data: GoogleAuthRequest):
         email = idinfo.get('email')
         logger.info(f"Extracted email from Google token: {email}")
         
-        # Check if user exists in your database
-        existing_user = await get_user(email, supabase)
-        logger.info(f"User lookup result for {email}: {existing_user}")
+        # Match by email (username may differ for email/password accounts)
+        existing_user = await get_user_by_email(email, supabase)
+        logger.info(f"User lookup by email for {email}: {existing_user}")
         
         if not existing_user:
             # Create new user if they don't exist

@@ -16,6 +16,7 @@ class User(BaseModel):
     id: Optional[str] = None
     username: str
     email: Optional[str] = None
+    name: Optional[str] = None
     disabled: Optional[bool] = None
     picture: Optional[str] = None
     auth_provider: Optional[str] = None

@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   clearLocalGameHistory,
   getCompletedLocalGames,
@@ -26,7 +25,6 @@ const formatPlayedAt = (value: string) =>
 
 const LocalGameHistoryScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
   const [games, setGames] = useState<LocalGameRecord[]>([]);
 
   const loadGames = useCallback(async () => {
@@ -55,7 +53,7 @@ const LocalGameHistoryScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('LocalGame')}>
           <Icon name="arrow-back" size={24} color="#8CB369" />
@@ -101,7 +99,7 @@ const LocalGameHistoryScreen = () => {
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
