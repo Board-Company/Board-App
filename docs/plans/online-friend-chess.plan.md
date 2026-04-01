@@ -30,7 +30,7 @@ todos:
 ## Current codebase
 
 - [Board-Backend/game/models.py](../../Board-Backend/game/models.py) defines `GameState` and `MoveRequest` (FEN, `move_history`, `player_ids`, `status`) but they are **not wired** into [Board-Backend/api.py](../../Board-Backend/api.py).
-- [Board-Backend/supabase_schema.sql](../../Board-Backend/supabase_schema.sql) has `users` and `lichess_users` only.
+- [Board-Backend/supabase_schema.sql](../../Board-Backend/supabase_schema.sql) defines `users`, `lichess_users`, and `completed_games`.
 - [nimbus/src/screens/onlineGame.tsx](../../nimbus/src/screens/onlineGame.tsx) is **Lichess-only**; local play uses in-memory `chess.js` only.
 
 ## Target architecture (your preference)

@@ -18,6 +18,8 @@ import { useLichessAuth } from '../contexts/LichessAuthContext';
 type RootStackParamList = {
   PlayMenu: undefined;
   OnlineGame: { gameType: string; timeControl: string };
+  OnlineFriendGameHistory: undefined;
+  OnlineFriendGameReview: { gameId: string };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'PlayMenu'>;
@@ -269,6 +271,17 @@ const PlayMenuScreen = () => {
                 <TouchableOpacity activeOpacity={0.92} style={styles.primaryButton} onPress={handleStartGame}>
                   <Text style={styles.primaryButtonText}>Start Online Game</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.92}
+                  style={styles.secondaryOutlineButton}
+                  onPress={() => navigation.navigate('OnlineFriendGameHistory')}
+                >
+                  <Text style={styles.secondaryOutlineButtonText}>Friend games history</Text>
+                  <Text style={styles.secondaryOutlineHint}>
+                    Finished Play with Friend games from your account (Board API)
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </>
@@ -462,6 +475,27 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 17,
     fontWeight: '800',
+  },
+  secondaryOutlineButton: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#8CB369',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  secondaryOutlineButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  secondaryOutlineHint: {
+    color: '#B8B8B8',
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginTop: 6,
   },
   secondaryPillButton: {
     backgroundColor: '#232F1A',

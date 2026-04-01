@@ -18,6 +18,23 @@ class CreateGameResponse(BaseModel):
     invite_code: str
 
 
+class CompletedGameSummary(BaseModel):
+    """Archived friend game row (Supabase) for the authenticated user."""
+
+    id: str
+    game_id: str
+    white_player_id: str
+    black_player_id: str
+    white_username: Optional[str] = None
+    black_username: Optional[str] = None
+    move_history: list[str]
+    final_fen: str
+    result: str
+    finished_reason: Optional[str] = None
+    started_at: str
+    finished_at: str
+
+
 class FriendGameState(BaseModel):
     game_id: str
     fen: str

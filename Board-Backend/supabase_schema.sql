@@ -1,5 +1,9 @@
 -- Board-Backend Supabase schema
 -- Run this in your Supabase project: SQL Editor → New query → paste and run
+--
+-- Tables: users, lichess_users, completed_games (friend chess archive from Redis)
+-- Backend uses the service_role key and bypasses RLS. If you use anon key only,
+-- add policies for each table as needed.
 
 -- Users table (app accounts: email/password and Google OAuth)
 create table if not exists public.users (
@@ -47,7 +51,10 @@ create table if not exists public.completed_games (
 create index if not exists idx_completed_games_white on public.completed_games (white_player_id);
 create index if not exists idx_completed_games_black on public.completed_games (black_player_id);
 
+comment on table public.completed_games is 'Finished in-app friend games; inserted when Redis session ends (checkmate, draw, resign).';
+
 -- Supabase RLS: backend uses the service_role key, which bypasses RLS.
 -- If you use the anon key instead, uncomment and adjust policies as needed.
 -- alter table public.users enable row level security;
 -- alter table public.lichess_users enable row level security;
+-- alter table public.completed_games enable row level security;

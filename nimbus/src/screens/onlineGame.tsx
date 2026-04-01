@@ -1,12 +1,12 @@
 // @ts-ignore: No types for rn-eventsource
 import EventSource from 'rn-eventsource';
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, Dimensions } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
-import { Text, YStack, Button } from 'tamagui';
-import { Chess } from 'chess.js';
-import Chessboard from 'react-native-chessboard';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Chess } from 'chess.js';
+import ChessBoard from '../components/game/ChessBoard';
+import MoveHistory from '../components/game/MoveHistory';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -15,22 +15,14 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OnlineGame'>;
 
-interface Move {
-  from: string;
-  to: string;
-}
-
-const OnlineGameScreen = ({ navigation, route }: Props) => {
+const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
   const { gameType, timeControl } = route.params;
   const { lichessInfo } = useLichessAuth();
-  const [game, setGame] = useState<Chess>(new Chess());
+  const [game, setGame] = useState<Chess>(() => new Chess());
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'waiting' | 'playing' | 'finished'>('waiting');
   const [error, setError] = useState<string | null>(null);
   const [stream, setStream] = useState<EventSource | null>(null);
-
-  const screenWidth = Dimensions.get('window').width;
-  const boardSize = Math.floor((screenWidth - 32) / 8) * 8; // Ensure board size is divisible by 8
 
   useEffect(() => {
     createGame();
@@ -51,17 +43,17 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
       const response = await fetch('https://lichess.org/api/challenge/ai', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${lichessInfo.access_token}`,
+          Authorization: `Bearer ${lichessInfo.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           level: 8,
           clock: {
-            limit: parseInt(timeControl),
-            increment: 0
+            limit: parseInt(timeControl, 10),
+            increment: 0,
           },
           variant: gameType === 'chess960' ? 'chess960' : 'standard',
-          color: 'white'
+          color: 'white',
         }),
       });
 
@@ -82,25 +74,25 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
 
   const startStreaming = (id: string) => {
     const newStream = new EventSource(`https://lichess.org/api/board/game/stream/${id}`, {
-      withCredentials: true
+      withCredentials: true,
     });
 
-    newStream.onmessage = (event: any) => {
-      let rawData = event && event.data ? event.data : event;
+    newStream.onmessage = (event: { data?: string } | string) => {
+      const rawData = event && typeof event === 'object' && 'data' in event ? event.data : event;
       try {
         const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
         if (data.type === 'gameFull') {
           setGameState('playing');
           if (data.state && data.state.moves) {
-            const newGame = new Chess();
-            newGame.loadPgn(data.state.moves);
-            setGame(newGame);
+            const next = new Chess();
+            next.loadPgn(data.state.moves);
+            setGame(next);
           }
         } else if (data.type === 'gameState') {
           if (data.moves) {
-            const newGame = new Chess();
-            newGame.loadPgn(data.moves);
-            setGame(newGame);
+            const next = new Chess();
+            next.loadPgn(data.moves);
+            setGame(next);
           }
           if (data.status) {
             setGameState('finished');
@@ -112,7 +104,7 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
       }
     };
 
-    newStream.onerror = (err: any) => {
+    newStream.onerror = (err: unknown) => {
       console.error('Stream error:', err);
       setError('Lost connection to game');
       newStream.close();
@@ -121,15 +113,29 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
     setStream(newStream);
   };
 
-  const handleMove = async (move: any) => {
-    if (!gameId || !lichessInfo?.access_token) return;
+  const handleMove = async (evt: { move?: { from: string; to: string; promotion?: string } }) => {
+    if (!gameId || !lichessInfo?.access_token) {
+      return;
+    }
+    const m = evt?.move;
+    if (!m?.from || !m?.to) {
+      return;
+    }
+    if (game.turn() !== 'w') {
+      return;
+    }
+
+    let uci = `${m.from}${m.to}`;
+    if (m.promotion && typeof m.promotion === 'string') {
+      uci += m.promotion.toLowerCase();
+    }
 
     try {
-      const response = await fetch(`https://lichess.org/api/board/game/${gameId}/move/${move.from}${move.to}`, {
+      const response = await fetch(`https://lichess.org/api/board/game/${gameId}/move/${uci}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${lichessInfo.access_token}`
-        }
+          Authorization: `Bearer ${lichessInfo.access_token}`,
+        },
       });
 
       if (!response.ok) {
@@ -142,59 +148,108 @@ const OnlineGameScreen = ({ navigation, route }: Props) => {
 
   if (error) {
     return (
-      <YStack style={{ flex: 1, backgroundColor: '$background', justifyContent: 'center', alignItems: 'center', padding: '$4' }}>
-        <Text style={{ color: '$red10', textAlign: 'center', marginBottom: '$4' }}>{error}</Text>
-        <Button style={{ backgroundColor: '$green10' }} onPress={createGame}>
-          <Text style={{ color: 'white', fontSize: 24 }}>Retry</Text>
-        </Button>
-      </YStack>
+      <View style={styles.centerWrap}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={createGame}>
+          <Text style={styles.primaryBtnText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
   return (
-    <YStack style={{ flex: 1, backgroundColor: '$background', padding: '$4' }}>
+    <View style={styles.root}>
       {gameState === 'waiting' ? (
-        <YStack style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
-          <Text style={{ color: '$color', marginTop: 16, fontSize: 24 }}>Waiting for opponent...</Text>
-        </YStack>
+        <View style={styles.centerWrap}>
+          <ActivityIndicator size="large" color="#8CB369" />
+          <Text style={styles.statusText}>Waiting for opponent...</Text>
+        </View>
       ) : gameState === 'playing' ? (
-        <YStack style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ width: '100%', aspectRatio: 1, maxWidth: 400 }}>
-            <Chessboard
+        <View style={styles.playWrap}>
+          <Text style={styles.statusText}>
+            {game.turn() === 'w' ? 'Your turn' : "Opponent's turn"}
+          </Text>
+          <View style={styles.boardBlock}>
+            <ChessBoard
               fen={game.fen()}
               onMove={handleMove}
-              boardSize={boardSize}
-              colors={{
-                black: '#769656',
-                white: '#eeeed2',
-                lastMoveHighlight: 'rgba(255,255,0, 0.5)',
-                checkmateHighlight: '#E84855',
-                promotionPieceButton: '#FF9B71'
-              }}
-              gestureEnabled={true}
-              withLetters={true}
-              withNumbers={true}
+              playerColor="w"
+              gestureEnabled={game.turn() === 'w'}
             />
           </View>
-          <Text style={{ color: '$color', marginTop: 16, fontSize: 24 }}>
-            {game.turn() === 'w' ? 'Your turn' : 'Opponent\'s turn'}
-          </Text>
-        </YStack>
+          <MoveHistory moves={game.history()} variant="dark" layout="inline" />
+        </View>
       ) : (
-        <YStack style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '$color', fontSize: 24, textAlign: 'center' }}>
-            Game finished! {game.isCheckmate() ? 'Checkmate!' : 
-              game.isDraw() ? 'Draw!' : 
-              game.isStalemate() ? 'Stalemate!' : 'Game over!'}
+        <View style={styles.centerWrap}>
+          <Text style={styles.finishedText}>
+            Game finished!{' '}
+            {game.isCheckmate()
+              ? 'Checkmate!'
+              : game.isDraw()
+                ? 'Draw!'
+                : game.isStalemate()
+                  ? 'Stalemate!'
+                  : 'Game over!'}
           </Text>
-          <Button style={{ backgroundColor: '$green10', marginTop: '$4' }} onPress={createGame}>
-            <Text style={{ color: 'white', fontSize: 24 }}>Play Again</Text>
-          </Button>
-        </YStack>
+          <MoveHistory moves={game.history()} variant="dark" layout="inline" />
+          <TouchableOpacity style={styles.primaryBtn} onPress={createGame}>
+            <Text style={styles.primaryBtnText}>Play Again</Text>
+          </TouchableOpacity>
+        </View>
       )}
-    </YStack>
+    </View>
   );
 };
 
-export default OnlineGameScreen; 
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    padding: 12,
+  },
+  playWrap: {
+    flex: 1,
+  },
+  boardBlock: {
+    flex: 1,
+    minHeight: 200,
+    justifyContent: 'center',
+  },
+  centerWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  statusText: {
+    color: '#EEEEEE',
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  finishedText: {
+    color: '#EEEEEE',
+    fontSize: 20,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#E84855',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  primaryBtn: {
+    backgroundColor: '#8CB369',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  primaryBtnText: {
+    color: '#111',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+});
+
+export default OnlineGameScreen;

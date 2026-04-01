@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import MoveHistory from '../components/game/MoveHistory';
 import { getAccessToken } from '../services/auth';
 import { BASE_URL } from '@env';
 
@@ -292,14 +293,17 @@ const FriendGameScreen = () => {
           {state.invite_code}
         </Text>
       ) : null}
-      <ChessBoard
-        key={state.fen + state.updated_at}
-        fen={state.fen}
-        onMove={handleMove}
-        playerColor={playerColor}
-        moveAnimationDuration={10}
-      />
-      <Text style={styles.moves}>{state.move_history.join(' ')}</Text>
+      <View style={styles.boardBlock}>
+        <ChessBoard
+          key={state.fen + state.updated_at}
+          fen={state.fen}
+          onMove={handleMove}
+          playerColor={playerColor}
+          gestureEnabled={!!isMyTurn && state.status === 'active'}
+          moveAnimationDuration={10}
+        />
+      </View>
+      <MoveHistory moves={state.move_history} variant="dark" layout="inline" />
     </View>
   );
 };
@@ -341,7 +345,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
-  moves: { color: '#888', fontSize: 12, marginTop: 8 },
+  boardBlock: { flex: 1, minHeight: 200, justifyContent: 'center' },
 });
 
 export default FriendGameScreen;

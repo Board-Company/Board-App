@@ -184,7 +184,9 @@ async def register_user(user_data: UserCreate):
         
         if hasattr(response, 'data') and response.data:
             logger.success(f"User registered successfully: {user_data.username}")
-            return User(**user_dict)
+            row = response.data[0]
+            created = UserInDB(**row)
+            return User(**_user_public_dict(created))
         else:
             logger.error(f"Supabase response empty or invalid: {response}")
             raise HTTPException(
@@ -212,8 +214,16 @@ async def root():
 
 # Health check endpoint
 @app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+async def health_check(request: Request):
+    """Liveness + Redis connectivity (friend games require Redis)."""
+    r = getattr(request.app.state, "redis", None)
+    if r is None:
+        return {"status": "degraded", "redis": False}
+    try:
+        await r.ping()
+        return {"status": "healthy", "redis": True}
+    except Exception:
+        return {"status": "degraded", "redis": False}
 
 @app.post("/auth/google", response_model=Token)
 async def google_auth(google_data: GoogleAuthRequest):

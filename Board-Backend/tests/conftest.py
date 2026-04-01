@@ -29,7 +29,9 @@ def _fake_supabase_module() -> None:
 
     def _chain(*_args, **_kwargs):
         chain = MagicMock()
-        chain.insert.return_value.execute.return_value = MagicMock(data=[{"ok": True}])
+        ok = MagicMock(data=[{"ok": True}])
+        chain.insert.return_value.execute.return_value = ok
+        chain.upsert.return_value.execute.return_value = ok
         return chain
 
     mock_client.table.side_effect = lambda _name: _chain()

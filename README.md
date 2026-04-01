@@ -203,7 +203,7 @@ The backend uses Supabase for user accounts and Lichess linking. If your project
 2. **New query**.
 3. Copy the contents of `Board-Backend/supabase_schema.sql` and run it.
 
-This creates the `users` and `lichess_users` tables the backend expects.
+This creates the `users`, `lichess_users`, and `completed_games` tables (friend chess archive when a Redis game ends).
 
 ### 3. Get your URL and key
 

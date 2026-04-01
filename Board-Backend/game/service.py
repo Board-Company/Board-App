@@ -93,7 +93,8 @@ async def _archive_and_clear(redis: Redis, supabase: Client, state: dict) -> Non
         "finished_at": _now_iso(),
     }
     try:
-        supabase.table("completed_games").insert(row).execute()
+        # Idempotent: duplicate finish (e.g. retry) merges on game_id unique constraint
+        supabase.table("completed_games").upsert(row, on_conflict="game_id").execute()
     except Exception as e:
         logger.exception("completed_games insert failed: {}", e)
         raise HTTPException(
