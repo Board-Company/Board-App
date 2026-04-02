@@ -59,6 +59,19 @@ The firmware implements multiplexer control, 12-bit ADC readings, noise reductio
 | Voice Recognition | @react-native-voice/voice |
 | Authentication | JWT, Google OAuth, Lichess OAuth2 |
 
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `nimbus/` | React Native mobile app |
+| `Board-Backend/` | FastAPI backend |
+| `Board-LLM/` | Chess coach LLM service |
+| `Board-Firmware/` | ESP32 firmware (PlatformIO) |
+| [docs/plans/](docs/plans/) | Technical plans; superseded plans go in [docs/plans/archive/](docs/plans/archive/) |
+| [tools/hardware-sim/](tools/hardware-sim/) | Optional Python hall-effect / magnet visualization scripts |
+
+Root shell scripts (`install-all-deps.sh`, `run-services.sh`, `open-services-in-terminal.sh`) stay at the repo root for IDE tasks and quick access.
+
 ## Requirements
 
 - **Node.js** v18+ (https://nodejs.org/)
@@ -190,7 +203,7 @@ The backend uses Supabase for user accounts and Lichess linking. If your project
 2. **New query**.
 3. Copy the contents of `Board-Backend/supabase_schema.sql` and run it.
 
-This creates the `users` and `lichess_users` tables the backend expects.
+This creates the `users`, `lichess_users`, and `completed_games` tables (friend chess archive when a Redis game ends).
 
 ### 3. Get your URL and key
 

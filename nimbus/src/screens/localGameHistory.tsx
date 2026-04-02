@@ -1,19 +1,18 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   clearLocalGameHistory,
-  getLocalGameHistory,
-  type LocalGameHistoryEntry,
+  getCompletedLocalGames,
+  type LocalGameRecord,
 } from '../services/localGameHistory';
 
 type RootStackParamList = {
   LocalGame: undefined;
   LocalGameHistory: undefined;
-  LocalGameReview: { game: LocalGameHistoryEntry };
+  LocalGameReview: { gameId: string };
 };
 
 const formatPlayedAt = (value: string) =>
@@ -26,18 +25,17 @@ const formatPlayedAt = (value: string) =>
 
 const LocalGameHistoryScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
-  const [games, setGames] = useState<LocalGameHistoryEntry[]>([]);
+  const [games, setGames] = useState<LocalGameRecord[]>([]);
 
-  const loadHistory = useCallback(async () => {
-    const history = await getLocalGameHistory();
-    setGames(history);
+  const loadGames = useCallback(async () => {
+    const nextGames = await getCompletedLocalGames();
+    setGames(nextGames);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadHistory();
-    }, [loadHistory]),
+      loadGames();
+    }, [loadGames]),
   );
 
   const handleClearHistory = () => {
@@ -55,7 +53,7 @@ const LocalGameHistoryScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('LocalGame')}>
           <Icon name="arrow-back" size={24} color="#8CB369" />
@@ -76,7 +74,7 @@ const LocalGameHistoryScreen = () => {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.gameCard}
-            onPress={() => navigation.navigate('LocalGameReview', { game: item })}
+            onPress={() => navigation.navigate('LocalGameReview', { gameId: item.id })}
           >
             <View style={styles.gameCardTop}>
               <View>
@@ -97,13 +95,11 @@ const LocalGameHistoryScreen = () => {
           <View style={styles.emptyState}>
             <Icon name="history" size={54} color="#5D5D5D" />
             <Text style={styles.emptyTitle}>No saved games yet</Text>
-            <Text style={styles.emptyText}>
-              Finished local games will show up here automatically.
-            </Text>
+            <Text style={styles.emptyText}>Finished local games will show up here automatically.</Text>
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

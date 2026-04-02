@@ -1,0 +1,52 @@
+# Board-Backend pytest on every push. Env vars can be set here or via repo Secrets.
+#
+# Optional repo secrets (Settings → Secrets and variables → Actions):
+#   BACKEND_SECRET_KEY, BACKEND_SUPABASE_URL, BACKEND_SUPABASE_KEY — only if you
+#   want CI to override conftest defaults (current tests use fakeredis + stub Supabase).
+#
+# Reference in env: ${{ secrets.BACKEND_SECRET_KEY }}
+
+name: Board Backend tests
+
+on:
+  push:
+    paths:
+      - "Board-Backend/**"
+      - ".github/workflows/board-backend-tests.yml"
+  pull_request:
+    paths:
+      - "Board-Backend/**"
+      - ".github/workflows/board-backend-tests.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Board-Backend
+
+    env:
+      PYTHON_VERSION: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        run: poetry run pytest
+        env:
+          # Optional: inject from GitHub Secrets (uncomment secrets in repo + lines below)
+          # SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+          # SUPABASE_URL: ${{ secrets.BACKEND_SUPABASE_URL }}
+          # SUPABASE_KEY: ${{ secrets.BACKEND_SUPABASE_KEY }}
+          CI: "true"

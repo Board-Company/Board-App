@@ -1,0 +1,45 @@
+# EC2 / server: Redis stays on the Docker network only (not on the public internet).
+# API is reachable on port 8000; put nginx/Caddy in front for TLS on 443.
+#
+# Usage:
+#   cd Board-Backend
+#   cp .env.example .env   # then fill in secrets
+#   docker compose up -d --build
+#
+# Redis-only (API runs on the host with uvicorn/poetry):
+#   Uncomment the ports block under redis, then:
+#   docker compose up -d redis
+#   Set REDIS_URL=redis://127.0.0.1:6379/0 in .env
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    # EC2: keep 6379 off the public SG. For host-run API + container Redis, expose loopback only:
+    # ports:
+    #   - "127.0.0.1:6379:6379"
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Wins over REDIS_URL in .env when API runs in this Compose stack
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:

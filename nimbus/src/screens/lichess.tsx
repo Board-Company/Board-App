@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Header from '../components/header';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
 
 const LichessScreen = () => {
@@ -7,34 +8,42 @@ const LichessScreen = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centerState}>
         <ActivityIndicator size="large" color="#8CB369" />
+        <Text style={styles.centerTitle}>Loading Lichess</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {error && (
-        <Text style={styles.error}>{error}</Text>
-      )}
-      
-      {isAuthenticated ? (
-        <View style={styles.content}>
-          <Text style={styles.welcome}>Welcome, {user?.lichess_username || user?.username}!</Text>
-          <TouchableOpacity style={styles.button} onPress={logout}>
-            <Text style={styles.buttonText}>Logout</Text>
+      <Header />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>Nimbus Lichess</Text>
+          <Text style={styles.heroTitle}>
+            {isAuthenticated
+              ? `Connected as ${user?.lichess_username || user?.username}`
+              : 'Connect your Lichess account'}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            Keep your online play connected to Nimbus with the same green-and-black look as the rest of the app.
+          </Text>
+        </View>
+
+        <View style={styles.panel}>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <TouchableOpacity
+            activeOpacity={0.92}
+            style={isAuthenticated ? styles.secondaryButton : styles.primaryButton}
+            onPress={isAuthenticated ? logout : login}
+          >
+            <Text style={isAuthenticated ? styles.secondaryButtonText : styles.primaryButtonText}>
+              {isAuthenticated ? 'Logout from Lichess' : 'Login with Lichess'}
+            </Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.content}>
-          <Text style={styles.title}>Connect with Lichess</Text>
-          <Text style={styles.subtitle}>Play chess with your Lichess account</Text>
-          <TouchableOpacity style={styles.button} onPress={login}>
-            <Text style={styles.buttonText}>Login with Lichess</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      </ScrollView>
     </View>
   );
 };
@@ -42,48 +51,94 @@ const LichessScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#202020',
   },
   content: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  centerState: {
+    flex: 1,
+    backgroundColor: '#202020',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  centerTitle: {
     color: '#FFFFFF',
-    marginBottom: 10,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 16,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#CCCCCC',
-    marginBottom: 30,
-    textAlign: 'center',
+  heroCard: {
+    backgroundColor: '#131313',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#24351B',
   },
-  welcome: {
-    fontSize: 20,
+  eyebrow: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  heroTitle: {
     color: '#FFFFFF',
-    marginBottom: 20,
+    fontSize: 25,
+    fontWeight: '800',
+    lineHeight: 31,
   },
-  button: {
+  heroSubtitle: {
+    color: '#AEB8A8',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  panel: {
+    backgroundColor: '#151515',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#24351B',
+    gap: 12,
+  },
+  primaryButton: {
     backgroundColor: '#8CB369',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-    elevation: 3,
+    borderRadius: 14,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: {
+  primaryButtonText: {
+    color: '#081005',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    backgroundColor: '#111111',
+    borderRadius: 14,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#24351B',
+  },
+  secondaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  error: {
-    color: '#FF6B6B',
-    marginBottom: 20,
+  errorText: {
+    color: '#D96C6C',
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
   },
 });
 
-export default LichessScreen; 
+export default LichessScreen;

@@ -10,14 +10,22 @@ NIMBUS_DIR="$ROOT_DIR/nimbus"
 echo "Installing Board-Backend dependencies..."
 (
   cd "$BACKEND_DIR"
-  poetry install
+  if command -v poetry >/dev/null 2>&1; then
+    poetry install
+  else
+    python3 -m poetry install
+  fi
 )
 
 echo
 echo "Installing Board-LLM dependencies..."
 (
   cd "$LLM_DIR"
-  poetry install
+  if command -v poetry >/dev/null 2>&1; then
+    poetry install
+  else
+    python3 -m poetry install
+  fi
 )
 
 echo

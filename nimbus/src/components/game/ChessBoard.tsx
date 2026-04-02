@@ -2,20 +2,32 @@ import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } 
 import { Dimensions, Image, StyleSheet, View } from 'react-native';
 import Chessboard, { ChessboardRef } from 'react-native-chessboard';
 import { PIECES } from 'react-native-chessboard/lib/commonjs/constants';
+import type { ChessboardState } from 'react-native-chessboard/lib/typescript/helpers/get-chessboard-state';
 
 interface ChessBoardProps {
   fen: string;
   onMove: (move: any) => void;
   playerColor: 'w' | 'b';
   gestureEnabled?: boolean;
+  /** Piece move animation (ms). Lower = snappier; default tuned for near-instant play. */
   moveAnimationDuration?: number;
+  /** Cap board width (e.g. nested padding). Defaults to screen width minus outer margin. */
+  maxBoardWidth?: number;
 }
 
 const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
-  ({ fen, onMove, playerColor, gestureEnabled = true, moveAnimationDuration = 90 }, ref) => {
+  (
+    { fen, onMove, playerColor, gestureEnabled = true, moveAnimationDuration = 12, maxBoardWidth },
+    ref,
+  ) => {
   const internalRef = useRef<ChessboardRef>(null);
   const screenWidth = Dimensions.get('window').width;
-  const boardSize = useMemo(() => Math.floor((screenWidth - 32) / 8) * 8, [screenWidth]);
+  const boardSize = useMemo(() => {
+    const defaultOuterMargin = 32;
+    const widthBudget = maxBoardWidth ?? screenWidth - defaultOuterMargin;
+    const capped = Math.min(screenWidth - defaultOuterMargin, widthBudget);
+    return Math.floor(Math.max(capped, 0) / 8) * 8;
+  }, [screenWidth, maxBoardWidth]);
   const pieceSize = boardSize / 8;
   const colors = useMemo(
     () => ({
@@ -43,7 +55,17 @@ const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     [pieceSize, playerColor],
   );
 
-  useImperativeHandle(ref, () => internalRef.current as ChessboardRef, []);
+  useImperativeHandle(
+    ref,
+    (): ChessboardRef => ({
+      move: (params) => internalRef.current?.move?.(params),
+      highlight: (params) => internalRef.current?.highlight?.(params),
+      resetAllHighlightedSquares: () => internalRef.current?.resetAllHighlightedSquares?.(),
+      getState: () => internalRef.current?.getState?.() as ChessboardState,
+      resetBoard: (nextFen) => internalRef.current?.resetBoard?.(nextFen),
+    }),
+    [],
+  );
 
   return (
     <View style={playerColor === 'b' ? styles.rotatedBoard : undefined}>

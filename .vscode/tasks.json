@@ -18,6 +18,22 @@
       "problemMatcher": []
     },
     {
+      "label": "Nimbus: Metro (reset cache)",
+      "type": "shell",
+      "command": "npm run start:fast",
+      "options": {
+        "cwd": "${workspaceFolder}/nimbus"
+      },
+      "detail": "Frees port 8081 if needed, then starts Metro with --reset-cache.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Open Board Services",
       "type": "process",
       "command": "${workspaceFolder}/open-services-in-terminal.sh",
@@ -37,13 +53,33 @@
       "problemMatcher": []
     },
     {
+      "label": "Start Board Microservices",
+      "type": "process",
+      "command": "${workspaceFolder}/run-services.sh",
+      "args": [
+        "--android",
+        "--reset-cache"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "detail": "Starts Board-Backend, Board-LLM, Nimbus Metro, and Android with health checks in one managed task using active-arch-only for faster Android debug builds.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run Board Services",
       "dependsOrder": "sequence",
       "dependsOn": [
         "Install Board Dependencies",
         "Open Board Services"
       ],
-      "detail": "Installs dependencies, then opens Terminal tabs for backend, LLM, Metro reset-cache, and Android.",
+      "detail": "Installs dependencies, then opens Board services in separate Terminal tabs.",
       "group": {
         "kind": "build",
         "isDefault": true

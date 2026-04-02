@@ -1,10 +1,10 @@
-import { Button, YStack, Text, Input } from 'tamagui'
-import { useNavigation } from '@react-navigation/native'
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import React, { useState } from 'react'
-import { ToastAndroid } from 'react-native'
-import { register, signInWithUsername } from '../services/auth.tsx'
-import { useAuth } from '../contexts/AuthContext'
+import React, { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Header from '../components/header';
+import { register } from '../services/auth.tsx';
+import { useAuth } from '../contexts/AuthContext';
 
 type RootStackParamList = {
   Login: undefined;
@@ -12,109 +12,191 @@ type RootStackParamList = {
   UserLogin: undefined;
   MainTabs: undefined;
   Play: undefined;
-}
+};
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function RegisterScreen() {
-  const navigation = useNavigation<NavigationProp>()
-  const { signInWithUsername } = useAuth()
-  const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const navigation = useNavigation<NavigationProp>();
+  const { signInWithUsername } = useAuth();
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const showError = (message: string) => {
-    ToastAndroid.show(message, ToastAndroid.LONG);
-  };
-
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleRegister = async () => {
     if (!email || !username || !password) {
-      showError('Please fill all fields');
+      Alert.alert('Missing Info', 'Please fill all fields.');
       return;
     }
 
     if (!isValidEmail(email)) {
-      showError('Please enter a valid email address');
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
     try {
-      setLoading(true)
+      setLoading(true);
       await register({ email, username, password });
-      // If we get here, registration was successful
       try {
         await signInWithUsername(username, password);
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs' }],
         });
-      } catch (error) {
-        showError('Registration successful. Please sign in manually.');
+      } catch {
+        Alert.alert('Account Created', 'Registration worked. Please sign in with your username.');
         navigation.navigate('UserLogin');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '';
       if (errorMessage.includes('Username already registered')) {
-        showError('This username is already taken. Please choose another one.');
+        Alert.alert('Username Taken', 'That username is already in use.');
       } else if (errorMessage.includes('Email already registered')) {
-        showError('This email is already registered. Please use another email.');
+        Alert.alert('Email In Use', 'That email is already registered.');
       } else {
-        showError('Registration failed. Please try again.');
+        Alert.alert('Registration Failed', 'Please try again.');
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <YStack style={{ flex: 1, backgroundColor: "#2A2A2A", padding: 16 }}>
-      <YStack style={{ flex: 1, justifyContent: "space-between", alignItems: "center", gap: 24 }}>
-        {/* Top section with title and inputs */}
-        <YStack style={{ alignItems: "center", marginTop: 40, gap: 24 , width: "100%"}}>
-          <Text style={{ color: "white", fontSize: 32, fontWeight: "bold", textAlign: "center" }}>
-            Create an Account
+    <View style={styles.container}>
+      <Header />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>Create Account</Text>
+          <Text style={styles.heroTitle}>Set up your Nimbus account.</Text>
+          <Text style={styles.heroSubtitle}>
+            Save local games, unlock online features, and keep your profile in sync.
           </Text>
-          <Input width="90%" placeholder="Email" borderWidth={2} borderColor="white" value={email} onChangeText={setEmail} />
-          <Input width="90%" placeholder="Username" borderWidth={2} borderColor="white" value={username} onChangeText={setUsername} />
-          <Input width="90%" placeholder="Password" borderWidth={2} borderColor="white" value={password} onChangeText={setPassword} secureTextEntry />
-        </YStack>
+        </View>
 
-        {/* Bottom section with buttons */}
-        <YStack style={{ width: "100%", gap: 16, marginBottom: 24 }}>
-          <Button 
-            style={{ backgroundColor: "#A4BE7B", height: 50, width: "100%" }}
-            fontSize="$5"
-            fontWeight="bold"
-            pressStyle={{ opacity: 0.8 }}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            <Text style={{ color: 'white' }}>{loading ? 'Registering...' : 'Register'}</Text>
-          </Button>
+        <View style={styles.formCard}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#6F7A68"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            placeholderTextColor="#6F7A68"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#6F7A68"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-          <Button 
-            style={{ 
-              backgroundColor: "#333333",
-              height: 50,
-              width: "100%",
-              borderColor: "#A4BE7B",
-              borderWidth: 1
-            }}
-            fontSize="$4"
-            pressStyle={{ opacity: 0.8 }}
-            onPress={() => navigation.goBack()}
-            disabled={loading}
-          >
-            Go Back
-          </Button>
-        </YStack>
-      </YStack>
-    </YStack>
-  )
-} 
+          <TouchableOpacity activeOpacity={0.92} style={styles.primaryButton} onPress={handleRegister} disabled={loading}>
+            <Text style={styles.primaryButtonText}>{loading ? 'Registering...' : 'Register'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity activeOpacity={0.92} style={styles.secondaryButton} onPress={() => navigation.goBack()} disabled={loading}>
+            <Text style={styles.secondaryButtonText}>Back to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#202020',
+  },
+  content: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  heroCard: {
+    backgroundColor: '#131313',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#24351B',
+  },
+  eyebrow: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontWeight: '800',
+    lineHeight: 31,
+  },
+  heroSubtitle: {
+    color: '#AEB8A8',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  formCard: {
+    backgroundColor: '#151515',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#24351B',
+    gap: 12,
+  },
+  input: {
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#24351B',
+    backgroundColor: '#111111',
+    color: '#FFFFFF',
+    paddingHorizontal: 14,
+    fontSize: 15,
+  },
+  primaryButton: {
+    backgroundColor: '#8CB369',
+    borderRadius: 14,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  primaryButtonText: {
+    color: '#081005',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    borderRadius: 14,
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: '#24351B',
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+});

@@ -6,6 +6,7 @@ interface User {
   email: string;
   name: string;
   picture?: string;
+  username?: string;
 }
 
 interface AuthContextType {
@@ -30,8 +31,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadUser = async () => {
       try {
         const authData = await getStoredAuthData();
-        if (authData) {
-          setUser(authData.user);
+        if (authData?.user) {
+          const u = authData.user;
+          setUser({
+            id: u.id ?? u.username ?? u.email,
+            email: u.email,
+            name: u.name,
+            picture: u.picture,
+            username: u.username,
+          });
         }
       } catch (error) {
         console.error('Error loading user:', error);
@@ -49,8 +57,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       const authData = await signInWithGoogle();
-      setUser(authData.user);
+      const u = authData.user;
+      setUser({
+        id: u.id ?? u.username ?? u.email,
+        email: u.email,
+        name: u.name,
+        picture: u.picture,
+        username: u.username,
+      });
     } catch (error) {
+      setUser(null);
       setError(error as Error);
     } finally {
       setLoading(false);
@@ -75,8 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       const authData = await signInWithUsername(username, password);
-      setUser(authData.user);
+      const u = authData.user;
+      setUser({
+        id: u.id ?? u.username ?? u.email,
+        email: u.email,
+        name: u.name,
+        picture: u.picture,
+        username: u.username,
+      });
     } catch (error) {
+      setUser(null);
       setError(error as Error);
       throw error;
     } finally {
