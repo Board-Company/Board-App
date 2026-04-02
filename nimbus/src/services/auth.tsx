@@ -1,6 +1,7 @@
 
 import { GoogleSignin, statusCodes, User as GoogleUser } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { BASE_URL, GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
 
 interface RegisterData {

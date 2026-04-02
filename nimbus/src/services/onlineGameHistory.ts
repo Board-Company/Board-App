@@ -18,7 +18,7 @@ export type OnlineCompletedGame = {
   finished_at: string;
 };
 
-async function authHeaders(): Promise<HeadersInit> {
+async function authHeaders(): Promise<Record<string, string>> {
   const t = await getAccessToken();
   if (!t) {
     throw new Error('Not logged in');

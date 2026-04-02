@@ -171,6 +171,13 @@ const FriendGameScreen = () => {
 
   const playerColor: 'w' | 'b' =
     myId && state?.white_player_id === myId ? 'w' : 'b';
+  const creatorName = state?.white_username?.trim() || 'Host';
+  const isCreatorView = !!(state && myId && state.white_player_id === myId);
+  const sessionBannerText = isCreatorView
+    ? state?.black_username
+      ? `${state.black_username} joined your game session.`
+      : 'This is your game session. Share the invite code so a friend can join.'
+    : `${creatorName} created this game session.`;
 
   const handleMove = async (move: { from: string; to: string }) => {
     if (!state || !gameId || state.status !== 'active' || !isMyTurn) {
@@ -283,6 +290,11 @@ const FriendGameScreen = () => {
         ) : null}
       </View>
       {err ? <Text style={styles.error}>{err}</Text> : null}
+      <View style={styles.sessionBanner}>
+        <Text style={styles.sessionBannerLabel}>Game Session</Text>
+        <Text style={styles.sessionBannerTitle}>{creatorName}</Text>
+        <Text style={styles.sessionBannerText}>{sessionBannerText}</Text>
+      </View>
       <Text style={styles.status}>
         {state.status === 'waiting' && 'Waiting for opponent — share invite code:'}
         {state.status === 'active' && (isMyTurn ? 'Your turn' : "Opponent's turn")}
@@ -334,6 +346,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  sessionBanner: {
+    backgroundColor: '#333333',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#435C33',
+  },
+  sessionBannerLabel: {
+    color: '#8CB369',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  sessionBannerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  sessionBannerText: {
+    color: '#C8D5B9',
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
   },
   link: { color: '#8CB369', fontSize: 16 },
   resign: { color: '#E84855', fontSize: 16 },
