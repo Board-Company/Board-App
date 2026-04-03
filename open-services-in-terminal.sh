@@ -87,6 +87,12 @@ else
   echo "Note: lsof not found; skipping automatic port cleanup (install Xcode CLI tools)." >&2
 fi
 
+if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  "$BACKEND_DIR/scripts/ensure-redis.sh"
+elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  bash "$BACKEND_DIR/scripts/ensure-redis.sh"
+fi
+
 backend_cmd="cd '$BACKEND_DIR' && ./run-api.sh"
 llm_cmd="cd '$LLM_DIR' && ./run-llm.sh"
 metro_cmd="cd '$NIMBUS_DIR' && npm run start:fast"

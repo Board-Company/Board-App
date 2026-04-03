@@ -199,6 +199,12 @@ APP_LOG="$LOG_DIR/app.log"
 free_port 8000 "Board-Backend"
 free_port 8001 "Board-LLM"
 
+if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  "$BACKEND_DIR/scripts/ensure-redis.sh"
+elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  bash "$BACKEND_DIR/scripts/ensure-redis.sh"
+fi
+
 start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python api.py; else python3 -m poetry run python api.py; fi"
 wait_for_http "http://127.0.0.1:8000/health" "Board-Backend" || true
 

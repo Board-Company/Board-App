@@ -23,9 +23,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    # EC2: keep 6379 off the public SG. For host-run API + container Redis, expose loopback only:
-    # ports:
-    #   - "127.0.0.1:6379:6379"
+    # Binds to loopback only (safe on EC2). Host-run API + `docker compose up -d redis` uses REDIS_URL=redis://127.0.0.1:6379/0
+    ports:
+      - "127.0.0.1:6379:6379"
 
   api:
     build: .
