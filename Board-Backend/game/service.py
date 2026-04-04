@@ -17,7 +17,9 @@ from game.models import CreateGameResponse, FriendGameState
 
 GAME_PREFIX = "game:"
 INVITE_PREFIX = "invite:"
+LOCK_PREFIX = "lock:game:"
 TTL_SEC = 48 * 3600
+LOCK_TTL_SEC = 5
 INVITE_ALPHABET = string.ascii_uppercase + string.digits
 
 
@@ -68,6 +70,37 @@ def _terminal_result(board: chess.Board) -> tuple[str, str]:
     if board.is_fivefold_repetition():
         return "1/2-1/2", "fivefold_repetition"
     return "1/2-1/2", "draw"
+
+
+async def _acquire_game_lock(redis: Redis, game_id: str) -> str:
+    token = str(uuid.uuid4())
+    ok = await redis.set(
+        f"{LOCK_PREFIX}{game_id}",
+        token,
+        nx=True,
+        ex=LOCK_TTL_SEC,
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Game is busy, retry",
+        )
+    return token
+
+
+async def _release_game_lock(redis: Redis, game_id: str, token: str) -> None:
+    # Delete the lock only if this request still owns it.
+    await redis.eval(
+        """
+        if redis.call('get', KEYS[1]) == ARGV[1] then
+            return redis.call('del', KEYS[1])
+        end
+        return 0
+        """,
+        1,
+        f"{LOCK_PREFIX}{game_id}",
+        token,
+    )
 
 
 async def _persist_state(redis: Redis, state: dict) -> None:
@@ -161,26 +194,30 @@ async def join_friend_game(
             detail="Provide game_id or invite_code",
         )
 
-    state = await _load_raw(redis, gid)
-    if not state:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+    lock_token = await _acquire_game_lock(redis, gid)
+    try:
+        state = await _load_raw(redis, gid)
+        if not state:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
 
-    if state["white_player_id"] == user_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot join your own game as opponent",
-        )
+        if state["white_player_id"] == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot join your own game as opponent",
+            )
 
-    if state.get("black_player_id"):
-        if state["black_player_id"] == user_id:
-            return _dict_to_state(state)
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Game is full")
+        if state.get("black_player_id"):
+            if state["black_player_id"] == user_id:
+                return _dict_to_state(state)
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Game is full")
 
-    state["black_player_id"] = user_id
-    state["black_username"] = username
-    state["status"] = "active"
-    await _persist_state(redis, state)
-    return _dict_to_state(state)
+        state["black_player_id"] = user_id
+        state["black_username"] = username
+        state["status"] = "active"
+        await _persist_state(redis, state)
+        return _dict_to_state(state)
+    finally:
+        await _release_game_lock(redis, gid, lock_token)
 
 
 async def get_friend_game(redis: Redis, game_id: str, user_id: str) -> FriendGameState:
@@ -199,50 +236,54 @@ async def apply_move(
     user_id: str,
     san: str,
 ) -> FriendGameState:
-    state = await _load_raw(redis, game_id)
-    if not state:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
-    if user_id not in (state["white_player_id"], state.get("black_player_id")):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a player in this game")
-    if state["status"] != "active":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Game is not active (waiting for opponent or already finished)",
-        )
-    if not state.get("black_player_id"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Waiting for opponent to join",
-        )
-
-    board = chess.Board(state["fen"])
-    is_white_turn = board.turn == chess.WHITE
-    if is_white_turn and user_id != state["white_player_id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="White to move")
-    if not is_white_turn and user_id != state["black_player_id"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Black to move")
-
+    lock_token = await _acquire_game_lock(redis, game_id)
     try:
-        board.push_san(san.strip())
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Illegal or ambiguous SAN",
-        ) from None
+        state = await _load_raw(redis, game_id)
+        if not state:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+        if user_id not in (state["white_player_id"], state.get("black_player_id")):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a player in this game")
+        if state["status"] != "active":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Game is not active (waiting for opponent or already finished)",
+            )
+        if not state.get("black_player_id"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Waiting for opponent to join",
+            )
 
-    state["fen"] = board.fen()
-    state["move_history"] = (state.get("move_history") or []) + [san.strip()]
-    state["side_to_move"] = "w" if board.turn == chess.WHITE else "b"
+        board = chess.Board(state["fen"])
+        is_white_turn = board.turn == chess.WHITE
+        if is_white_turn and user_id != state["white_player_id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="White to move")
+        if not is_white_turn and user_id != state["black_player_id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Black to move")
 
-    if board.is_game_over():
-        state["status"] = "finished"
-        state["result"], state["finished_reason"] = _terminal_result(board)
-        out = _dict_to_state(state)
-        await _archive_and_clear(redis, supabase, state)
-        return out
+        try:
+            board.push_san(san.strip())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Illegal or ambiguous SAN",
+            ) from None
 
-    await _persist_state(redis, state)
-    return _dict_to_state(state)
+        state["fen"] = board.fen()
+        state["move_history"] = (state.get("move_history") or []) + [san.strip()]
+        state["side_to_move"] = "w" if board.turn == chess.WHITE else "b"
+
+        if board.is_game_over():
+            state["status"] = "finished"
+            state["result"], state["finished_reason"] = _terminal_result(board)
+            out = _dict_to_state(state)
+            await _archive_and_clear(redis, supabase, state)
+            return out
+
+        await _persist_state(redis, state)
+        return _dict_to_state(state)
+    finally:
+        await _release_game_lock(redis, game_id, lock_token)
 
 
 async def resign_friend_game(
@@ -251,23 +292,27 @@ async def resign_friend_game(
     game_id: str,
     user_id: str,
 ) -> FriendGameState:
-    state = await _load_raw(redis, game_id)
-    if not state:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
-    if state["status"] != "active":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only resign an active game",
-        )
-    if user_id == state["white_player_id"]:
-        state["result"] = "0-1"
-    elif user_id == state["black_player_id"]:
-        state["result"] = "1-0"
-    else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a player in this game")
+    lock_token = await _acquire_game_lock(redis, game_id)
+    try:
+        state = await _load_raw(redis, game_id)
+        if not state:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+        if state["status"] != "active":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Can only resign an active game",
+            )
+        if user_id == state["white_player_id"]:
+            state["result"] = "0-1"
+        elif user_id == state["black_player_id"]:
+            state["result"] = "1-0"
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a player in this game")
 
-    state["finished_reason"] = "resign"
-    state["status"] = "finished"
-    out = _dict_to_state(state)
-    await _archive_and_clear(redis, supabase, state)
-    return out
+        state["finished_reason"] = "resign"
+        state["status"] = "finished"
+        out = _dict_to_state(state)
+        await _archive_and_clear(redis, supabase, state)
+        return out
+    finally:
+        await _release_game_lock(redis, game_id, lock_token)

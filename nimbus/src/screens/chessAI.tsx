@@ -18,9 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
-
-// LLM Service configuration
-const LLM_SERVICE_URL = 'http://localhost:8001'; // Update with your actual LLM service URL
+import { LLM_API_URL } from '../config/constants';
 
 type Message = {
   id: string;
@@ -210,7 +208,7 @@ const ChessAIScreen = () => {
   // Parse move command using LLM service
   const parseMoveCommand = async (command: string): Promise<{success: boolean; parsedMove?: ParsedMove; explanation: string}> => {
     try {
-      const response = await fetch(`${LLM_SERVICE_URL}/parse-move`, {
+      const response = await fetch(`${LLM_API_URL}/parse-move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +303,7 @@ const ChessAIScreen = () => {
         }
       } else {
         // Regular chat message - use the chat endpoint
-        const response = await fetch(`${LLM_SERVICE_URL}/chat`, {
+        const response = await fetch(`${LLM_API_URL}/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -343,7 +341,7 @@ const ChessAIScreen = () => {
       const errorMsg: Message = {
         id: generateMessageId(),
         role: 'assistant',
-        content: '⚠️ Unable to connect to AI service. Make sure the Board-LLM service is running on port 8001.',
+        content: '⚠️ Unable to connect to AI service. Ensure Board-LLM is reachable (see LLM_SERVICE_URL / BASE_URL in .env).',
       };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
@@ -404,7 +402,7 @@ const ChessAIScreen = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${LLM_SERVICE_URL}/analyze-chess`, {
+      const response = await fetch(`${LLM_API_URL}/analyze-chess`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

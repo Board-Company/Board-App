@@ -4,7 +4,7 @@
     {
       "label": "Install Board Dependencies",
       "type": "process",
-      "command": "${workspaceFolder}/install-all-deps.sh",
+      "command": "${workspaceFolder}/scripts/install-all-deps.sh",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -34,9 +34,29 @@
       "problemMatcher": []
     },
     {
+      "label": "Board Stack: Redis + open services",
+      "type": "shell",
+      "command": "./scripts/board-open-with-redis.sh --android",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "detail": "docker compose up -d redis (Board-Backend), then opens Backend / LLM / Metro / Android tabs. Default build (Cmd+Shift+B). For Cmd+Shift+R see .vscode/README-keybindings.md.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
       "label": "Open Board Services",
       "type": "process",
-      "command": "${workspaceFolder}/open-services-in-terminal.sh",
+      "command": "${workspaceFolder}/scripts/open-services-in-terminal.sh",
       "args": [
         "--android"
       ],
@@ -55,7 +75,7 @@
     {
       "label": "Start Board Microservices",
       "type": "process",
-      "command": "${workspaceFolder}/run-services.sh",
+      "command": "${workspaceFolder}/scripts/run-services.sh",
       "args": [
         "--android",
         "--reset-cache"
@@ -73,17 +93,32 @@
       "problemMatcher": []
     },
     {
+      "label": "Open Board Services (no install)",
+      "type": "process",
+      "command": "${workspaceFolder}/scripts/open-services-in-terminal.sh",
+      "args": [
+        "--android"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "detail": "Opens Terminal tabs only (skips poetry/npm install). Use when deps are already installed — faster than Run Board Services.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run Board Services",
       "dependsOrder": "sequence",
       "dependsOn": [
         "Install Board Dependencies",
         "Open Board Services"
       ],
-      "detail": "Installs dependencies, then opens Board services in separate Terminal tabs.",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
+      "detail": "Installs dependencies, then opens Terminal tabs (no automatic docker redis in this chain — use Board Stack or start Redis first).",
       "problemMatcher": []
     }
   ]

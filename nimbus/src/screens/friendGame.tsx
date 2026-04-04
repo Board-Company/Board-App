@@ -9,13 +9,22 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import MoveHistory from '../components/game/MoveHistory';
 import { getAccessToken } from '../services/auth';
+import { fetchCompletedOnlineGame } from '../services/onlineGameHistory';
 import { BASE_URL } from '@env';
 
 const API_BASE_URL = BASE_URL.replace(/\/+$/, '');
+
+type RootStackParamList = {
+  FriendGame: undefined;
+  OnlineFriendGameHistory: undefined;
+  OnlineFriendGameReview: { gameId: string };
+};
 
 type FriendState = {
   game_id: string;
@@ -34,7 +43,30 @@ type FriendState = {
   updated_at: string;
 };
 
+type ChessboardMove = {
+  from: string;
+  to: string;
+  promotion?: string;
+};
+
+type ChessboardMoveEvent =
+  | ChessboardMove
+  | {
+      move?: ChessboardMove;
+    };
+
+const extractMove = (event: ChessboardMoveEvent): ChessboardMove | null => {
+  if ('move' in event) {
+    return event.move ?? null;
+  }
+  if ('from' in event && 'to' in event) {
+    return event;
+  }
+  return null;
+};
+
 const FriendGameScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [phase, setPhase] = useState<'lobby' | 'play'>('lobby');
   const [inviteInput, setInviteInput] = useState('');
   const [gameId, setGameId] = useState<string | null>(null);
@@ -42,6 +74,13 @@ const FriendGameScreen = () => {
   const [state, setState] = useState<FriendState | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const openReview = useCallback(
+    (gid: string) => {
+      navigation.replace('OnlineFriendGameReview', { gameId: gid });
+    },
+    [navigation],
+  );
 
   const authHeader = async (): Promise<Record<string, string>> => {
     const t = await getAccessToken();
@@ -81,7 +120,13 @@ const FriendGameScreen = () => {
         const h = await authHeader();
         const r = await fetch(`${API_BASE_URL}/games/${id}`, { headers: { ...h } });
         if (r.status === 404) {
-          setErr('Game ended, expired, or not found');
+          try {
+            await fetchCompletedOnlineGame(id);
+            openReview(id);
+            return;
+          } catch {
+            setErr('Game ended, expired, or not found');
+          }
           return;
         }
         if (!r.ok) {
@@ -93,17 +138,17 @@ const FriendGameScreen = () => {
         setErr(e instanceof Error ? e.message : 'Sync failed');
       }
     },
-    [gameId],
+    [gameId, openReview],
   );
 
   useEffect(() => {
-    if (!gameId || phase !== 'play') {
+    if (!gameId || phase !== 'play' || state?.status === 'finished') {
       return;
     }
     refresh(gameId);
     const interval = setInterval(() => refresh(gameId), 2500);
     return () => clearInterval(interval);
-  }, [gameId, phase, refresh]);
+  }, [gameId, phase, refresh, state?.status]);
 
   const createGame = async () => {
     setLoading(true);
@@ -179,12 +224,20 @@ const FriendGameScreen = () => {
       : 'This is your game session. Share the invite code so a friend can join.'
     : `${creatorName} created this game session.`;
 
-  const handleMove = async (move: { from: string; to: string }) => {
+  const handleMove = async (event: ChessboardMoveEvent) => {
     if (!state || !gameId || state.status !== 'active' || !isMyTurn) {
       return;
     }
+    const move = extractMove(event);
+    if (!move?.from || !move?.to) {
+      return;
+    }
     const copy = new Chess(state.fen);
-    const m = copy.move({ from: move.from, to: move.to, promotion: 'q' });
+    const m = copy.move({
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion ?? 'q',
+    });
     if (!m) {
       return;
     }
@@ -201,7 +254,11 @@ const FriendGameScreen = () => {
         refresh(gameId);
         return;
       }
-      setState(await r.json());
+      const next = (await r.json()) as FriendState;
+      setState(next);
+      if (next.status === 'finished') {
+        openReview(next.game_id);
+      }
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Move failed');
       refresh(gameId);
@@ -228,7 +285,9 @@ const FriendGameScreen = () => {
               Alert.alert('Error', await r.text());
               return;
             }
-            setState(await r.json());
+            const next = (await r.json()) as FriendState;
+            setState(next);
+            openReview(next.game_id);
           } catch (e: unknown) {
             Alert.alert('Error', e instanceof Error ? e.message : 'Resign failed');
           }

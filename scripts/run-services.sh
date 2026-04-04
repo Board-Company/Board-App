@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$ROOT_DIR/.run-services"
 BACKEND_DIR="$ROOT_DIR/Board-Backend"
 LLM_DIR="$ROOT_DIR/Board-LLM"
@@ -14,7 +15,7 @@ RESET_METRO_CACHE=false
 
 usage() {
   cat <<'EOF'
-Usage: ./run-services.sh [options]
+Usage: ./scripts/run-services.sh [options]
 
 Starts the Board backend, Board LLM service, and React Native Metro bundler.
 
@@ -200,9 +201,13 @@ free_port 8000 "Board-Backend"
 free_port 8001 "Board-LLM"
 
 if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  "$BACKEND_DIR/scripts/ensure-redis.sh"
+  if ! "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis not ready; Board-Backend may exit on startup until Redis is running." >&2
+  fi
 elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  bash "$BACKEND_DIR/scripts/ensure-redis.sh"
+  if ! bash "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis not ready; Board-Backend may exit on startup until Redis is running." >&2
+  fi
 fi
 
 start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python api.py; else python3 -m poetry run python api.py; fi"

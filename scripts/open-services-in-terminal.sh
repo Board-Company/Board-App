@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/Board-Backend"
 LLM_DIR="$ROOT_DIR/Board-LLM"
 NIMBUS_DIR="$ROOT_DIR/nimbus"
@@ -12,7 +13,7 @@ START_IOS=false
 
 usage() {
   cat <<'EOF'
-Usage: ./open-services-in-terminal.sh [options]
+Usage: ./scripts/open-services-in-terminal.sh [options]
 
 Opens Terminal.app tabs for Board services.
 
@@ -87,10 +88,15 @@ else
   echo "Note: lsof not found; skipping automatic port cleanup (install Xcode CLI tools)." >&2
 fi
 
+# Do not exit the whole script if Redis is down — still open all tabs (backend tab will fail until Redis is up).
 if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  "$BACKEND_DIR/scripts/ensure-redis.sh"
+  if ! "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis is not ready. Board-Backend will fail until Redis runs (Docker: docker compose up -d redis in Board-Backend)." >&2
+  fi
 elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  bash "$BACKEND_DIR/scripts/ensure-redis.sh"
+  if ! bash "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis is not ready. Board-Backend will fail until Redis is running." >&2
+  fi
 fi
 
 backend_cmd="cd '$BACKEND_DIR' && ./run-api.sh"

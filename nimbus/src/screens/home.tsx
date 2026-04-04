@@ -20,6 +20,7 @@ type RootStackParamList = {
   ChessAI: undefined;
   FriendGame: undefined;
   LocalGameHistory: undefined;
+  OnlineFriendGameHistory: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -74,6 +75,12 @@ const actions: HomeAction[] = [
     subtitle: 'Create or join a private game',
     icon: 'group',
     route: 'FriendGame',
+  },
+  {
+    title: 'Friend game history',
+    subtitle: 'Review finished online friend games',
+    icon: 'cloud-done',
+    route: 'OnlineFriendGameHistory',
   },
 ];
 
