@@ -14,6 +14,7 @@ from redis.asyncio import Redis
 from supabase import Client
 
 from game.models import CreateGameResponse, FriendGameState
+from game.realtime import publish_friend_game_state
 
 GAME_PREFIX = "game:"
 INVITE_PREFIX = "invite:"
@@ -89,18 +90,10 @@ async def _acquire_game_lock(redis: Redis, game_id: str) -> str:
 
 
 async def _release_game_lock(redis: Redis, game_id: str, token: str) -> None:
-    # Delete the lock only if this request still owns it.
-    await redis.eval(
-        """
-        if redis.call('get', KEYS[1]) == ARGV[1] then
-            return redis.call('del', KEYS[1])
-        end
-        return 0
-        """,
-        1,
-        f"{LOCK_PREFIX}{game_id}",
-        token,
-    )
+    # Delete the lock only if this request still owns it (no Lua: works with fakeredis in tests).
+    key = f"{LOCK_PREFIX}{game_id}"
+    if await redis.get(key) == token:
+        await redis.delete(key)
 
 
 async def _persist_state(redis: Redis, state: dict) -> None:
@@ -168,6 +161,7 @@ async def create_friend_game(redis: Redis, user_id: str, username: str) -> Creat
         if ok:
             state["invite_code"] = code
             await redis.set(f"{GAME_PREFIX}{gid}", json.dumps(state), ex=TTL_SEC)
+            await publish_friend_game_state(redis, _dict_to_state(state))
             return CreateGameResponse(game_id=gid, invite_code=code)
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -215,7 +209,9 @@ async def join_friend_game(
         state["black_username"] = username
         state["status"] = "active"
         await _persist_state(redis, state)
-        return _dict_to_state(state)
+        out = _dict_to_state(state)
+        await publish_friend_game_state(redis, out)
+        return out
     finally:
         await _release_game_lock(redis, gid, lock_token)
 
@@ -277,11 +273,14 @@ async def apply_move(
             state["status"] = "finished"
             state["result"], state["finished_reason"] = _terminal_result(board)
             out = _dict_to_state(state)
+            await publish_friend_game_state(redis, out)
             await _archive_and_clear(redis, supabase, state)
             return out
 
         await _persist_state(redis, state)
-        return _dict_to_state(state)
+        out = _dict_to_state(state)
+        await publish_friend_game_state(redis, out)
+        return out
     finally:
         await _release_game_lock(redis, game_id, lock_token)
 
@@ -312,6 +311,7 @@ async def resign_friend_game(
         state["finished_reason"] = "resign"
         state["status"] = "finished"
         out = _dict_to_state(state)
+        await publish_friend_game_state(redis, out)
         await _archive_and_clear(redis, supabase, state)
         return out
     finally:

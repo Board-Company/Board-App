@@ -1,131 +1,137 @@
 ---
 name: Online friend chess state
-overview: "Friend chess: each game has a stable game_id; active state lives in Redis (fast reads/writes); when a game ends, archive the full record to Supabase. FastAPI validates moves (python-chess) and owns all writes to Redis/DB."
+overview: "Two friends play chess in the app: one shared game id, live position kept in Redis until the game ends, then the full game is saved once in Supabase. The server checks every move with python-chess. Execution: follow strict todos (see body) before runs or code edits."
 todos:
   - id: redis-setup
-    content: Add Redis dependency and REDIS_URL; FastAPI client (e.g. redis-py) with lifespan connect/disconnect; key pattern `game:{game_id}` (JSON) + optional TTL for abandoned games
-    status: pending
+    content: "Redis for live games: REDIS_URL, connect on startup, store JSON at game:{id}, expire old games"
+    status: completed
   - id: game-id-lifecycle
-    content: POST /games creates uuid game_id, seeds Redis (status waiting, fen start, empty history, creator as white); join/move only touch Redis until terminal
-    status: pending
+    content: "Create game (new id, waiting for opponent), join, then moves only update Redis until someone wins or resigns"
+    status: completed
   - id: schema-completed-games
-    content: Supabase table for finished games only (game_id, players, final fen, move_history jsonb, result, started_at, finished_at); document in supabase_schema.sql
-    status: pending
+    content: "Supabase completed_games table + document in supabase_schema.sql"
+    status: completed
   - id: backend-chess
-    content: "python-chess validation on each move; GET/POST hit Redis; on finished/aborted/resign: INSERT completed row then DEL (or expire) Redis key"
-    status: pending
+    content: "Validate moves on server; on game end, write one row to Supabase and remove Redis key"
+    status: completed
   - id: pydantic-align
-    content: Align GameState JSON in Redis and API responses; document transition to archived row shape for history UI later
-    status: pending
+    content: "API responses match the shape stored in Redis; archived row shape documented for history screens"
+    status: completed
   - id: nimbus-ui
-    content: Friend-game screen using game_id in URL or deep link; poll GET /games/{id} or SSE/pub-sub when added
-    status: pending
+    content: "Friend game screen with game id; poll server or later push updates"
+    status: completed
   - id: sync-mvp
-    content: MVP polling against Redis-backed GET; v2 optional Redis Pub/Sub + SSE or WebSocket from FastAPI for push moves
-    status: pending
+    content: "MVP polls GET every few seconds; optional later SSE/WebSocket for instant moves"
+    status: completed
+  - id: client-resume-deeplink
+    content: "Nimbus: persist active friend game_id, hydrate on open, boardapp://friend-game/:id linking"
+    status: completed
+  - id: client-resume-deeplink-verified
+    content: "Verified on device: opponent join via invite code, session resume, deep link URL shapes after App.tsx linking hardening"
+    status: completed
+  - id: sse-nimbus-docs
+    content: "Friend game: Nimbus EventSource to GET /games/{id}/events + poll fallback; api-routes, complex-logic, database-schema for pub/sub"
+    status: completed
 ---
 
-# Track game state for in-app friend games (Redis + game_id, DB on completion)
+# Friend chess in the app (plan)
 
-## Current codebase
+## Strict todo workflow (required)
 
-- [Board-Backend/game/models.py](../../Board-Backend/game/models.py) defines `GameState` and `MoveRequest` (FEN, `move_history`, `player_ids`, `status`) but they are **not wired** into [Board-Backend/api.py](../../Board-Backend/api.py).
-- [Board-Backend/supabase_schema.sql](../../Board-Backend/supabase_schema.sql) defines `users`, `lichess_users`, and `completed_games`.
-- [nimbus/src/screens/onlineGame.tsx](../../nimbus/src/screens/onlineGame.tsx) is **Lichess-only**; local play uses in-memory `chess.js` only.
+Anyone **implementing or extending** this feature—human or agent—must **not** run installs, tests, servers, or edit code until there is a **tracked todo list** that matches the work.
 
-## Target architecture (your preference)
+1. **Break down work first** — Turn the relevant bullets in this doc (and new scope) into explicit todo items: ordered, checkable, and scoped to what will change.
+2. **Mirror in the agent** — Use the session todo tool (or an equivalent checklist) so each step is visible and marked **completed** as you go. No “drive-by” edits outside the listed items unless you add a todo for them first.
+3. **Keep this file honest** — For new phases, add rows under frontmatter `todos:` with stable `id` values; set `status` to `pending`, `in_progress`, or `completed`. Completed history in YAML can stay for traceability.
+4. **Exception** — Truly trivial one-off fixes (e.g. typo, single obvious line) may skip a full breakdown **only if** everyone involved agrees in that session; when in doubt, use todos.
 
-- **`game_id`**: Opaque id (UUID) created when a game is created; clients share it (or a short invite code that maps to it) to join the same session.
-- **Redis**: **Authoritative store while the game is active**—serialize something matching `GameState` (plus `white_player_id` / `black_player_id`, `side_to_move`, etc.) under e.g. `game:{game_id}`. Every move: read–validate–write in one logical update (use a short Redis transaction or Lua script later if you need strict concurrency).
-- **Database (Supabase)**: **Persist only when the game is done**—insert one row with final `move_history`, ending `fen`, result, both player ids, timestamps. Then **remove** the Redis key (or let it TTL out after a short grace period if you want replay buffer).
+Project automation: `.cursor/rules/plan-and-todos-before-execution.mdc` applies the same discipline repo-wide.
+
+## What you’re building
+
+Two logged-in players can start a game together in **your** app (not Lichess). They need a **shared game id** (or a short invite code that points to it). While they play, the **current board and move list** live in **Redis** so reads and writes stay fast. When the game **ends** (checkmate, draw, resign, etc.), the backend saves **one permanent record** in **Supabase** and drops the Redis entry.
+
+The phone app does **not** decide if a move is legal. The **FastAPI** backend does, using **python-chess**, and is the only thing that updates Redis and the database.
+
+## How it feels to use
+
+1. Player A taps “create game” → the server returns a **game id** (and often a short code).
+2. Player A shares that with Player B → B taps “join” and enters the id or code.
+3. Both see the same position. Each move goes to the server; the server applies it if it’s legal and it’s that player’s turn.
+4. When the game ends, the record is saved. If someone opens the game again after that, they get history from Supabase (or a “not found” if it expired before finishing).
+
+## Picture of the data flow
 
 ```mermaid
 sequenceDiagram
-  participant A as PlayerA_app
-  participant API as Board_Backend
+  participant App as Phone app
+  participant API as Backend
   participant R as Redis
   participant DB as Supabase
 
-  A->>API: POST /games
-  API->>API: new game_id uuid
-  API->>R: SET game:game_id state_waiting
-  API-->>A: game_id
+  App->>API: Create game
+  API->>API: New game id
+  API->>R: Save waiting state
+  API-->>App: game id
 
-  loop Active play
-    A->>API: POST /games/game_id/move
-    API->>API: python-chess validate
-    API->>R: SET updated state
-    API-->>A: GameState
+  loop While playing
+    App->>API: Submit move
+    API->>API: Check move with python-chess
+    API->>R: Save new position
+    API-->>App: Updated state
   end
 
-  API->>R: GET final state
-  API->>DB: INSERT completed_games
-  API->>R: DEL game:game_id
+  API->>R: Read final state
+  API->>DB: Save completed game
+  API->>R: Delete live session
 ```
 
-## Redis payload shape
+## Where state lives (mental model)
 
-Store JSON (or MessagePack) per `game:{game_id}` including at least:
+- **While the match is open:** Redis holds everything you need to resume play: FEN, list of moves, whose turn, who is white/black, status (waiting / active / finished), timestamps, optional invite code, and when done—result and reason.
+- **After the match is archived:** Supabase holds one row per finished game: same `game_id`, both player ids, move history, final FEN, result, timestamps. You don’t need Postgres “live subscriptions” for active play if Redis is doing that job.
 
-- `game_id`, `fen`, `move_history` (list of SAN or UCI), `status` (`waiting` | `active` | `finished` | `aborted`), `side_to_move`
-- `white_player_id` / `black_player_id` (or usernames if you prefer stable app identifiers)
-- `created_at`, `updated_at` (ISO strings)
-- Optional: `invite_code` for short join links
-- On terminal: set `result`, `finished_reason` before archiving
+Stale games can **expire** in Redis (e.g. after a day or two) so abandoned lobbies don’t pile up.
 
-**TTL:** Set `EXPIRE` on the key (e.g. 24–48h) so abandoned games do not live forever; **aborted/expired** games may either skip DB insert or insert a row with `status=aborted` for analytics—product choice.
+## What’s implemented vs optional
 
-## Database (Supabase) — completed games only
+- **In this repo today:** backend `/games` routes ([Board-Backend/game/](../../Board-Backend/game/)), `completed_games` in [supabase_schema.sql](../../Board-Backend/supabase_schema.sql), and the friend game UI ([friendGame.tsx](../../nimbus/src/screens/friendGame.tsx)) that **polls** the server every few seconds during play.
+- **Optional later:** push updates (SSE or WebSocket) so both phones don’t need to poll. **Lichess** online stays a separate path ([onlineGame.tsx](../../nimbus/src/screens/onlineGame.tsx)).
 
-Table e.g. **`completed_games`** (name flexible):
+## For developers
 
-- `game_id` (uuid, unique) — same id clients used in Redis
-- `white_player_id`, `black_player_id` (FK → `users`)
-- `move_history` (jsonb), `final_fen` (text)
-- `result`, `finished_reason` (resign, checkmate, draw, abort)
-- `started_at`, `finished_at`
+**Environment:** `REDIS_URL` (local example: `redis://127.0.0.1:6379/0`). Backend uses Poetry deps `redis` and `python-chess`.
 
-No need for Realtime on Postgres for **active** play if Redis is the hot path; optional later for “recent finished games” lists.
+**HTTP surface (conceptual):**
 
-## Backend (FastAPI)
+- Create game → returns new id (and invite code if you use one).
+- Join → second player attaches to that id/code.
+- Get game → current state from Redis, or missing if finished/expired.
+- Move → validate and update Redis; if the game just ended, write Supabase and delete Redis.
+- Resign → end game and archive like other endings.
 
-- **Poetry**: `redis`, `python-chess`.
-- **Env**: `REDIS_URL` (e.g. `redis://localhost:6379/0` or managed Redis).
-- **Endpoints (sketch)**:
-  - `POST /games` → create `game_id`, seed Redis, return `{ "game_id": "..." }`.
-  - `POST /games/join` (body: `game_id` or invite code) → attach second player in Redis.
-  - `GET /games/{game_id}` → read Redis; `404` if missing (finished and deleted, or expired).
-  - `POST /games/{game_id}/move` → validate turn + legality, update Redis, if terminal then **flush to Supabase + DEL Redis**.
-  - `POST /games/{game_id}/resign` (optional MVP+) → set finished, flush to DB.
+**Edge cases worth keeping:** If Redis is down, creating or moving should fail clearly (e.g. 503)—don’t silently switch to a half-baked database-only path mid-game. When saving the finished game, a **unique** `game_id` in Supabase avoids duplicate rows if finish is retried.
 
-**Concurrency:** Two simultaneous moves are rare but possible; use Redis `WATCH`/`MULTI`/`EXEC` or a single Lua script to compare-and-set `updated_at` / version to reject stale writes.
+**Deploying (short version):** Run the API behind HTTPS. Run Redis **only on localhost** or inside your VPC—never expose it to the internet. Point the app at a **public** API URL so two people on different networks can play. Keep secrets out of git (SSM, Secrets Manager, etc.).
 
-## Mobile (Nimbus)
+## Product rules
 
-- Screens use **`game_id`** from create/join response or deep link.
-- **MVP sync:** Poll `GET /games/{game_id}` every 2–3s while `status` is active (Redis makes this cheap).
-- **v2:** FastAPI subscribes to Redis Pub/Sub per `game_id` on each move and pushes **SSE** (you already use EventSource for Lichess)—optional.
+- Sharing the game id or invite code is how friends find each other.
+- Trust the **server** for position and legality, not the client.
+- This “friend Redis” mode is **not** the Lichess integration.
 
-## Operational notes
+## Frontmatter todo template (copy-paste)
 
-- **Redis down:** Define behavior (fail create/move with 503; no silent fallback to DB mid-game unless you implement dual-write—avoid for MVP).
-- **Idempotent archive:** On finish, use `game_id` unique constraint in Supabase so double-finish does not duplicate rows.
+Add new work under the `todos:` key in this file’s opening YAML frontmatter (between the first pair of `---` delimiters). Keep **two spaces** before each `-` so indentation stays valid.
 
-## Deployment on EC2
+**One new item** — paste after the last `- id:` block, before the closing `---`:
 
-You can run the friend-chess stack on a single EC2 instance (MVP) or split Redis later.
+```yaml
+  - id: short-kebab-id
+    content: "Concrete outcome; mention areas like Board-Backend/... or nimbus/... if known"
+    status: pending
+```
 
-- **API:** Run Uvicorn/Gunicorn behind **nginx** or **Caddy** on **443** (TLS). Security group: allow **80/443** from the internet; do **not** expose Redis publicly.
-- **Redis:** Same instance (Docker `redis:7-alpine` or `apt install redis`) listening on **`127.0.0.1:6379`** only; `REDIS_URL=redis://127.0.0.1:6379/0` in the backend env. For production scale, move to **ElastiCache** and set `REDIS_URL` to that endpoint (VPC-only).
-- **Env on the instance:** `SUPABASE_URL`, `SUPABASE_KEY`, `REDIS_URL`, JWT/secret vars, `GOOGLE_CLIENT_ID`, Lichess vars as today—use **SSM Parameter Store** or **Secrets Manager**, not committed `.env`.
-- **Supabase:** Stays hosted; no change except your backend now calls it from EC2’s public egress.
-- **Mobile app:** Set **`API_BASE_URL`** (or equivalent) to `https://your-domain` so friends on any network hit the same server (not `localhost` or LAN IP).
-- **CORS:** Tighten from `*` to your app’s scheme/deep-link origins before production.
+**Several items** — duplicate the three-line block; use `pending` until work starts, then `in_progress`, then `completed`. Prefer **stable** `id` values (don’t rename after merge) so links and history stay meaningful.
 
-## Design choices (unchanged intent)
-
-- **Friend discovery:** share `game_id` or short invite code stored in the Redis blob.
-- **Security:** Server-only FEN; moves validated with **python-chess**; never trust client position.
-- **Lichess mode** stays separate from this Redis friend flow.
-
-This plan matches: **game_id** as the handle, **Redis for live state**, **Supabase for finished-game history**.
+**Statuses:** use only `pending`, `in_progress`, or `completed` for consistency with existing rows.

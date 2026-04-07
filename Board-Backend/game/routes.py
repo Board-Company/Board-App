@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 
 from auth import get_current_active_user
@@ -11,6 +12,7 @@ from game.models import (
     JoinGameRequest,
     MoveRequestBody,
 )
+from game.realtime import game_events_channel
 from game.service import (
     apply_move,
     create_friend_game,
@@ -163,6 +165,66 @@ async def create_game(
 ):
     redis = _redis(request)
     return await create_friend_game(redis, _user_id(current_user), current_user.username)
+
+
+_STREAM_KEEPALIVE_SEC = 25.0
+
+
+@router.get("/{game_id}/events")
+async def game_events_stream(
+    request: Request,
+    game_id: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Server-Sent Events: initial `FriendGameState` JSON, then Redis pub/sub pushes on each update.
+    Requires `Authorization: Bearer` (same as other `/games` routes).
+    """
+    redis = _redis(request)
+    uid = _user_id(current_user)
+    initial = await get_friend_game(redis, game_id, uid)
+    initial_json = initial.model_dump_json()
+
+    async def event_generator():
+        pubsub = redis.pubsub()
+        channel = game_events_channel(game_id)
+        await pubsub.subscribe(channel)
+        try:
+            yield f"data: {initial_json}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                msg = await pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=_STREAM_KEEPALIVE_SEC,
+                )
+                if msg is None:
+                    yield ": keepalive\n\n"
+                    continue
+                if msg.get("type") == "message" and msg.get("data"):
+                    payload = msg["data"]
+                    if isinstance(payload, bytes):
+                        payload = payload.decode("utf-8")
+                    yield f"data: {payload}\n\n"
+        finally:
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.close()
+            except Exception:
+                pass
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/{game_id}", response_model=FriendGameState)

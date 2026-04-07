@@ -18,7 +18,7 @@ type RootStackParamList = {
   Register: undefined;
   UserLogin: undefined;
   ChessAI: undefined;
-  FriendGame: undefined;
+  FriendGame: { gameId?: string } | undefined;
   LocalGameHistory: undefined;
   OnlineFriendGameHistory: undefined;
 };

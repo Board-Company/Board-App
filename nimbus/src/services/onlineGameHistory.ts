@@ -1,7 +1,7 @@
-import { BASE_URL } from '@env';
 import { getAccessToken } from './auth';
+import { API_URL } from '../config/constants';
 
-const apiBase = BASE_URL.replace(/\/+$/, '');
+const apiBase = API_URL;
 
 export type OnlineCompletedGame = {
   id: string;
