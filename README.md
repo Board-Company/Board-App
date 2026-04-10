@@ -3,7 +3,7 @@
 ![Version](https://img.shields.io/badge/Version-0.1.0-blue)
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-green)
 
-Full-stack chess product spanning **mobile (React Native)**, **Python APIs (FastAPI)**, **LLM-assisted coaching**, **Redis-backed live play**, **Supabase (Postgres)**, and **ESP32 firmware** for a physical board prototype.
+Full-stack chess product spanning **mobile (React Native)**, **Python APIs (FastAPI)**, **LLM-assisted coaching**, **Redis-backed live play** (keyed game state plus **pub/sub → Server-Sent Events**), **Supabase (Postgres)**, **Stockfish analysis** (in-process API today; **Redis-queued workers** specified for scale-out live analysis), and **ESP32 firmware** for a physical board prototype.
 
 ---
 
@@ -16,7 +16,7 @@ Board-App is a portfolio-grade monorepo that shows end-to-end ownership: native 
 | Area | What to look at |
 |------|------------------|
 | Mobile | [`nimbus/`](nimbus/) — Tamagui UI, Lichess integration, voice-driven coach screen, friend games with resume + deep links |
-| Backend | [`Board-Backend/`](Board-Backend/) — JWT + Google + Lichess OAuth, `/games` REST + SSE over Redis pub/sub, `/engine` Stockfish analysis, archive to Postgres |
+| Backend | [`Board-Backend/`](Board-Backend/) — JWT + Google + Lichess OAuth; friend `/games` REST with **Redis `PUBLISH` on `game:events:{id}`** and **SSE** subscribers; **`POST /engine/analyse`** (Stockfish in the API process when configured); **queued engine workers** (Redis LIST + job hashes + optional `engine:events:*` notify) per [`docs/plans/stockfish-queue-live-analysis.plan.md`](docs/plans/stockfish-queue-live-analysis.plan.md); archive finished games to Postgres |
 | LLM service | [`Board-LLM/`](Board-LLM/) — FastAPI service for chat, move parsing, and position analysis (Hugging Face models) |
 | Firmware | [`Board-Firmware/`](Board-Firmware/) — PlatformIO / ESP32, multiplexed hall sensors, serial bridge to the app |
 | Ops / local dev | [`docker/stack.yml`](docker/stack.yml), [`scripts/docker-stack.sh`](scripts/docker-stack.sh) — Redis + API + LLM without manual wiring |
@@ -28,7 +28,8 @@ Board-App is a portfolio-grade monorepo that shows end-to-end ownership: native 
 - **Voice-controlled moves** — Natural language (“Knight to f3”, “Castle kingside”) validated against the current position.
 - **AI chess coach** — Chat, analysis, openings, and strategy guidance backed by an LLM service.
 - **Online play** — Lichess OAuth and in-app flows for remote play.
-- **Friend games** — Create/join with invites; live state in **Redis**; **Server-Sent Events** for updates; finished games **archived to Supabase**.
+- **Friend games** — Create/join with invites; authoritative state in **Redis** (`game:*`, `invite:*`); each change **publishes** full game JSON to **`game:events:{game_id}`**; clients open **`GET /games/{id}/events`** (SSE) so the API **subscribes** to that channel and streams updates; finished games **archived to Supabase**.
+- **Engine analysis** — **`POST /engine/analyse`** runs **Stockfish inside the API** (optional binary). A **separate worker + Redis queues** design (ready/processing lists, per-job hashes, reclaim, SSE-friendly pub/sub) is laid out for heavier or live-eval workloads — see [`docs/plans/stockfish-queue-live-analysis.plan.md`](docs/plans/stockfish-queue-live-analysis.plan.md).
 - **Puzzles, bots, local play** — Training and offline-style modes in the mobile app.
 - **Smart board (prototype)** — Hall-effect sensing, multiplexer readout, noise handling, and firmware documented under `Board-Firmware/`.
 
@@ -38,27 +39,51 @@ Board-App is a portfolio-grade monorepo that shows end-to-end ownership: native 
 
 Services are decoupled so each piece can be demonstrated or extended independently. Typical local ports: **API 8000**, **LLM 8001**, **Redis** (Compose internal unless you publish it).
 
+**Friend games (live):** REST handlers update Redis documents and call **`publish_friend_game_state`** → channel **`game:events:{game_id}`**. The SSE route subscribes to that channel and forwards each message as an SSE `data:` frame (see [`Board-Backend/game/realtime.py`](Board-Backend/game/realtime.py), [`Board-Backend/game/routes.py`](Board-Backend/game/routes.py)).
+
+**Stockfish:** **Shipped path** — `POST /engine/analyse` with **`asyncio.to_thread`** and a process-local UCI engine ([`Board-Backend/engine/`](Board-Backend/engine/)). **Target path (plan)** — API **enqueues** `job_id` on Redis lists and reads job hashes; one or more **worker processes** claim jobs, run Stockfish, write results back, and may **publish** incremental updates for job-scoped SSE ([`docs/plans/stockfish-queue-live-analysis.plan.md`](docs/plans/stockfish-queue-live-analysis.plan.md)).
+
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph mobile["Nimbus (React Native)"]
     App[App + screens]
   end
   subgraph cloud["Your machine / cloud"]
     API[Board-Backend FastAPI]
     LLM[Board-LLM FastAPI]
-    R[(Redis)]
+    subgraph redis["Redis"]
+      direction TB
+      GK["Keys: game:* · invite:* · lock:*"]
+      GCH["Pub/Sub: game:events:game_id"]
+      EQ["Lists: engine:queue:* planned"]
+      EJ["Hash: engine:job:job_id planned"]
+      ECH["Pub/Sub: engine:events:job_id planned"]
+    end
     DB[(Supabase Postgres)]
   end
   subgraph edge["Hardware (optional)"]
     FW[ESP32 firmware]
   end
-  App -->|REST JWT| API
-  App -->|REST| LLM
-  App -->|SSE /games/.../events| API
-  API --> R
-  API --> DB
-  API -->|archive finished games| DB
+  SF[(Stockfish binary)]
+  subgraph workers["Engine workers (planned)"]
+    EW[Worker process(es)]
+  end
+  App -->|REST JWT /games| API
+  App -->|SSE GET /games/id/events| API
+  App -->|REST coach| LLM
+  App -->|POST /engine/analyse today| API
+  API -->|read/write state · PUBLISH moves| GK
+  API -->|SUBSCRIBE · stream to client| GCH
+  API -->|archive terminal games| DB
   App -.->|serial / future bridge| FW
+  API -.->|enqueue LPUSH · GET job · SSE planned| EQ
+  API -.->|job snapshot + notify planned| EJ
+  API -.->|subscribe planned| ECH
+  EW -.->|BRPOPLPUSH claim · LREM ack| EQ
+  EW -.->|HSET results planned| EJ
+  EW -.->|optional PUBLISH partials| ECH
+  EW -.->|UCI| SF
+  API -->|to_thread UCI · today| SF
 ```
 
 **Deeper behavior** (friend game lifecycle, SSE, client resume): [`docs/complex-logic.md`](docs/complex-logic.md). **HTTP surface**: [`docs/api-routes.md`](docs/api-routes.md). **Tables and Redis patterns**: [`docs/database-schema.md`](docs/database-schema.md).
