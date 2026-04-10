@@ -1,5 +1,5 @@
 import { getAccessToken } from './auth';
-import { API_URL } from '../config/constants';
+import { API_URL } from '../env';
 
 const apiBase = API_URL;
 

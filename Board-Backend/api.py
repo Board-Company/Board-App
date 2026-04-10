@@ -54,7 +54,20 @@ async def lifespan(app: FastAPI):
         logger.error("Redis connection failed ({}). Set REDIS_URL or start Redis.", e)
         raise
     app.state.redis = client
+
+    sf_path = engine_service.resolve_stockfish_path()
+    if sf_path:
+        engine_service.configure(sf_path)
+        logger.info("Stockfish binary: {}", sf_path)
+    else:
+        logger.warning(
+            "Stockfish not found; POST /engine/analyse returns 503 until "
+            "STOCKFISH_PATH is set or stockfish is on PATH"
+        )
+
     yield
+
+    engine_service.shutdown_engine()
     await client.aclose()
     logger.info("Redis connection closed")
 
@@ -83,8 +96,11 @@ google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 logger.info("Supabase configuration successfully loaded")
 
 from game.routes import router as game_router
+from engine.routes import router as engine_router
+from engine import service as engine_service
 
 app.include_router(game_router, prefix="/games", tags=["games"])
+app.include_router(engine_router, prefix="/engine", tags=["engine"])
 
 # Routes
 @app.post("/token", response_model=Token)

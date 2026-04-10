@@ -1,12 +1,12 @@
 # API routes
 
-Living reference for **Board-Backend** (`FastAPI`). Main app: [`Board-Backend/api.py`](../Board-Backend/api.py). Game routes: [`Board-Backend/game/routes.py`](../Board-Backend/game/routes.py), mounted at **`/games`** (prefix in `api.py`).
+Living reference for **Board-Backend** (`FastAPI`). Main app: [`Board-Backend/api.py`](../Board-Backend/api.py). Game routes: [`Board-Backend/game/routes.py`](../Board-Backend/game/routes.py), mounted at **`/games`** (prefix in `api.py`). Engine routes: [`Board-Backend/engine/routes.py`](../Board-Backend/engine/routes.py), mounted at **`/engine`**.
 
 There are **no WebSocket** endpoints. Live friend-game updates use **HTTP** plus optional **SSE** (`GET /games/{game_id}/events`) backed by **Redis pub/sub**; clients can still poll `GET /games/{game_id}`.
 
 ## Base URLs and environments
 
-Set per deployment. Local dev commonly uses port **8000** (see `uvicorn` usage in repo). **`REDIS_URL`** and Supabase credentials are required for full behavior.
+Set per deployment. Local dev commonly uses port **8000** (see `uvicorn` usage in repo). **`REDIS_URL`** and Supabase credentials are required for full behavior (friend games, auth-backed data). Optional: **`STOCKFISH_PATH`** or install **`stockfish`** on **`PATH`** so `POST /engine/analyse` returns **200** instead of **503**.
 
 ## Authentication
 
@@ -22,6 +22,20 @@ Protected routes below note **Bearer**.
 |--------|------|------|---------|
 | GET | `/` | No | Service message (`Board API is running`). |
 | GET | `/health` | No | `status` + `redis` bool (ping). |
+
+## Engine (`/engine…`)
+
+Server-side **Stockfish** (UCI) via `python-chess`. Requires a **Stockfish binary**: set **`STOCKFISH_PATH`** to the executable, or install `stockfish` on **`PATH`**. If neither is available at startup, **`POST /engine/analyse`** returns **503** until configured. UCI runs on a **worker thread** (`asyncio.to_thread`), not on the asyncio event loop.
+
+| Method | Path | Auth | Request body | Response (summary) |
+|--------|------|------|----------------|-------------------|
+| POST | `/engine/analyse` | Bearer | `AnalyseRequest`: `fen`; optional `profile` (`play` \| `analysis`); optional `depth` (1–64), `movetime_ms` (50–600000), `multipv` (1–5) | `AnalyseResponse`: normalized `fen`, effective `depth` / `movetime_ms` / `multipv`, `bestmove_uci`, `lines[]` with `multipv`, `score` (`cp` \| `mate`, White POV), `pv_uci` |
+
+**Profiles:** `play` defaults to **movetime 200 ms** and **multipv 1** when depth/movetime omitted. `analysis` defaults to **depth 18** and **multipv 3**. With no profile, defaults are **depth 12** and **multipv 1** if depth and movetime are both omitted.
+
+**Errors:** **400** invalid FEN; **502** engine process / UCI failure; **503** engine not configured.
+
+**DTOs:** [`Board-Backend/engine/models.py`](../Board-Backend/engine/models.py) — `AnalyseRequest`, `AnalyseResponse`, `EngineLine`, `EngineScore`.
 
 ## Users and auth
 
@@ -69,4 +83,4 @@ No `/v1` prefix today; breaking changes should be documented here when introduce
 
 ---
 
-_Last updated: 2026-04-07_
+_Last updated: 2026-04-09_

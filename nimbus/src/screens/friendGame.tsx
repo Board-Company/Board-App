@@ -23,7 +23,7 @@ import {
   getActiveFriendGameId,
   setActiveFriendGameId,
 } from '../services/activeFriendGame';
-import { API_URL } from '../config/constants';
+import { API_URL } from '../env';
 
 const API_BASE_URL = API_URL;
 

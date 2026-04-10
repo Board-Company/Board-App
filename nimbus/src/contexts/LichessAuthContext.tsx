@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../config/constants';
+import { API_URL } from '../env';
 import queryString from 'query-string';
 import { getStoredAuthData } from '../services/auth';
 import { useAuth } from './AuthContext';

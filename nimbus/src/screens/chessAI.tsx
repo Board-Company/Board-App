@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
-import { LLM_API_URL } from '../config/constants';
+import { LLM_API_URL } from '../env';
 
 type Message = {
   id: string;

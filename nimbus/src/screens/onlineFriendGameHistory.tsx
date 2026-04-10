@@ -4,7 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getAccessToken } from '../services/auth';
-import { API_URL } from '../config/constants';
+import { API_URL } from '../env';
 import {
   fetchMyCompletedOnlineGames,
   type OnlineCompletedGame,

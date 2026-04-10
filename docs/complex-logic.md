@@ -26,10 +26,15 @@ Living reference for **non-obvious** flows, invariants, and cross-module behavio
 - **Where in code:** [`Board-Backend/game/realtime.py`](../Board-Backend/game/realtime.py) (channel + `publish_friend_game_state`), [`Board-Backend/game/service.py`](../Board-Backend/game/service.py) (publish after mutations), [`Board-Backend/game/routes.py`](../Board-Backend/game/routes.py) (`GET /{game_id}/events`), [`nimbus/src/screens/friendGame.tsx`](../nimbus/src/screens/friendGame.tsx) (`rn-eventsource` + `Authorization` header; **poll every 2.5s** only if the stream errors).
 - **Summary:** Each live game has a Redis channel `game:events:{game_id}`. On create/join/move/resign the API **PUBLISH**es a `FriendGameState` JSON string. The SSE handler **SUBSCRIBE**s, sends the current state as the first `data:` event, then forwards publishes. Moves are still submitted with **`POST /games/{id}/move`** (not over SSE). If SSE fails (token, proxy, network), the app falls back to polling `GET /games/{id}`.
 
+### Stockfish: UCI off the event loop
+
+- **Where in code:** [`Board-Backend/engine/service.py`](../Board-Backend/engine/service.py) (singleton subprocess + `threading.Lock`, `analyse_position_sync`), [`Board-Backend/engine/routes.py`](../Board-Backend/engine/routes.py) (`POST /analyse` → `asyncio.to_thread`), [`Board-Backend/api.py`](../Board-Backend/api.py) (lifespan: `resolve_stockfish_path`, `configure`, shutdown `quit()`).
+- **Summary:** Blocking **python-chess** UCI calls run only inside **`asyncio.to_thread`** so the FastAPI loop stays responsive. One **Stockfish** process is reused per API process under a lock (concurrent requests serialize). **503** if no binary at `STOCKFISH_PATH` or on `PATH`. Scores in JSON are from **White’s perspective** (`PovScore.white()`). **MVP uses no Redis or Postgres for engine state** — see [database-schema.md](database-schema.md) (“Engine (Stockfish)”). Optional queue/SSE live PV and future **`engine:*`** keys are in [`docs/plans/stockfish-queue-live-analysis.plan.md`](./plans/stockfish-queue-live-analysis.plan.md).
+
 ---
 
 _Add new subsections above this line as the project grows._
 
 ---
 
-_Last updated: 2026-04-07_
+_Last updated: 2026-04-09_

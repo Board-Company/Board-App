@@ -3,7 +3,7 @@ import { GoogleSignin, statusCodes, User as GoogleUser } from '@react-native-goo
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
-import { API_URL } from '../config/constants';
+import { API_URL } from '../env';
 
 interface RegisterData {
   email: string;
