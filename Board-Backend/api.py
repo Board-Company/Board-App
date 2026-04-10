@@ -1,5 +1,7 @@
+from contextlib import asynccontextmanager
+
+import redis.asyncio as redis_async
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Header
-from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,13 +9,22 @@ from typing import Optional
 from datetime import timedelta
 from dotenv import load_dotenv
 import os
-from supabase import create_client, Client
 import uvicorn
 from loguru import logger
-from schemas import Token, User, UserCreate, GoogleAuthRequest
+from schemas import Token, User, UserCreate, GoogleAuthRequest, UserInDB
+
+
+def _user_public_dict(user: UserInDB) -> dict:
+    data = user.model_dump() if hasattr(user, "model_dump") else user.dict()
+    data.pop("hashed_password", None)
+    # Mobile app expects `name` for display; DB stores `username`
+    display_name = data.get("username") or data.get("email") or "Player"
+    if not data.get("name"):
+        data["name"] = display_name
+    return data
 from auth import (
     verify_password, get_password_hash, create_access_token, 
-    get_user, authenticate_user, get_current_user, 
+    get_user, get_user_by_email, authenticate_user, get_current_user, 
     get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES,
     generate_code_verifier, generate_code_challenge, get_lichess_auth_url,
     verify_lichess_token, SECRET_KEY, ALGORITHM
@@ -32,8 +43,41 @@ load_dotenv()
 # Configure logger
 logger.add("api.log", rotation="10 MB", level="DEBUG")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    client = redis_async.from_url(redis_url, decode_responses=True)
+    try:
+        await client.ping()
+        logger.info("Redis connected at {}", redis_url)
+    except Exception as e:
+        logger.error("Redis connection failed ({}). Set REDIS_URL or start Redis.", e)
+        raise
+    app.state.redis = client
+
+    sf_path = engine_service.resolve_stockfish_path()
+    if sf_path:
+        engine_service.configure(sf_path)
+        logger.info("Stockfish binary: {}", sf_path)
+    else:
+        logger.warning(
+            "Stockfish not found; POST /engine/analyse returns 503 until "
+            "STOCKFISH_PATH is set or stockfish is on PATH"
+        )
+
+    yield
+
+    engine_service.shutdown_engine()
+    await client.aclose()
+    logger.info("Redis connection closed")
+
+
 # Configure FastAPI app
-app = FastAPI(title="Board API", description="Backend API for Board Application")
+app = FastAPI(
+    title="Board API",
+    description="Backend API for Board Application",
+    lifespan=lifespan,
+)
 
 # Add CORS middleware
 app.add_middleware(
@@ -44,20 +88,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Supabase client
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
+from supabase_client import supabase
 
-#initialize google client
+# initialize google client
 google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 
-# Replace the current logging section with this:
-if supabase_url and supabase_key:
-    logger.info("Supabase configuration successfully loaded")
-else:
-    logger.error("Missing Supabase configuration")
+logger.info("Supabase configuration successfully loaded")
 
-supabase: Client = create_client(supabase_url, supabase_key)
+from game.routes import router as game_router
+from engine.routes import router as engine_router
+from engine import service as engine_service
+
+app.include_router(game_router, prefix="/games", tags=["games"])
+app.include_router(engine_router, prefix="/engine", tags=["engine"])
 
 # Routes
 @app.post("/token", response_model=Token)
@@ -84,10 +127,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": user.dict()
+            "user": _user_public_dict(user),
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error during authentication: {str(e)}")
+        logger.exception(f"Error during authentication: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Authentication error: {str(e)}"
@@ -113,6 +158,8 @@ async def register_user(user_data: UserCreate):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error checking email existence: {str(e)}")
         raise HTTPException(
@@ -153,13 +200,17 @@ async def register_user(user_data: UserCreate):
         
         if hasattr(response, 'data') and response.data:
             logger.success(f"User registered successfully: {user_data.username}")
-            return User(**user_dict)
+            row = response.data[0]
+            created = UserInDB(**row)
+            return User(**_user_public_dict(created))
         else:
             logger.error(f"Supabase response empty or invalid: {response}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create user - empty response"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error creating user: {str(e)}")
         import traceback
@@ -179,14 +230,28 @@ async def root():
 
 # Health check endpoint
 @app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+async def health_check(request: Request):
+    """Liveness + Redis connectivity (friend games require Redis)."""
+    r = getattr(request.app.state, "redis", None)
+    if r is None:
+        return {"status": "degraded", "redis": False}
+    try:
+        await r.ping()
+        return {"status": "healthy", "redis": True}
+    except Exception:
+        return {"status": "degraded", "redis": False}
 
 @app.post("/auth/google", response_model=Token)
 async def google_auth(google_data: GoogleAuthRequest):
     try:
-        logger.info(f"Received Google token: {google_data.token}")
-        # Verify the Google token
+        if not google_client_id:
+            logger.error("GOOGLE_CLIENT_ID is not set; cannot verify Google ID tokens")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server Google OAuth is not configured",
+            )
+        logger.info("Received Google ID token for verification")
+        # Verify the Google token (audience must match OAuth "Web application" client ID)
         try:
             idinfo = id_token.verify_oauth2_token(
                 google_data.token, requests.Request(), google_client_id)
@@ -199,9 +264,9 @@ async def google_auth(google_data: GoogleAuthRequest):
         email = idinfo.get('email')
         logger.info(f"Extracted email from Google token: {email}")
         
-        # Check if user exists in your database
-        existing_user = await get_user(email, supabase)
-        logger.info(f"User lookup result for {email}: {existing_user}")
+        # Match by email (username may differ for email/password accounts)
+        existing_user = await get_user_by_email(email, supabase)
+        logger.info(f"User lookup by email for {email}: {existing_user}")
         
         if not existing_user:
             # Create new user if they don't exist
@@ -220,7 +285,7 @@ async def google_auth(google_data: GoogleAuthRequest):
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to create user"
                 )
-            user = User(**user_dict)
+            user = UserInDB(**response.data[0])
         else:
             user = existing_user
             logger.info(f"Using existing user: {user}")
@@ -236,7 +301,7 @@ async def google_auth(google_data: GoogleAuthRequest):
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": user.dict()
+            "user": _user_public_dict(user),
         }
 
     except ValueError as ve:

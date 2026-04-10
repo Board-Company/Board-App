@@ -10,7 +10,7 @@ import hashlib
 import base64
 import httpx
 from urllib.parse import urlencode
-from supabase import create_client, Client
+from supabase import Client
 from schemas import TokenData, User, UserInDB
 from dotenv import load_dotenv
 from google.oauth2 import id_token
@@ -35,15 +35,7 @@ LICHESS_AUTH_URL = "https://lichess.org/oauth"
 LICHESS_TOKEN_URL = "https://lichess.org/api/token"
 LICHESS_API_URL = "https://lichess.org/api"
 
-# Initialize Supabase client
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
-
-# Make sure the Supabase URL and key are available
-if not supabase_url or not supabase_key:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
-
-supabase: Client = create_client(supabase_url, supabase_key)
+from supabase_client import supabase
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -118,6 +110,20 @@ async def get_user(username: str, supabase: Client):
         return None
     except Exception as e:
         logger.error(f"Error getting user: {str(e)}")
+        return None
+
+
+async def get_user_by_email(email: str, supabase: Client):
+    """Lookup by email — used for Google sign-in when identity is the verified email."""
+    try:
+        if not email:
+            return None
+        response = supabase.table("users").select("*").eq("email", email).execute()
+        if response.data:
+            return UserInDB(**response.data[0])
+        return None
+    except Exception as e:
+        logger.error(f"Error getting user by email: {str(e)}")
         return None
 
 async def authenticate_user(username: str, password: str, supabase: Client):

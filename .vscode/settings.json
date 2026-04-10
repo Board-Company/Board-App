@@ -1,9 +1,16 @@
 {
     "java.compile.nullAnalysis.mode": "disabled",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "python.defaultInterpreterPath": "${workspaceFolder}/Board-Backend/.venv/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/Board-Backend"
+    ],
     "files.exclude": {
         "**/node_modules": true
     },
     "search.exclude": {
         "**/node_modules": true
-    }
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
 }

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
-import { useNavigation } from '@react-navigation/native';
-import { API_URL } from '../config/constants';
 
-// Add type for app user
 interface AppUser {
   id: string;
   username: string;
@@ -13,7 +12,7 @@ interface AppUser {
 }
 
 const SettingsScreen = () => {
-  const { signOut, user: appUser } = useAuth() as { signOut: () => Promise<void>, user: AppUser | null };
+  const { signOut, user: appUser } = useAuth() as { signOut: () => Promise<void>; user: AppUser | null };
   const { user: lichessUser, unlinkLichess, isLoading: isLichessLoading } = useLichessAuth();
   const navigation = useNavigation<any>();
   const [isUnlinking, setIsUnlinking] = useState(false);
@@ -22,26 +21,23 @@ const SettingsScreen = () => {
     try {
       await signOut();
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    } catch (err) {
-      console.error('[Settings] Logout error:', err);
+    } catch (error) {
+      console.error('[Settings] Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
 
   const handleUnlinkLichess = async () => {
     if (!lichessUser?.lichess_username) {
-      Alert.alert('Error', 'No Lichess account is currently linked.');
+      Alert.alert('No Linked Account', 'There is no Lichess account linked right now.');
       return;
     }
 
     Alert.alert(
-      'Unlink Lichess Account',
-      'Are you sure you want to unlink your Lichess account? This will not delete your Lichess account, but you will need to link it again to use Lichess features.',
+      'Unlink Lichess',
+      'Are you sure you want to unlink your Lichess account from Nimbus?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Unlink',
           style: 'destructive',
@@ -49,68 +45,62 @@ const SettingsScreen = () => {
             try {
               setIsUnlinking(true);
               await unlinkLichess();
-              Alert.alert('Success', 'Lichess account unlinked successfully.');
-            } catch (err) {
-              console.error('[Settings] Unlink error:', err);
+              Alert.alert('Unlinked', 'Your Lichess account has been unlinked.');
+            } catch (error) {
+              console.error('[Settings] Unlink error:', error);
               Alert.alert('Error', 'Failed to unlink Lichess account. Please try again.');
             } finally {
               setIsUnlinking(false);
             }
-          }
-        }
-      ]
-    );
-  };
-
-  const renderLichessSection = () => {
-    if (!lichessUser) return null;
-
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Lichess Account</Text>
-        {lichessUser.lichess_username ? (
-          <>
-            <Text style={styles.accountInfo}>
-              Linked as: {lichessUser.lichess_username}
-            </Text>
-          
-            <TouchableOpacity 
-              style={[styles.button, styles.unlinkButton]} 
-              onPress={handleUnlinkLichess}
-              disabled={isUnlinking || isLichessLoading}
-            >
-              {isUnlinking ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Unlink Lichess Account</Text>
-              )}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={styles.noAccountText}>No Lichess account linked</Text>
-        )}
-      </View>
+          },
+        },
+      ],
     );
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
-      
-      {renderLichessSection()}
+      <Header />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>Nimbus Settings</Text>
+          <Text style={styles.heroTitle}>Manage your account and connections.</Text>
+          <Text style={styles.heroSubtitle}>
+            Review your current login, manage Lichess linking, and sign out safely.
+          </Text>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <Text style={styles.accountInfo}>
-          Logged in as: {appUser?.username || 'Guest'}
-        </Text>
-        <TouchableOpacity 
-          style={[styles.button, styles.logoutButton]} 
-          onPress={handleLogout}
-        >
-          <Text style={styles.buttonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionValue}>{appUser?.username || 'Guest'}</Text>
+          <Text style={styles.helperText}>{appUser?.email || 'Signed in locally on this device.'}</Text>
+          <TouchableOpacity activeOpacity={0.92} style={styles.secondaryButton} onPress={handleLogout}>
+            <Text style={styles.secondaryButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Lichess</Text>
+          <Text style={styles.sectionValue}>{lichessUser?.lichess_username || 'Not linked'}</Text>
+          <Text style={styles.helperText}>
+            {lichessUser?.lichess_username
+              ? 'Your online play is connected to Lichess.'
+              : 'Link an account from the online play screen to enable matchmaking.'}
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.92}
+            style={styles.primaryButton}
+            onPress={handleUnlinkLichess}
+            disabled={isUnlinking || isLichessLoading}
+          >
+            {isUnlinking ? (
+              <ActivityIndicator color="#081005" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Unlink Lichess</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -118,74 +108,96 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
-    padding: 20,
+    backgroundColor: '#202020',
   },
-  title: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
+  content: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 120,
+    gap: 16,
   },
-  section: {
-    backgroundColor: '#3A3A3A',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
+  heroCard: {
+    backgroundColor: '#131313',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#24351B',
   },
-  sectionTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  accountInfo: {
-    color: '#E0E0E0',
-    fontSize: 16,
-    marginBottom: 15,
-  },
-  noAccountText: {
-    color: '#888',
-    fontSize: 16,
-    fontStyle: 'italic',
-  },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  logoutButton: {
-    backgroundColor: '#D7263D',
-  },
-  unlinkButton: {
-    backgroundColor: '#E74C3C',
-  },
-  ratingsContainer: {
-    backgroundColor: '#2A2A2A',
-    padding: 15,
-    borderRadius: 8,
-    marginVertical: 10,
-  },
-  ratingTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  eyebrow: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
-  ratingText: {
-    color: '#E0E0E0',
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontWeight: '800',
+    lineHeight: 31,
+  },
+  heroSubtitle: {
+    color: '#AEB8A8',
     fontSize: 14,
-    marginVertical: 2,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  sectionCard: {
+    backgroundColor: '#151515',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#24351B',
+    gap: 10,
+  },
+  sectionTitle: {
+    color: '#8CB369',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  sectionValue: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  helperText: {
+    color: '#AEB8A8',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  primaryButton: {
+    backgroundColor: '#8CB369',
+    borderRadius: 14,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  primaryButtonText: {
+    color: '#081005',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    backgroundColor: '#111111',
+    borderRadius: 14,
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: '#24351B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 
-export default SettingsScreen; 
+export default SettingsScreen;

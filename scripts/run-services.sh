@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$ROOT_DIR/.run-services"
 BACKEND_DIR="$ROOT_DIR/Board-Backend"
 LLM_DIR="$ROOT_DIR/Board-LLM"
@@ -14,7 +15,7 @@ RESET_METRO_CACHE=false
 
 usage() {
   cat <<'EOF'
-Usage: ./run-services.sh [options]
+Usage: ./scripts/run-services.sh [options]
 
 Starts the Board backend, Board LLM service, and React Native Metro bundler.
 
@@ -67,6 +68,32 @@ require_directory() {
     echo "Missing required directory: $dir_path" >&2
     exit 1
   fi
+}
+
+free_port() {
+  local port="$1"
+  local service_name="$2"
+  local pids=()
+
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] && pids+=("$pid")
+  done < <(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+
+  if [[ ${#pids[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Port $port is in use; stopping existing $service_name process(es): ${pids[*]}"
+  for pid in "${pids[@]}"; do
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+
+  sleep 1
+  for pid in "${pids[@]}"; do
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+  done
 }
 
 check_optional_env_file() {
@@ -147,9 +174,10 @@ start_service() {
   echo "Log: $log_file"
 }
 
-require_command poetry
 require_command npm
 require_command npx
+require_command python3
+require_command lsof
 require_directory "$BACKEND_DIR"
 require_directory "$LLM_DIR"
 require_directory "$NIMBUS_DIR"
@@ -168,10 +196,24 @@ APP_LOG="$LOG_DIR/app.log"
 : >"$METRO_LOG"
 : >"$APP_LOG"
 
-start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" poetry run python api.py
+# Ensure reruns don't fail with "address already in use".
+free_port 8000 "Board-Backend"
+free_port 8001 "Board-LLM"
+
+if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  if ! "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis not ready; Board-Backend may exit on startup until Redis is running." >&2
+  fi
+elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  if ! bash "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis not ready; Board-Backend may exit on startup until Redis is running." >&2
+  fi
+fi
+
+start_service "Board-Backend" "$BACKEND_DIR" "$BACKEND_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python api.py; else python3 -m poetry run python api.py; fi"
 wait_for_http "http://127.0.0.1:8000/health" "Board-Backend" || true
 
-start_service "Board-LLM" "$LLM_DIR" "$LLM_LOG" poetry run python llm_service.py
+start_service "Board-LLM" "$LLM_DIR" "$LLM_LOG" bash -lc "if command -v poetry >/dev/null 2>&1; then poetry run python llm_service.py; else python3 -m poetry run python llm_service.py; fi"
 wait_for_http "http://127.0.0.1:8001/health" "Board-LLM" || true
 
 if [[ "$RESET_METRO_CACHE" == true ]]; then
@@ -183,11 +225,11 @@ fi
 sleep 3
 
 if [[ "$START_ANDROID" == true ]]; then
-  start_service "Nimbus Android" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-android
+  start_service "Nimbus Android" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-android --active-arch-only --no-packager
 fi
 
 if [[ "$START_IOS" == true ]]; then
-  start_service "Nimbus iOS" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-ios
+  start_service "Nimbus iOS" "$NIMBUS_DIR" "$APP_LOG" npx react-native run-ios --no-packager
 fi
 
 echo

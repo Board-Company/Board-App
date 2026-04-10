@@ -1,8 +1,8 @@
-# Nimbus - React Native Chess App
+# Nimbus — React Native chess app
 
-> ⚠️ **Work In Progress** - This app is under active development.
+React Native (**CLI**, not Expo) client for the Board-App ecosystem: auth, Lichess, local and online play, puzzles, voice-enabled AI coach, and Redis-backed friend games with SSE updates.
 
-A React Native mobile application for the Board-App smart chess ecosystem. Built without Expo using React Native CLI.
+> Active development: some flows and copy will evolve; the root [README.md](../README.md) describes the full stack for portfolio reviewers.
 
 ## Prerequisites
 
@@ -83,6 +83,9 @@ nimbus/
 │   │   ├── puzzle.tsx             # Chess puzzles
 │   │   ├── localGame.tsx          # Local multiplayer
 │   │   ├── onlineGame.tsx         # Online game screen
+│   │   ├── friendGame.tsx         # In-app friend games (Redis + SSE)
+│   │   ├── onlineFriendGameHistory.tsx
+│   │   ├── onlineFriendGameReview.tsx
 │   │   ├── login.tsx              # Login screen
 │   │   ├── register.tsx           # Registration
 │   │   ├── userLogin.tsx          # Email/password login
@@ -99,11 +102,9 @@ nimbus/
 │   ├── contexts/                  # React contexts
 │   │   ├── AuthContext.tsx        # Authentication state
 │   │   └── LichessAuthContext.tsx # Lichess auth state
-│   ├── services/                  # API services
-│   │   └── auth.tsx               # Auth API calls
-│   ├── config/
-│   │   └── constants.ts           # App constants
-│   └── types/                     # TypeScript definitions
+│   ├── services/                  # auth, activeFriendGame, local/online game history
+│   ├── env.ts                     # `API_URL` / `LLM_API_URL` from `.env` (@env)
+│   └── types/                     # TypeScript definitions (incl. `env.d.ts` for @env)
 ├── android/                       # Android native project
 ├── ios/                           # iOS native project
 ├── assets/                        # Images and static files
@@ -135,12 +136,9 @@ nimbus/
 
 ## Configuration
 
-### API Endpoints
+### API endpoints
 
-Update the service URLs in the relevant files:
-
-- **Backend API**: `src/config/constants.ts`
-- **LLM Service**: `src/screens/chessAI.tsx` (LLM_SERVICE_URL)
+Configure **`BASE_URL`** (Board-Backend) and optionally **`LLM_SERVICE_URL`** in `.env`. Both are read in [`src/env.ts`](src/env.ts) (`API_URL`, `LLM_API_URL`) so screens and services share one source of truth. If `LLM_SERVICE_URL` is omitted, the app derives the LLM host from `BASE_URL` with port **8001** (see `LLM_API_URL` in that file).
 
 ### Permissions
 
@@ -197,8 +195,11 @@ npm install --legacy-peer-deps
 - Chess logic powered by **chess.js**
 - Icons from **react-native-vector-icons**
 
-## Related Documentation
+## Related documentation
 
+- [Board-App README](../README.md) — monorepo overview and architecture
+- [docs/api-routes.md](../docs/api-routes.md) — backend HTTP API
+- [docs/complex-logic.md](../docs/complex-logic.md) — friend games, SSE, resume behavior
 - [React Native Docs](https://reactnative.dev/docs/getting-started)
 - [Tamagui Docs](https://tamagui.dev/docs/intro/introduction)
 - [React Navigation](https://reactnavigation.org/docs/getting-started)

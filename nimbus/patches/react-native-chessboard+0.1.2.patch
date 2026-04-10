@@ -1,0 +1,160 @@
+diff --git a/node_modules/react-native-chessboard/lib/commonjs/components/piece/index.js b/node_modules/react-native-chessboard/lib/commonjs/components/piece/index.js
+index 2ebf953..c55f347 100644
+--- a/node_modules/react-native-chessboard/lib/commonjs/components/piece/index.js
++++ b/node_modules/react-native-chessboard/lib/commonjs/components/piece/index.js
+@@ -83,6 +83,26 @@ const Piece = /*#__PURE__*/_react.default.memo( /*#__PURE__*/_react.default.forw
+         x,
+         y
+       } = toTranslation(move ? move.to : from);
++
++      if (moveDuration <= 0) {
++        translateX.value = x;
++        translateY.value = y;
++        offsetX.value = x;
++        offsetY.value = y;
++        isGestureActive.value = false;
++
++        if (move) {
++          wrappedOnMoveForJSThread({
++            move
++          });
++          resolve(move);
++        } else {
++          resolve(undefined);
++        }
++
++        return;
++      }
++
+       translateX.value = (0, _reactNativeReanimated.withTiming)(x, {
+         duration: moveDuration
+       }, () => {
+diff --git a/node_modules/react-native-chessboard/lib/module/components/piece/index.js b/node_modules/react-native-chessboard/lib/module/components/piece/index.js
+index 9d3af78..8606648 100644
+--- a/node_modules/react-native-chessboard/lib/module/components/piece/index.js
++++ b/node_modules/react-native-chessboard/lib/module/components/piece/index.js
+@@ -62,6 +62,26 @@ const Piece = /*#__PURE__*/React.memo( /*#__PURE__*/React.forwardRef((_ref, ref)
+         x,
+         y
+       } = toTranslation(move ? move.to : from);
++
++      if (moveDuration <= 0) {
++        translateX.value = x;
++        translateY.value = y;
++        offsetX.value = x;
++        offsetY.value = y;
++        isGestureActive.value = false;
++
++        if (move) {
++          wrappedOnMoveForJSThread({
++            move
++          });
++          resolve(move);
++        } else {
++          resolve(undefined);
++        }
++
++        return;
++      }
++
+       translateX.value = withTiming(x, {
+         duration: moveDuration
+       }, () => {
+diff --git a/node_modules/react-native-chessboard/src/components/piece/index.tsx b/node_modules/react-native-chessboard/src/components/piece/index.tsx
+index bbbd539..837cf27 100644
+--- a/node_modules/react-native-chessboard/src/components/piece/index.tsx
++++ b/node_modules/react-native-chessboard/src/components/piece/index.tsx
+@@ -81,6 +81,21 @@ const Piece = React.memo(
+           return new Promise<Move | undefined>((resolve) => {
+             const move = validateMove(from, to);
+             const { x, y } = toTranslation(move ? move.to : from);
++            // When duration is 0, skip withTiming so onMove runs immediately (no frame delay).
++            if (moveDuration <= 0) {
++              translateX.value = x;
++              translateY.value = y;
++              offsetX.value = x;
++              offsetY.value = y;
++              isGestureActive.value = false;
++              if (move) {
++                wrappedOnMoveForJSThread({ move });
++                resolve(move);
++              } else {
++                resolve(undefined);
++              }
++              return;
++            }
+             translateX.value = withTiming(x, { duration: moveDuration }, () => {
+               offsetX.value = translateX.value;
+             });
+@@ -173,7 +188,8 @@ const Piece = React.memo(
+           validateMove(previousTappedSquare, currentSquare);
+ 
+         if (move) {
+-          runOnJS(globalMoveTo)(move);
++          // Already on JS thread (via runOnJS(handleOnBegin)); avoid extra runOnJS deferral.
++          globalMoveTo(move);
+           return;
+         }
+         if (!gestureEnabled.value) return;
+diff --git a/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx b/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx
+index ded8edc..fea5c04 100644
+--- a/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx
++++ b/node_modules/react-native-chessboard/src/components/suggested-dots/PlaceholderDot.tsx
+@@ -14,12 +14,13 @@ import { useReversePiecePosition } from '../../notation';
+ type PlaceholderDotProps = {
+   x: number;
+   y: number;
++  occupied: boolean;
+   selectableSquares: Animated.SharedValue<Square[]>;
+   moveTo?: (to: Square) => void;
+ };
+ 
+ const PlaceholderDot: React.FC<PlaceholderDotProps> = React.memo(
+-  ({ x, y, selectableSquares, moveTo }) => {
++  ({ x, y, occupied, selectableSquares, moveTo }) => {
+     const { pieceSize } = useChessboardProps();
+     const { toPosition, toTranslation } = useReversePiecePosition();
+ 
+@@ -64,8 +65,9 @@ const PlaceholderDot: React.FC<PlaceholderDotProps> = React.memo(
+       >
+         <Animated.View
+           style={[
+-            { borderRadius: pieceSize },
+-            styles.placeholder,
++            occupied
++              ? [styles.capturePlaceholder, { borderRadius: pieceSize, borderWidth: pieceSize / 10 }]
++              : [styles.placeholder, { borderRadius: pieceSize }],
+             rPlaceholderStyle,
+           ]}
+         />
+@@ -85,6 +87,11 @@ const styles = StyleSheet.create({
+     backgroundColor: 'black',
+     opacity: 0.2,
+   },
++  capturePlaceholder: {
++    flex: 1,
++    backgroundColor: 'transparent',
++    borderColor: 'rgba(0, 0, 0, 0.35)',
++  },
+ });
+ 
+ export { PlaceholderDot };
+diff --git a/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx b/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx
+index c73a97c..c6672c9 100644
+--- a/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx
++++ b/node_modules/react-native-chessboard/src/components/suggested-dots/index.tsx
+@@ -18,12 +18,13 @@ const SuggestedDots: React.FC = React.memo(() => {
+       }}
+     >
+       {board.map((row, y) =>
+-        row.map((_, x) => {
++        row.map((cell, x) => {
+           return (
+             <PlaceholderDot
+               key={`${x}-${y}`}
+               x={x}
+               y={y}
++              occupied={cell !== null}
+               selectableSquares={selectableSquares}
+               moveTo={moveTo}
+             />

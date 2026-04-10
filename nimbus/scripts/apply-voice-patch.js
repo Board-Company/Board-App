@@ -8,7 +8,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 
 const root = path.resolve(__dirname, '..');
-const patchFile = path.join(root, 'patches', '@react-native-voice+voice+3.2.4.patch');
+const patchFile = path.join(root, 'scripts', 'patches', 'voice-androidx.patch');
 const pkgDir = path.join(root, 'node_modules', '@react-native-voice', 'voice');
 
 if (!fs.existsSync(patchFile)) {

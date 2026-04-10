@@ -35,6 +35,11 @@ local.properties
 !debug.keystore
 .kotlin/
 
+# Secrets and local env (root .gitignore also ignores `.env`; keep explicit for nimbus-only clones)
+.env
+.env.local
+.env.*.local
+
 # node.js
 #
 node_modules/

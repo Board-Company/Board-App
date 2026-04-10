@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 
 interface HeaderProps {
   // Add any props you might need here, such as
@@ -10,11 +9,11 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = (props) => {
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.title}>nimbus</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -31,9 +30,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   title: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: '#8CB369',
+    fontSize: 21,
+    fontWeight: '700',
+    letterSpacing: 2.6,
+    textTransform: 'lowercase',
+    fontFamily: Platform.select({
+      ios: 'Courier',
+      android: 'monospace',
+      default: 'monospace',
+    }),
   },
 });
 

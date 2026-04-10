@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/Board-Backend"
 LLM_DIR="$ROOT_DIR/Board-LLM"
 NIMBUS_DIR="$ROOT_DIR/nimbus"
@@ -12,13 +13,13 @@ START_IOS=false
 
 usage() {
   cat <<'EOF'
-Usage: ./open-services-in-terminal.sh [options]
+Usage: ./scripts/open-services-in-terminal.sh [options]
 
 Opens Terminal.app tabs for Board services.
 
 Options:
-  --android  Also open a tab for npx react-native run-android
-  --ios      Also open a tab for npx react-native run-ios
+  --android  Also open a tab for run-android (uses existing Metro tab; --no-packager)
+  --ios      Also open a tab for run-ios (uses existing Metro tab; --no-packager)
   --help     Show this help message
 EOF
 }
@@ -56,11 +57,54 @@ if [[ "$START_ANDROID" == false && "$START_IOS" == false ]]; then
   START_ANDROID=true
 fi
 
-backend_cmd="cd '$BACKEND_DIR' && poetry run python api.py"
-llm_cmd="cd '$LLM_DIR' && poetry run python llm_service.py"
+free_port() {
+  local port="$1"
+  local label="$2"
+  local pids=()
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] && pids+=("$pid")
+  done < <(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+
+  if [[ ${#pids[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Port $port in use ($label); stopping PID(s): ${pids[*]}"
+  for pid in "${pids[@]}"; do
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+  sleep 1
+  for pid in "${pids[@]}"; do
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+  done
+}
+
+if command -v lsof >/dev/null 2>&1; then
+  free_port 8000 "Board-Backend"
+  free_port 8001 "Board-LLM"
+else
+  echo "Note: lsof not found; skipping automatic port cleanup (install Xcode CLI tools)." >&2
+fi
+
+# Do not exit the whole script if Redis is down — still open all tabs (backend tab will fail until Redis is up).
+if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  if ! "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis is not ready. Board-Backend will fail until Redis runs (Docker: docker compose up -d redis in Board-Backend)." >&2
+  fi
+elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+  if ! bash "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+    echo "WARNING: Redis is not ready. Board-Backend will fail until Redis is running." >&2
+  fi
+fi
+
+backend_cmd="cd '$BACKEND_DIR' && ./run-api.sh"
+llm_cmd="cd '$LLM_DIR' && ./run-llm.sh"
 metro_cmd="cd '$NIMBUS_DIR' && npm run start:fast"
-android_cmd="cd '$NIMBUS_DIR' && npx react-native run-android"
-ios_cmd="cd '$NIMBUS_DIR' && npx react-native run-ios"
+# Metro already runs in a prior tab; avoid a second packager from the RN CLI.
+android_cmd="cd '$NIMBUS_DIR' && npx react-native run-android --active-arch-only --no-packager"
+ios_cmd="cd '$NIMBUS_DIR' && npx react-native run-ios --no-packager"
 
 APPLE_SCRIPT="$(mktemp -t open-board-services).applescript"
 

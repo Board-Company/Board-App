@@ -1,0 +1,60 @@
+# Full backend stack in Docker: Redis + Board-Backend API + Board-LLM.
+# Redis stays on the Compose network only (no host port) so parallel stacks never share 6379.
+#
+# Local (API/LLM only on loopback — safe default):
+#   ./scripts/docker-stack.sh up
+#
+# Physical phone/tablet on Wi‑Fi, or EC2 (listen on all interfaces):
+#   ./scripts/docker-stack.sh up --public
+#   # same as: DOCKER_BIND=0.0.0.0 ./scripts/docker-stack.sh up
+# Then point nimbus BASE_URL at http://<this-machine-LAN-IP>:8000/ (device) or http://<ec2-public-ip>:8000/
+# Open EC2 security group for TCP 8000 and 8001 (or terminate TLS on 443 with a reverse proxy).
+#
+# Second stack on one machine:
+#   ./scripts/docker-stack.sh up --project board-b --backend-port 18000 --llm-port 18001
+#
+# Metro and native run-android/run-ios stay on the host. Optional: adb reverse tcp:8000 tcp:8000
+# when using loopback binds and a USB-connected Android device.
+
+name: ${COMPOSE_PROJECT_NAME:-board-stack}
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ../Board-Backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${DOCKER_BIND:-127.0.0.1}:${BACKEND_PUBLISH:-8000}:8000"
+    env_file:
+      - ../Board-Backend/.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  llm:
+    build:
+      context: ../Board-LLM
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${DOCKER_BIND:-127.0.0.1}:${LLM_PUBLISH:-8001}:8001"
+    env_file:
+      - ../Board-LLM/.env
+
+volumes:
+  redis-data:
