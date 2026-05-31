@@ -21,6 +21,7 @@ os.environ.setdefault(
 )
 os.environ.setdefault("SECRET_KEY", "pytest-secret-key-min-32-chars!!")
 os.environ.setdefault("REDIS_URL", "redis://127.0.0.1:6379/15")
+os.environ.setdefault("REDIS_ENGINE_URL", "redis://127.0.0.1:6379/14")
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test.apps.googleusercontent.com")
 
 

@@ -7,7 +7,8 @@ export type OnlineCompletedGame = {
   id: string;
   game_id: string;
   white_player_id: string;
-  black_player_id: string;
+  /** Null if the lobby expired before an opponent joined (abandoned). */
+  black_player_id: string | null;
   white_username: string | null;
   black_username: string | null;
   move_history: string[];

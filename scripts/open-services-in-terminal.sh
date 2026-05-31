@@ -10,6 +10,7 @@ NIMBUS_DIR="$ROOT_DIR/nimbus"
 
 START_ANDROID=false
 START_IOS=false
+DOCKER_STACK=false
 
 usage() {
   cat <<'EOF'
@@ -18,9 +19,10 @@ Usage: ./scripts/open-services-in-terminal.sh [options]
 Opens Terminal.app tabs for Board services.
 
 Options:
-  --android  Also open a tab for run-android (uses existing Metro tab; --no-packager)
-  --ios      Also open a tab for run-ios (uses existing Metro tab; --no-packager)
-  --help     Show this help message
+  --android       Also open a tab for run-android (uses existing Metro tab; --no-packager)
+  --ios           Also open a tab for run-ios (uses existing Metro tab; --no-packager)
+  --docker-stack  Backend + LLM run in Docker; only open Metro (and native app tabs)
+  --help          Show this help message
 EOF
 }
 
@@ -38,6 +40,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ios)
       START_IOS=true
+      ;;
+    --docker-stack)
+      DOCKER_STACK=true
       ;;
     --help|-h)
       usage
@@ -81,21 +86,23 @@ free_port() {
   done
 }
 
-if command -v lsof >/dev/null 2>&1; then
-  free_port 8000 "Board-Backend"
-  free_port 8001 "Board-LLM"
-else
-  echo "Note: lsof not found; skipping automatic port cleanup (install Xcode CLI tools)." >&2
-fi
-
-# Do not exit the whole script if Redis is down — still open all tabs (backend tab will fail until Redis is up).
-if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  if ! "$BACKEND_DIR/scripts/ensure-redis.sh"; then
-    echo "WARNING: Redis is not ready. Board-Backend will fail until Redis runs (Docker: docker compose up -d redis in Board-Backend)." >&2
+if [[ "$DOCKER_STACK" == false ]]; then
+  if command -v lsof >/dev/null 2>&1; then
+    free_port 8000 "Board-Backend"
+    free_port 8001 "Board-LLM"
+  else
+    echo "Note: lsof not found; skipping automatic port cleanup (install Xcode CLI tools)." >&2
   fi
-elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  if ! bash "$BACKEND_DIR/scripts/ensure-redis.sh"; then
-    echo "WARNING: Redis is not ready. Board-Backend will fail until Redis is running." >&2
+
+  # Do not exit the whole script if Redis is down — still open all tabs (backend tab will fail until Redis is up).
+  if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+    if ! "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+      echo "WARNING: Redis is not ready. Board-Backend will fail until Redis runs (Docker: docker compose up -d redis in Board-Backend)." >&2
+    fi
+  elif [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
+    if ! bash "$BACKEND_DIR/scripts/ensure-redis.sh"; then
+      echo "WARNING: Redis is not ready. Board-Backend will fail until Redis is running." >&2
+    fi
   fi
 fi
 
@@ -115,14 +122,18 @@ APPLE_SCRIPT="$(mktemp -t open-board-services).applescript"
   echo '    do script ""'
   echo '    delay 0.3'
   echo '  end if'
-  echo "  do script $(apple_quote "$backend_cmd") in front window"
-  echo '  delay 0.3'
-  echo '  tell application "System Events" to keystroke "t" using command down'
-  echo '  delay 0.3'
-  echo "  do script $(apple_quote "$llm_cmd") in front window"
-  echo '  delay 0.3'
-  echo '  tell application "System Events" to keystroke "t" using command down'
-  echo '  delay 0.3'
+
+  if [[ "$DOCKER_STACK" == false ]]; then
+    echo "  do script $(apple_quote "$backend_cmd") in front window"
+    echo '  delay 0.3'
+    echo '  tell application "System Events" to keystroke "t" using command down'
+    echo '  delay 0.3'
+    echo "  do script $(apple_quote "$llm_cmd") in front window"
+    echo '  delay 0.3'
+    echo '  tell application "System Events" to keystroke "t" using command down'
+    echo '  delay 0.3'
+  fi
+
   echo "  do script $(apple_quote "$metro_cmd") in front window"
 
   if [[ "$START_ANDROID" == true ]]; then

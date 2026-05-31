@@ -23,12 +23,14 @@ Options (after the command):
                          Use a unique name per parallel stack.
   --backend-port <port>  Host port for API (default: 8000). Inside container stays 8000.
   --llm-port <port>      Host port for LLM (default: 8001).
+  --engine-workers <n>   Stockfish worker replicas (default: 3). Each runs one analysis at a time.
   --public               Bind API and LLM on 0.0.0.0 (LAN devices + EC2). Default is 127.0.0.1 only.
 
 Environment (same effect as flags):
   COMPOSE_PROJECT_NAME   Same as --project
   BACKEND_PUBLISH        Same as --backend-port
   LLM_PUBLISH            Same as --llm-port
+  ENGINE_WORKER_REPLICAS Same as --engine-workers (default: 3)
   DOCKER_BIND            Host bind address for published ports (default: 127.0.0.1). Use 0.0.0.0 for EC2/LAN.
 
 Examples:
@@ -49,6 +51,7 @@ shift
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-board-stack}"
 BACKEND_PUBLISH="${BACKEND_PUBLISH:-8000}"
 LLM_PUBLISH="${LLM_PUBLISH:-8001}"
+ENGINE_WORKER_REPLICAS="${ENGINE_WORKER_REPLICAS:-3}"
 DOCKER_BIND="${DOCKER_BIND:-127.0.0.1}"
 
 while [[ $# -gt 0 ]]; do
@@ -65,6 +68,10 @@ while [[ $# -gt 0 ]]; do
       LLM_PUBLISH="${2:?missing value for $1}"
       shift 2
       ;;
+    --engine-workers)
+      ENGINE_WORKER_REPLICAS="${2:?missing value for $1}"
+      shift 2
+      ;;
     --public)
       DOCKER_BIND="0.0.0.0"
       shift
@@ -75,17 +82,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-export COMPOSE_PROJECT_NAME BACKEND_PUBLISH LLM_PUBLISH DOCKER_BIND
+export COMPOSE_PROJECT_NAME BACKEND_PUBLISH LLM_PUBLISH ENGINE_WORKER_REPLICAS DOCKER_BIND
 
 cd "$ROOT_DIR"
 
 case "$ACTION" in
   up)
-    docker compose up -d --build
+    docker compose up -d --build --scale "engine-worker=${ENGINE_WORKER_REPLICAS}"
     echo
     echo "Stack project: $COMPOSE_PROJECT_NAME (bind: $DOCKER_BIND)"
-    echo "  API:  http://127.0.0.1:${BACKEND_PUBLISH}/health"
-    echo "  LLM:  http://127.0.0.1:${LLM_PUBLISH}/health"
+    echo "  API:             http://127.0.0.1:${BACKEND_PUBLISH}/health"
+    echo "  LLM:             http://127.0.0.1:${LLM_PUBLISH}/health"
+    echo "  engine-worker:   ${ENGINE_WORKER_REPLICAS} replica(s) (Stockfish via Redis queue)"
     if [[ "$DOCKER_BIND" == "0.0.0.0" ]]; then
       echo
       echo "Listening on all interfaces — use your LAN IP or EC2 public IP in nimbus BASE_URL (and LLM_SERVICE_URL if set)."

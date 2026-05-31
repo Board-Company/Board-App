@@ -34,13 +34,13 @@
       "problemMatcher": []
     },
     {
-      "label": "Board Stack: Redis + open services",
+      "label": "Board Stack: all services",
       "type": "shell",
       "command": "./scripts/board-open-with-redis.sh --android",
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "detail": "docker compose up -d redis (Board-Backend), then opens Backend / LLM / Metro / Android tabs. Default build (Cmd+Shift+B). For Cmd+Shift+R see .vscode/README-keybindings.md.",
+      "detail": "Docker stack up (Redis + API + LLM + 3× engine-worker), then Metro + Android tabs. Default build (Cmd+Shift+B). For Cmd+Shift+R see .vscode/README-keybindings.md.",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",

@@ -39,11 +39,12 @@ def _completed_row_to_summary(row: dict) -> CompletedGameSummary:
     mh = row.get("move_history") or []
     if isinstance(mh, str):
         mh = json.loads(mh) if mh else []
+    bp = row.get("black_player_id")
     return CompletedGameSummary(
         id=str(row["id"]),
         game_id=str(row["game_id"]),
         white_player_id=str(row["white_player_id"]),
-        black_player_id=str(row["black_player_id"]),
+        black_player_id=str(bp) if bp is not None else None,
         white_username=str(wu) if wu is not None else None,
         black_username=str(bu) if bu is not None else None,
         move_history=list(mh),
@@ -133,7 +134,10 @@ async def get_my_completed_game(
 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
     row = rows[0]
-    if row.get("white_player_id") != uid and row.get("black_player_id") != uid:
+    wid = str(row.get("white_player_id") or "")
+    bid = row.get("black_player_id")
+    bid_str = str(bid) if bid is not None else None
+    if uid != wid and uid != bid_str:
         from fastapi import HTTPException, status
 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")

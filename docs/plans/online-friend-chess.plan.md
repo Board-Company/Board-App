@@ -1,39 +1,93 @@
 ---
 name: Online friend chess state
-overview: "Friend chess: each game has a stable game_id; active state lives in Redis (fast reads/writes); when a game ends, archive the full record to Supabase. FastAPI validates moves (python-chess) and owns all writes to Redis/DB."
+overview: "Friend chess: game_id + invite code; live state in Redis (`game:{id}`, TTL); shadow key + periodic sweep archives abandoned/expired lobbies to Supabase (`result=abandoned`, nullable black). Normal end: resign/checkmate/draw → upsert completed_games + DEL Redis. FastAPI + python-chess own validation."
 todos:
   - id: redis-setup
-    content: Add Redis dependency and REDIS_URL; FastAPI client (e.g. redis-py) with lifespan connect/disconnect; key pattern `game:{game_id}` (JSON) + optional TTL for abandoned games
-    status: pending
+    content: Add Redis dependency and REDIS_URL; FastAPI client with lifespan; keys `game:{id}` JSON + TTL; `game:shadow:{id}` for abandoned sweep; per-game lock on mutating paths
+    status: completed
   - id: game-id-lifecycle
-    content: POST /games creates uuid game_id, seeds Redis (status waiting, fen start, empty history, creator as white); join/move only touch Redis until terminal
-    status: pending
+    content: POST /games creates uuid, seeds Redis (waiting, FEN start, creator white); POST /games/join (invite or game_id); moves/resign until terminal or TTL
+    status: completed
   - id: schema-completed-games
-    content: Supabase table for finished games only (game_id, players, final fen, move_history jsonb, result, started_at, finished_at); document in supabase_schema.sql
-    status: pending
+    content: Supabase completed_games + migrations (002 nullable black_player_id for expired lobbies); documented in supabase_schema.sql and supabase/migrations/
+    status: completed
   - id: backend-chess
-    content: "python-chess validation on each move; GET/POST hit Redis; on finished/aborted/resign: INSERT completed row then DEL (or expire) Redis key"
-    status: pending
+    content: python-chess on each move; GET/POST Redis; finish → upsert completed_games + DEL game/invite/shadow; abandoned TTL → sweep inserts abandoned/expired
+    status: completed
   - id: pydantic-align
-    content: Align GameState JSON in Redis and API responses; document transition to archived row shape for history UI later
-    status: pending
+    content: FriendGameState / CreateGameResponse / completed summaries aligned with Redis JSON and archived rows; history + review screens consume API
+    status: completed
   - id: nimbus-ui
-    content: Friend-game screen using game_id in URL or deep link; poll GET /games/{id} or SSE/pub-sub when added
-    status: pending
+    content: friendGame lobby/play + invite code; history/review for archived games; polling GET /games/{id} (~2.5s) while active (deep links not done — see deep-links)
+    status: completed
   - id: sync-mvp
-    content: MVP polling against Redis-backed GET; v2 optional Redis Pub/Sub + SSE or WebSocket from FastAPI for push moves
+    content: MVP polling against Redis-backed GET while status active
+    status: completed
+  - id: sync-v2-push
+    content: "Optional: Redis Pub/Sub + SSE or WebSocket from FastAPI for push moves (reduce polling/battery)"
+    status: pending
+  - id: deep-links
+    content: Open friend game from universal link / OS URL with game_id (React Navigation linking + platform config)
+    status: pending
+  - id: redis-concurrency-lua
+    content: "Optional: Redis Lua script (or WATCH/MULTI/EXEC) for atomic read–validate–write on `game:{id}` JSON (compare-and-set on version/updated_at); can complement or replace per-game lock for hot paths"
+    status: pending
+  - id: production-hardening
+    content: "Deploy: TLS (nginx/Caddy), tighten CORS from *, managed Redis if needed; see plan Deployment on EC2 section"
     status: pending
 ---
 
-# Track game state for in-app friend games (Redis + game_id, DB on completion)
+# Online friend chess (Redis live state → Supabase archive)
 
-## Current codebase
+**Read this doc top-down:** step-by-step first, then optional reference. Machine-checkable todos live in the YAML block above.
 
-- [Board-Backend/game/models.py](../../Board-Backend/game/models.py) defines `GameState` and `MoveRequest` (FEN, `move_history`, `player_ids`, `status`) but they are **not wired** into [Board-Backend/api.py](../../Board-Backend/api.py).
-- [Board-Backend/supabase_schema.sql](../../Board-Backend/supabase_schema.sql) defines `users`, `lichess_users`, and `completed_games`.
-- [nimbus/src/screens/onlineGame.tsx](../../nimbus/src/screens/onlineGame.tsx) is **Lichess-only**; local play uses in-memory `chess.js` only.
+---
 
-## Target architecture (your preference)
+## Step-by-step plan
+
+### A. Already shipped (checklist)
+
+1. **Redis** — `REDIS_URL`, FastAPI lifespan client, keys `game:{id}` + TTL, `game:shadow:{id}`, per-game lock on join/move/resign.
+2. **API** — `POST /games`, `POST /games/join`, `GET /games/{id}`, `POST /games/{id}/move`, `POST /games/{id}/resign`, completed-game list/detail.
+3. **Rules** — `python-chess` validates every move; server owns FEN; white/black seats (black not overwritten once taken).
+4. **Finish** — Checkmate/draw/resign → upsert `completed_games` → delete Redis game + invite + shadow.
+5. **Abandoned** — After live key TTL, sweep finds orphan shadows → insert `abandoned` / `expired`. **Setup:** root `README.md` (Supabase §2 + `ABANDONED_GAME_SWEEP_SEC`); legacy DBs run [`002_completed_games_abandoned.sql`](../../Board-Backend/supabase/migrations/002_completed_games_abandoned.sql).
+6. **App** — [friendGame.tsx](../../nimbus/src/screens/friendGame.tsx): lobby, invite code, play, **polling** ~2.5s while active.
+7. **History** — [onlineFriendGameHistory.tsx](../../nimbus/src/screens/onlineFriendGameHistory.tsx) / [onlineFriendGameReview.tsx](../../nimbus/src/screens/onlineFriendGameReview.tsx).
+
+### B. What to do next (recommended order)
+
+| Step | What | Why |
+|------|------|-----|
+| **1** | **Deep links** — open app on a URL / universal link with `game_id` (React Navigation + iOS/Android config) | Friends tap a link instead of pasting codes |
+| **2** | **Production hardening** — TLS (nginx/Caddy), narrow CORS, secrets in SSM/Secrets Manager, Redis not public | Safe deploy (see [Deployment on EC2](#deployment-on-ec2) below) |
+| **3** | *(Optional)* **Push sync** — SSE or WebSocket (+ optional Redis Pub/Sub) | Fewer polls, snappier UI, better battery |
+| **4** | *(Optional)* **Redis Lua / WATCH** — atomic compare-and-set on game JSON | Only if lock becomes a bottleneck at scale |
+
+### C. One-page game flow (mental model)
+
+1. White taps **Create** → API returns `game_id` + **invite code** → Redis `game:{id}` = waiting.
+2. Black joins with code → Redis updated → **active**; both poll **GET** until position changes.
+3. Each **move** → API locks, loads JSON, validates SAN, writes Redis (and shadow); terminal → **Supabase row** + Redis cleanup.
+4. If nobody touches the game for **48h** → live key expires → **sweep** writes **abandoned** if needed, using shadow metadata.
+
+### D. Where the code lives
+
+| Area | File(s) |
+|------|---------|
+| HTTP routes | [game/routes.py](../../Board-Backend/game/routes.py) |
+| Redis + archive + sweep | [game/service.py](../../Board-Backend/game/service.py) |
+| Models | [game/models.py](../../Board-Backend/game/models.py) |
+| Redis + sweep timer | [api.py](../../Board-Backend/api.py) (`ABANDONED_GAME_SWEEP_SEC`) |
+| DB schema | [supabase_schema.sql](../../Board-Backend/supabase_schema.sql), [migrations/](../../Board-Backend/supabase/migrations/) |
+| Mobile play | [friendGame.tsx](../../nimbus/src/screens/friendGame.tsx) |
+| Lichess (separate) | [onlineGame.tsx](../../nimbus/src/screens/onlineGame.tsx) |
+
+---
+
+## Reference (detail)
+
+### Target architecture (your preference)
 
 - **`game_id`**: Opaque id (UUID) created when a game is created; clients share it (or a short invite code that maps to it) to join the same session.
 - **Redis**: **Authoritative store while the game is active**—serialize something matching `GameState` (plus `white_player_id` / `black_player_id`, `side_to_move`, etc.) under e.g. `game:{game_id}`. Every move: read–validate–write in one logical update (use a short Redis transaction or Lua script later if you need strict concurrency).
@@ -63,7 +117,7 @@ sequenceDiagram
   API->>R: DEL game:game_id
 ```
 
-## Redis payload shape
+### Redis payload shape
 
 Store JSON (or MessagePack) per `game:{game_id}` including at least:
 
@@ -73,21 +127,21 @@ Store JSON (or MessagePack) per `game:{game_id}` including at least:
 - Optional: `invite_code` for short join links
 - On terminal: set `result`, `finished_reason` before archiving
 
-**TTL:** Set `EXPIRE` on the key (e.g. 24–48h) so abandoned games do not live forever; **aborted/expired** games may either skip DB insert or insert a row with `status=aborted` for analytics—product choice.
+**TTL:** Live key `game:{id}` uses 48h inactivity TTL. **Abandoned analytics:** `game:shadow:{id}` (longer TTL) + periodic sweep inserts `completed_games` with `result=abandoned`, `finished_reason=expired` (see migration 002 for nullable `black_player_id`).
 
-## Database (Supabase) — completed games only
+### Database (Supabase) — completed games only
 
 Table e.g. **`completed_games`** (name flexible):
 
 - `game_id` (uuid, unique) — same id clients used in Redis
-- `white_player_id`, `black_player_id` (FK → `users`)
+- `white_player_id`, `black_player_id` (FK → `users`; `black_player_id` nullable for expired lobbies)
 - `move_history` (jsonb), `final_fen` (text)
 - `result`, `finished_reason` (resign, checkmate, draw, abort)
 - `started_at`, `finished_at`
 
 No need for Realtime on Postgres for **active** play if Redis is the hot path; optional later for “recent finished games” lists.
 
-## Backend (FastAPI)
+### Backend (FastAPI)
 
 - **Poetry**: `redis`, `python-chess`.
 - **Env**: `REDIS_URL` (e.g. `redis://localhost:6379/0` or managed Redis).
@@ -98,20 +152,20 @@ No need for Realtime on Postgres for **active** play if Redis is the hot path; o
   - `POST /games/{game_id}/move` → validate turn + legality, update Redis, if terminal then **flush to Supabase + DEL Redis**.
   - `POST /games/{game_id}/resign` (optional MVP+) → set finished, flush to DB.
 
-**Concurrency:** Two simultaneous moves are rare but possible; use Redis `WATCH`/`MULTI`/`EXEC` or a single Lua script to compare-and-set `updated_at` / version to reject stale writes.
+**Concurrency:** Two simultaneous moves are rare but possible. **Shipped:** per-game lock (`lock:game:{id}`) serializes mutating requests. **Optional (see todo `redis-concurrency-lua`):** Redis `WATCH`/`MULTI`/`EXEC` or a **Lua** script to compare-and-set `updated_at` / version inside one atomic Redis step, reducing lock key traffic at very high concurrency.
 
-## Mobile (Nimbus)
+### Mobile (Nimbus)
 
 - Screens use **`game_id`** from create/join response or deep link.
 - **MVP sync:** Poll `GET /games/{game_id}` every 2–3s while `status` is active (Redis makes this cheap).
 - **v2:** FastAPI subscribes to Redis Pub/Sub per `game_id` on each move and pushes **SSE** (you already use EventSource for Lichess)—optional.
 
-## Operational notes
+### Operational notes
 
 - **Redis down:** Define behavior (fail create/move with 503; no silent fallback to DB mid-game unless you implement dual-write—avoid for MVP).
 - **Idempotent archive:** On finish, use `game_id` unique constraint in Supabase so double-finish does not duplicate rows.
 
-## Deployment on EC2
+### Deployment on EC2
 
 You can run the friend-chess stack on a single EC2 instance (MVP) or split Redis later.
 
@@ -122,10 +176,10 @@ You can run the friend-chess stack on a single EC2 instance (MVP) or split Redis
 - **Mobile app:** Set **`API_BASE_URL`** (or equivalent) to `https://your-domain` so friends on any network hit the same server (not `localhost` or LAN IP).
 - **CORS:** Tighten from `*` to your app’s scheme/deep-link origins before production.
 
-## Design choices (unchanged intent)
+### Design choices (unchanged intent)
 
 - **Friend discovery:** share `game_id` or short invite code stored in the Redis blob.
 - **Security:** Server-only FEN; moves validated with **python-chess**; never trust client position.
 - **Lichess mode** stays separate from this Redis friend flow.
 
-This plan matches: **game_id** as the handle, **Redis for live state**, **Supabase for finished-game history**.
+**Summary:** **`game_id`** is the handle, **Redis** holds live state, **Supabase** holds finished + abandoned history.

@@ -6,7 +6,7 @@ create table if not exists public.completed_games (
   id uuid primary key default gen_random_uuid(),
   game_id uuid not null unique,
   white_player_id uuid not null references public.users (id),
-  black_player_id uuid not null references public.users (id),
+  black_player_id uuid references public.users (id),
   move_history jsonb not null default '[]'::jsonb,
   final_fen text not null,
   result text not null,
@@ -18,4 +18,4 @@ create table if not exists public.completed_games (
 create index if not exists idx_completed_games_white on public.completed_games (white_player_id);
 create index if not exists idx_completed_games_black on public.completed_games (black_player_id);
 
-comment on table public.completed_games is 'Finished in-app friend games; archived from Redis on terminal.';
+comment on table public.completed_games is 'Friend games from Redis: finished, resigned, or abandoned (expired lobby). black_player_id may be null.';

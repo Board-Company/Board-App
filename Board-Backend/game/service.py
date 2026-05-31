@@ -18,7 +18,10 @@ from game.models import CreateGameResponse, FriendGameState
 GAME_PREFIX = "game:"
 INVITE_PREFIX = "invite:"
 LOCK_PREFIX = "lock:game:"
+# Survives past main `game:{id}` TTL so a sweeper can insert an analytics row (abandoned / expired).
+SHADOW_PREFIX = "game:shadow:"
 TTL_SEC = 48 * 3600
+SHADOW_GRACE_SEC = 24 * 3600
 LOCK_TTL_SEC = 5
 INVITE_ALPHABET = string.ascii_uppercase + string.digits
 
@@ -103,6 +106,28 @@ async def _release_game_lock(redis: Redis, game_id: str, token: str) -> None:
     )
 
 
+async def _write_shadow(redis: Redis, state: dict) -> None:
+    """Compact snapshot for abandoned-game archival after live `game:{id}` TTL expires."""
+    gid = state["game_id"]
+    snap = {
+        "game_id": gid,
+        "white_player_id": state.get("white_player_id"),
+        "black_player_id": state.get("black_player_id"),
+        "fen": state.get("fen"),
+        "move_history": state.get("move_history") or [],
+        "created_at": state.get("created_at"),
+    }
+    await redis.set(
+        f"{SHADOW_PREFIX}{gid}",
+        json.dumps(snap),
+        ex=TTL_SEC + SHADOW_GRACE_SEC,
+    )
+
+
+async def _delete_shadow(redis: Redis, game_id: str) -> None:
+    await redis.delete(f"{SHADOW_PREFIX}{game_id}")
+
+
 async def _persist_state(redis: Redis, state: dict) -> None:
     state["updated_at"] = _now_iso()
     await redis.set(
@@ -110,6 +135,7 @@ async def _persist_state(redis: Redis, state: dict) -> None:
         json.dumps(state),
         ex=TTL_SEC,
     )
+    await _write_shadow(redis, state)
 
 
 async def _archive_and_clear(redis: Redis, supabase: Client, state: dict) -> None:
@@ -136,6 +162,7 @@ async def _archive_and_clear(redis: Redis, supabase: Client, state: dict) -> Non
         ) from e
 
     await redis.delete(f"{GAME_PREFIX}{gid}")
+    await _delete_shadow(redis, gid)
     code = state.get("invite_code")
     if code:
         await redis.delete(f"{INVITE_PREFIX}{code}")
@@ -168,6 +195,7 @@ async def create_friend_game(redis: Redis, user_id: str, username: str) -> Creat
         if ok:
             state["invite_code"] = code
             await redis.set(f"{GAME_PREFIX}{gid}", json.dumps(state), ex=TTL_SEC)
+            await _write_shadow(redis, state)
             return CreateGameResponse(game_id=gid, invite_code=code)
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -186,6 +214,7 @@ async def join_friend_game(
         gid = await redis.get(f"{INVITE_PREFIX}{invite_code.strip().upper()}")
         if not gid:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invite code")
+        gid = str(gid)
     elif game_id:
         gid = game_id
     else:
@@ -206,10 +235,15 @@ async def join_friend_game(
                 detail="Cannot join your own game as opponent",
             )
 
-        if state.get("black_player_id"):
-            if state["black_player_id"] == user_id:
+        # Black seat: one user only; never overwrite an existing opponent.
+        black_id = state.get("black_player_id")
+        if black_id:
+            if black_id == user_id:
                 return _dict_to_state(state)
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Game is full")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Black seat is already taken",
+            )
 
         state["black_player_id"] = user_id
         state["black_username"] = username
@@ -316,3 +350,57 @@ async def resign_friend_game(
         return out
     finally:
         await _release_game_lock(redis, game_id, lock_token)
+
+
+async def _archive_abandoned_from_shadow(redis: Redis, supabase: Client, raw: dict) -> None:
+    gid = raw["game_id"]
+    row = {
+        "game_id": gid,
+        "white_player_id": raw["white_player_id"],
+        "black_player_id": raw.get("black_player_id"),
+        "move_history": raw.get("move_history") or [],
+        "final_fen": raw.get("fen") or chess.Board().fen(),
+        "result": "abandoned",
+        "finished_reason": "expired",
+        "started_at": raw["created_at"],
+        "finished_at": _now_iso(),
+    }
+    supabase.table("completed_games").upsert(row, on_conflict="game_id").execute()
+    await redis.delete(f"{SHADOW_PREFIX}{gid}")
+
+
+async def sweep_abandoned_friend_games(redis: Redis, supabase: Client) -> int:
+    """
+    When `game:{id}` TTL has passed but `game:shadow:{id}` remains, insert `abandoned` / `expired`
+    into Supabase (analytics). If the game was already archived normally, drop the orphan shadow only.
+    """
+    archived = 0
+    async for key in redis.scan_iter(match=f"{SHADOW_PREFIX}*"):
+        game_id = key.removeprefix(SHADOW_PREFIX)
+        if await redis.exists(f"{GAME_PREFIX}{game_id}"):
+            continue
+        raw_s = await redis.get(key)
+        if not raw_s:
+            continue
+        try:
+            raw = json.loads(raw_s)
+        except json.JSONDecodeError:
+            await redis.delete(key)
+            continue
+        try:
+            gid = raw.get("game_id", game_id)
+            existing = (
+                supabase.table("completed_games")
+                .select("game_id")
+                .eq("game_id", gid)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                await redis.delete(key)
+                continue
+            await _archive_abandoned_from_shadow(redis, supabase, raw)
+            archived += 1
+        except Exception:
+            logger.exception("abandoned friend game sweep failed for key={}", key)
+    return archived
