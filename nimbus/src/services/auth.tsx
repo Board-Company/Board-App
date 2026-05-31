@@ -2,7 +2,8 @@
 import { GoogleSignin, statusCodes, User as GoogleUser } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { BASE_URL, GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
+import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
+import { API_URL } from '../env';
 
 interface RegisterData {
   email: string;
@@ -27,7 +28,7 @@ interface AuthResponse {
 const AUTH_DATA_KEY = 'auth_data';
 const AUTH_TOKEN_KEY = 'auth_token';
 const USER_DATA_KEY = 'user_data';
-const API_BASE_URL = BASE_URL.replace(/\/+$/, '');
+const API_BASE_URL = API_URL;
 
 function normalizeAuthUser(raw: Record<string, unknown>): AuthUser {
   const email = String(raw?.email ?? '');

@@ -4,6 +4,8 @@ Base URL: `http://localhost:8000` (or your deployed `BASE_URL` in Nimbus `.env`)
 
 Auth: unless noted, send `Authorization: Bearer <JWT>` from `POST /token` or Google sign-in.
 
+There are **no WebSocket** endpoints. Live friend-game updates use **HTTP** plus optional **SSE** (`GET /games/{game_id}/events`) backed by **Redis pub/sub**; clients can still poll `GET /games/{game_id}`.
+
 ---
 
 ## Health & auth
@@ -32,11 +34,22 @@ Requires **`REDIS_URL`** (Redis db **0**). Returns **503** if Redis is down.
 |--------|------|-------------|
 | POST | `/games` | Create lobby → `{ game_id, invite_code }` |
 | POST | `/games/join` | Body: `{ invite_code }` or `{ game_id }` |
-| GET | `/games/{game_id}` | Live state (poll ~2.5s while active) |
+| GET | `/games/{game_id}` | Live state (poll ~2.5s fallback while active) |
+| GET | `/games/{game_id}/events` | **SSE** — snapshot then live updates via Redis pub/sub |
 | POST | `/games/{game_id}/move` | Body: `{ san }` — validated with python-chess |
 | POST | `/games/{game_id}/resign` | Resign → archive to Supabase, delete Redis keys |
 | GET | `/games/me/completed` | List your archived friend games |
 | GET | `/games/me/completed/{game_id}` | One archived game (review / history) |
+
+### GET `/games/{game_id}/events` (SSE)
+
+`Content-Type: text/event-stream`
+
+1. First `data:` line = current `FriendGameState` JSON.
+2. Further `data:` lines after API **PUBLISH** on `game:events:{game_id}` (join/move/resign/create).
+3. Comment lines `: keepalive` between idle periods.
+
+Nimbus: `rn-eventsource` with `Authorization` header; falls back to polling `GET /games/{id}` (~2.5s) if SSE fails.
 
 See [complex-logic.md](complex-logic.md#friend-chess-redis--supabase) for Redis keys and lifecycle.
 

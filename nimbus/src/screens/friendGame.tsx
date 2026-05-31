@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+// @ts-expect-error No types for rn-eventsource
+import EventSource from 'rn-eventsource';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
@@ -19,12 +21,17 @@ import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
 import { getAccessToken } from '../services/auth';
 import { LIVE_ENGINE_DEPTH } from '../services/engineAnalysis';
 import { fetchCompletedOnlineGame } from '../services/onlineGameHistory';
-import { BASE_URL } from '@env';
+import {
+  clearActiveFriendGameId,
+  getActiveFriendGameId,
+  setActiveFriendGameId,
+} from '../services/activeFriendGame';
+import { API_URL } from '../env';
 
-const API_BASE_URL = BASE_URL.replace(/\/+$/, '');
+const API_BASE_URL = API_URL;
 
 type RootStackParamList = {
-  FriendGame: undefined;
+  FriendGame: { gameId?: string } | undefined;
   OnlineFriendGameHistory: undefined;
   OnlineFriendGameReview: { gameId: string };
 };
@@ -70,6 +77,8 @@ const extractMove = (event: ChessboardMoveEvent): ChessboardMove | null => {
 
 const FriendGameScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'FriendGame'>>();
+  const [hydrated, setHydrated] = useState(false);
   const [phase, setPhase] = useState<'lobby' | 'play'>('lobby');
   const [inviteInput, setInviteInput] = useState('');
   const [gameId, setGameId] = useState<string | null>(null);
@@ -77,6 +86,9 @@ const FriendGameScreen = () => {
   const [state, setState] = useState<FriendState | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [pollFallback, setPollFallback] = useState(false);
+  const pollFallbackRef = useRef(false);
+  const eventsRef = useRef<InstanceType<typeof EventSource> | null>(null);
 
   const engineEval = useEngineAnalysis({
     fen: state?.fen ?? null,
@@ -86,7 +98,8 @@ const FriendGameScreen = () => {
   });
 
   const openReview = useCallback(
-    (gid: string) => {
+    async (gid: string) => {
+      await clearActiveFriendGameId();
       navigation.replace('OnlineFriendGameReview', { gameId: gid });
     },
     [navigation],
@@ -120,6 +133,43 @@ const FriendGameScreen = () => {
     loadMe();
   }, [loadMe]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const fromRoute = route.params?.gameId?.trim() || null;
+        const fromStore = fromRoute ? null : await getActiveFriendGameId();
+        const id = fromRoute ?? fromStore;
+        if (cancelled) {
+          return;
+        }
+        if (id) {
+          setGameId(id);
+          setPhase('play');
+          await setActiveFriendGameId(id);
+        } else {
+          setPhase('lobby');
+        }
+      } catch {
+        if (!cancelled) {
+          setPhase('lobby');
+        }
+      } finally {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [route.params?.gameId]);
+
+  useEffect(() => {
+    pollFallbackRef.current = false;
+    setPollFallback(false);
+  }, [gameId]);
+
   const refresh = useCallback(
     async (gid?: string) => {
       const id = gid ?? gameId;
@@ -132,9 +182,10 @@ const FriendGameScreen = () => {
         if (r.status === 404) {
           try {
             await fetchCompletedOnlineGame(id);
-            openReview(id);
+            await openReview(id);
             return;
           } catch {
+            await clearActiveFriendGameId();
             setErr('Game ended, expired, or not found');
           }
           return;
@@ -151,14 +202,95 @@ const FriendGameScreen = () => {
     [gameId, openReview],
   );
 
+  /** Live updates via SSE + Redis pub/sub; fall back to polling if the stream errors. */
+  useEffect(() => {
+    if (!gameId || phase !== 'play') {
+      return;
+    }
+    let cancelled = false;
+
+    const connect = async () => {
+      try {
+        const t = await getAccessToken();
+        if (!t || cancelled) {
+          pollFallbackRef.current = true;
+          setPollFallback(true);
+          return;
+        }
+        const es = new EventSource(`${API_BASE_URL}/games/${gameId}/events`, {
+          headers: {
+            Authorization: `Bearer ${t}`,
+            Accept: 'text/event-stream',
+          },
+        });
+        eventsRef.current = es;
+        es.onmessage = (event: { data?: string } | string) => {
+          const raw = event && typeof event === 'object' && 'data' in event ? event.data : event;
+          try {
+            const parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as FriendState;
+            setState(parsed);
+            setErr(null);
+            if (parsed.status === 'finished') {
+              try {
+                es.close();
+              } catch {
+                /* ignore */
+              }
+              if (eventsRef.current === es) {
+                eventsRef.current = null;
+              }
+              void openReview(parsed.game_id);
+            }
+          } catch {
+            /* ignore malformed chunk */
+          }
+        };
+        es.onerror = () => {
+          try {
+            es.close();
+          } catch {
+            /* ignore */
+          }
+          if (eventsRef.current === es) {
+            eventsRef.current = null;
+          }
+          if (!cancelled && !pollFallbackRef.current) {
+            pollFallbackRef.current = true;
+            setPollFallback(true);
+          }
+        };
+      } catch {
+        if (!cancelled) {
+          pollFallbackRef.current = true;
+          setPollFallback(true);
+        }
+      }
+    };
+
+    void connect();
+    return () => {
+      cancelled = true;
+      const cur = eventsRef.current;
+      eventsRef.current = null;
+      try {
+        cur?.close();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [gameId, phase, openReview]);
+
   useEffect(() => {
     if (!gameId || phase !== 'play' || state?.status === 'finished') {
       return;
     }
-    refresh(gameId);
-    const interval = setInterval(() => refresh(gameId), 2500);
+    if (!pollFallback) {
+      return;
+    }
+    void refresh(gameId);
+    const interval = setInterval(() => void refresh(gameId), 2500);
     return () => clearInterval(interval);
-  }, [gameId, phase, refresh, state?.status]);
+  }, [gameId, phase, pollFallback, refresh, state?.status]);
 
   const createGame = async () => {
     setLoading(true);
@@ -170,6 +302,7 @@ const FriendGameScreen = () => {
         throw new Error((await r.text()) || 'Create failed');
       }
       const data = (await r.json()) as { game_id: string; invite_code: string };
+      await setActiveFriendGameId(data.game_id);
       setGameId(data.game_id);
       setPhase('play');
       await refresh(data.game_id);
@@ -199,6 +332,7 @@ const FriendGameScreen = () => {
         throw new Error((await r.text()) || 'Join failed');
       }
       const s = (await r.json()) as FriendState;
+      await setActiveFriendGameId(s.game_id);
       setGameId(s.game_id);
       setPhase('play');
       setState(s);
@@ -209,7 +343,9 @@ const FriendGameScreen = () => {
     }
   };
 
-  const leaveLobby = () => {
+  const leaveLobby = async () => {
+    await clearActiveFriendGameId();
+    navigation.setParams({ gameId: undefined });
     setPhase('lobby');
     setGameId(null);
     setState(null);
@@ -267,7 +403,7 @@ const FriendGameScreen = () => {
       const next = (await r.json()) as FriendState;
       setState(next);
       if (next.status === 'finished') {
-        openReview(next.game_id);
+        await openReview(next.game_id);
       }
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Move failed');
@@ -297,7 +433,7 @@ const FriendGameScreen = () => {
             }
             const next = (await r.json()) as FriendState;
             setState(next);
-            openReview(next.game_id);
+            await openReview(next.game_id);
           } catch (e: unknown) {
             Alert.alert('Error', e instanceof Error ? e.message : 'Resign failed');
           }
@@ -305,6 +441,14 @@ const FriendGameScreen = () => {
       },
     ]);
   };
+
+  if (!hydrated) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#8CB369" />
+      </View>
+    );
+  }
 
   if (phase === 'lobby') {
     return (

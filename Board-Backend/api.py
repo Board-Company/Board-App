@@ -128,11 +128,9 @@ google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 logger.info("Supabase configuration successfully loaded")
 
 from game.routes import router as game_router
-
-app.include_router(game_router, prefix="/games", tags=["games"])
-
 from engine.routes import router as engine_router
 
+app.include_router(game_router, prefix="/games", tags=["games"])
 app.include_router(engine_router, prefix="/engine", tags=["engine"])
 
 # Routes

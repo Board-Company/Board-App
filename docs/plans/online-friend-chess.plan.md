@@ -18,17 +18,17 @@ todos:
     content: FriendGameState / CreateGameResponse / completed summaries aligned with Redis JSON and archived rows; history + review screens consume API
     status: completed
   - id: nimbus-ui
-    content: friendGame lobby/play + invite code; history/review for archived games; polling GET /games/{id} (~2.5s) while active (deep links not done — see deep-links)
+    content: friendGame lobby/play + invite code; history/review for archived games; SSE GET /games/{id}/events with poll fallback (~2.5s)
     status: completed
   - id: sync-mvp
     content: MVP polling against Redis-backed GET while status active
     status: completed
   - id: sync-v2-push
-    content: "Optional: Redis Pub/Sub + SSE or WebSocket from FastAPI for push moves (reduce polling/battery)"
-    status: pending
+    content: "Redis Pub/Sub + SSE from FastAPI for push moves (GET /games/{id}/events)"
+    status: completed
   - id: deep-links
     content: Open friend game from universal link / OS URL with game_id (React Navigation linking + platform config)
-    status: pending
+    status: completed
   - id: redis-concurrency-lua
     content: "Optional: Redis Lua script (or WATCH/MULTI/EXEC) for atomic read–validate–write on `game:{id}` JSON (compare-and-set on version/updated_at); can complement or replace per-game lock for hot paths"
     status: pending

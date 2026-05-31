@@ -3,14 +3,14 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View }
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { BASE_URL } from '@env';
 import { getAccessToken } from '../services/auth';
+import { API_URL } from '../env';
 import {
   fetchMyCompletedOnlineGames,
   type OnlineCompletedGame,
 } from '../services/onlineGameHistory';
 
-const apiBase = BASE_URL.replace(/\/+$/, '');
+const apiBase = API_URL;
 
 type RootStackParamList = {
   MainTabs: undefined;

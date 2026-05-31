@@ -8,7 +8,7 @@ High-level architecture for friend chess and Stockfish engine analysis. For endp
 
 | Env | Default | Used by |
 |-----|---------|---------|
-| `REDIS_URL` | `redis://127.0.0.1:6379/0` | Friend games (`game:*`, `invite:*`, …) |
+| `REDIS_URL` | `redis://127.0.0.1:6379/0` | Friend games (`game:*`, `invite:*`, `game:events:*`, …) |
 | `REDIS_ENGINE_URL` | `redis://127.0.0.1:6379/1` | Engine job queue + job hashes (`engine:*`) |
 
 Same physical Redis instance is fine; **logical separation** prevents friend-game TTL/eviction from clobbering engine jobs.
@@ -27,9 +27,10 @@ sequenceDiagram
   App->>API: POST /games
   API->>R0: SET game:{id}, invite:{code}
   loop Active
-    App->>API: GET /games/{id} (poll)
+    App->>API: GET /games/{id} (poll fallback)
+    App->>API: GET /games/{id}/events (SSE)
     App->>API: POST /games/{id}/move
-    API->>R0: lock, validate, SET
+    API->>R0: lock, validate, SET, PUBLISH
   end
   API->>DB: INSERT completed_games
   API->>R0: DEL game, invite, shadow
@@ -38,6 +39,16 @@ sequenceDiagram
 **Abandoned lobbies:** `game:shadow:{id}` survives live key TTL; API sweep (`ABANDONED_GAME_SWEEP_SEC`) inserts `completed_games` with `result=abandoned`, nullable `black_player_id`.
 
 **Code:** `Board-Backend/game/`
+
+### Friend chess: Redis pub/sub → SSE → app
+
+- **Where in code:** [`Board-Backend/game/realtime.py`](../Board-Backend/game/realtime.py) (channel + `publish_friend_game_state`), [`Board-Backend/game/service.py`](../Board-Backend/game/service.py) (publish after mutations), [`Board-Backend/game/routes.py`](../Board-Backend/game/routes.py) (`GET /{game_id}/events`), [`nimbus/src/screens/friendGame.tsx`](../nimbus/src/screens/friendGame.tsx) (`rn-eventsource` + `Authorization` header; **poll every 2.5s** only if the stream errors).
+- **Summary:** Each live game has a Redis channel `game:events:{game_id}`. On create/join/move/resign the API **PUBLISH**es a `FriendGameState` JSON string. The SSE handler **SUBSCRIBE**s, sends the current state as the first `data:` event, then forwards publishes. Moves are still submitted with **`POST /games/{id}/move`** (not over SSE).
+
+### Friend chess client: resume + deep links
+
+- **Where in code:** [`nimbus/src/services/activeFriendGame.ts`](../nimbus/src/services/activeFriendGame.ts) (persisted `game_id`), [`nimbus/src/screens/friendGame.tsx`](../nimbus/src/screens/friendGame.tsx) (hydrate on mount, clear on leave / finished / missing game), [`nimbus/src/App.tsx`](../nimbus/src/App.tsx) (`linking` for `boardapp://`).
+- **Summary:** The active friend `game_id` is stored locally while a match is in progress so leaving the screen or restarting the app can **resume** the same Redis-backed game. Deep links: prefer `boardapp://friend-game/<game_id>`.
 
 ---
 
@@ -125,14 +136,6 @@ queued → running → done
 
 Start: `./scripts/docker-stack.sh up` (starts **3** `engine-worker` containers — up to **3 analyses in parallel**)
 
-Each worker runs one Stockfish process and claims jobs with `BRPOPLPUSH` on `engine:queue:ready` → `engine:queue:processing`. Scale:
-
-```bash
-./scripts/docker-stack.sh up --engine-workers 3   # default
-ENGINE_WORKER_REPLICAS=1 ./scripts/docker-stack.sh up
-docker compose -f docker/stack.yml up -d --scale engine-worker=3
-```
-
 Host-native dev:
 
 ```bash
@@ -150,5 +153,5 @@ cd Board-Backend && poetry run python -m engine_worker
 ## nginx / production notes
 
 - Expose **443** to `backend` only; do not publish Redis or worker ports.
-- SSE: increase `proxy_read_timeout` / `proxy_send_timeout` for `/engine/jobs/*/events`.
+- SSE: increase `proxy_read_timeout` / `proxy_send_timeout` for `/engine/jobs/*/events` and `/games/*/events`.
 - Set `X-Accel-Buffering: no` (API already sends this header).

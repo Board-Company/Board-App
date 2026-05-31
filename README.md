@@ -69,9 +69,9 @@ sequenceDiagram
   API->>R: update game JSON (active)
 
   loop While active
-    App->>API: GET /games/{id} (poll ~2.5s)
+    App->>API: GET /games/{id}/events (SSE)
     App->>API: POST /games/{id}/move
-    API->>R: lock, validate (python-chess), SET state
+    API->>R: lock, validate (python-chess), SET state, PUBLISH game:events:{id}
   end
 
   alt Finished (mate / draw / resign)
@@ -91,6 +91,7 @@ sequenceDiagram
 | `invite:{code}` | Maps short invite code → `game_id` |
 | `lock:game:{id}` | Short-lived lock for join / move / resign |
 | `game:shadow:{id}` | Compact snapshot after live key expires; used by the abandoned-game sweep |
+| `game:events:{id}` | Pub/sub channel; SSE subscribers receive live state updates |
 
 **Requirements:** Redis running (`REDIS_URL`), Supabase `completed_games` table (nullable `black_player_id` for empty lobbies). See [Quick Start](#2-redis-required-for-play-with-friend--online-friend-chess) and [Setting up Supabase](#setting-up-supabase). Technical plan: [docs/plans/online-friend-chess.plan.md](docs/plans/online-friend-chess.plan.md).
 

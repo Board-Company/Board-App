@@ -2,7 +2,11 @@ import React from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { TamaguiProvider } from 'tamagui'
 import tamaguiConfig from '../tamagui.config'
-import { NavigationContainer } from '@react-navigation/native'
+import {
+  NavigationContainer,
+  getStateFromPath as rnGetStateFromPath,
+  type LinkingOptions,
+} from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context'
 import 'react-native-gesture-handler'
@@ -47,8 +51,44 @@ type RootStackParamList = {
   OnlineGame: { gameType: string; timeControl: string }
   OnlineFriendGameHistory: undefined
   OnlineFriendGameReview: { gameId: string }
-  FriendGame: undefined
+  FriendGame: { gameId?: string } | undefined
   ChessAI: undefined
+}
+
+/** Paths like boardapp://friend-game/<uuid>, boardapp:///friend-game/<uuid>, or boardapp:friend-game/<uuid>. */
+const friendGameLinkingConfig: NonNullable<LinkingOptions<RootStackParamList>['config']> = {
+  screens: {
+    FriendGame: {
+      path: 'friend-game/:gameId',
+      parse: {
+        gameId: (value: string) => decodeURIComponent(value),
+      },
+    },
+  },
+}
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['boardapp://', 'boardapp:'],
+  config: friendGameLinkingConfig,
+  getStateFromPath(path, options) {
+    const cfg = options ?? friendGameLinkingConfig
+    const strippedLeading = path.replace(/^\/*/, '').split('?')[0]
+    const noTrail = strippedLeading.replace(/\/+$/, '')
+    const m = noTrail.match(/^friend-game\/(.+)$/)
+    const candidates = [
+      path,
+      noTrail,
+      `${noTrail}/`,
+      m ? `friend-game/${m[1]}/` : null,
+    ].filter((p): p is string => Boolean(p))
+    for (const candidate of candidates) {
+      const state = rnGetStateFromPath<RootStackParamList>(candidate, cfg)
+      if (state) {
+        return state
+      }
+    }
+    return undefined
+  },
 }
 
 // Create the stack navigator
@@ -212,7 +252,7 @@ const App = () => {
           <TamaguiProvider config={tamaguiConfig}>
             <AuthProvider>
               <LichessAuthProvider>
-                <NavigationContainer>
+                <NavigationContainer linking={linking}>
                   <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="Login" component={withScreenSafeArea(LoginScreen)} />
                     <Stack.Screen name="Register" component={withScreenSafeArea(RegisterScreen)} />
