@@ -24,7 +24,7 @@ class CompletedGameSummary(BaseModel):
     id: str
     game_id: str
     white_player_id: str
-    black_player_id: str
+    black_player_id: Optional[str] = None
     white_username: Optional[str] = None
     black_username: Optional[str] = None
     move_history: list[str]

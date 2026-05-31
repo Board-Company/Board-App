@@ -15,8 +15,11 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import EngineEvalBar from '../components/game/EngineEvalBar';
 import MoveHistory from '../components/game/MoveHistory';
+import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
 import { getAccessToken } from '../services/auth';
+import { LIVE_ENGINE_DEPTH } from '../services/engineAnalysis';
 import { fetchCompletedOnlineGame } from '../services/onlineGameHistory';
 import {
   clearActiveFriendGameId,
@@ -86,6 +89,13 @@ const FriendGameScreen = () => {
   const [pollFallback, setPollFallback] = useState(false);
   const pollFallbackRef = useRef(false);
   const eventsRef = useRef<InstanceType<typeof EventSource> | null>(null);
+
+  const engineEval = useEngineAnalysis({
+    fen: state?.fen ?? null,
+    depth: LIVE_ENGINE_DEPTH,
+    profile: 'play',
+    enabled: phase === 'play' && state?.status === 'active',
+  });
 
   const openReview = useCallback(
     async (gid: string) => {
@@ -507,6 +517,15 @@ const FriendGameScreen = () => {
         <Text selectable style={styles.code}>
           {state.invite_code}
         </Text>
+      ) : null}
+      {state.status === 'active' ? (
+        <EngineEvalBar
+          evalText={engineEval.evalText}
+          depth={engineEval.depth}
+          loading={engineEval.loading}
+          error={engineEval.error}
+          label="Live eval"
+        />
       ) : null}
       <View style={styles.boardBlock}>
         <ChessBoard

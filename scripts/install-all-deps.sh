@@ -49,3 +49,8 @@ echo "Installing Nimbus dependencies..."
 
 echo
 echo "All dependencies are installed."
+echo
+echo "Friend chess + abandoned lobby archiving:"
+echo "  • Start Redis and set REDIS_URL in Board-Backend/.env (see README Quick Start)."
+echo "  • Supabase: run Board-Backend/supabase_schema.sql; if black_player_id was NOT NULL before, run supabase/migrations/002_completed_games_abandoned.sql"
+echo "  • Optional: ABANDONED_GAME_SWEEP_SEC in .env (see Board-Backend/.env.example)"

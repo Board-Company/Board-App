@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Start local Redis via Board-Backend/docker-compose.yml, then open Board services in Terminal tabs.
+# Start the full Docker stack (Redis + API + LLM + engine-worker), then open Metro/Android in Terminal tabs.
 # Intended as the default dev entrypoint (e.g. Cmd+Shift+R → Run Build Task).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BACKEND_DIR="$ROOT_DIR/Board-Backend"
 
 wake_docker_desktop_macos() {
   [[ "$(uname -s)" == "Darwin" ]] || return 0
@@ -23,25 +22,44 @@ wake_docker_desktop_macos() {
     fi
     sleep 1
   done
-  echo "WARNING: Docker did not become ready within 120s. Redis compose may fail." >&2
+  echo "WARNING: Docker did not become ready within 120s. Stack startup may fail." >&2
+  return 1
+}
+
+wait_for_http() {
+  local url="$1"
+  local name="$2"
+  local attempts="${3:-60}"
+  local delay_seconds="${4:-2}"
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl not found, skipping health check for $name"
+    return 0
+  fi
+
+  echo "Waiting for $name at $url ..."
+  for ((i = 1; i <= attempts; i++)); do
+    if curl --silent --fail "$url" >/dev/null 2>&1; then
+      echo "$name is up."
+      return 0
+    fi
+    sleep "$delay_seconds"
+  done
+
+  echo "WARNING: $name did not become healthy at $url" >&2
   return 1
 }
 
 wake_docker_desktop_macos || true
 
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && [[ -f "$BACKEND_DIR/docker-compose.yml" ]]; then
-  echo "Starting Redis: docker compose up -d redis (in Board-Backend)"
-  (cd "$BACKEND_DIR" && docker compose up -d redis)
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  echo "Starting Docker stack: Redis + API + LLM + engine-worker"
+  "$SCRIPT_DIR/docker-stack.sh" up
+  wait_for_http "http://127.0.0.1:8000/health" "Board-Backend API" || true
+  wait_for_http "http://127.0.0.1:8001/health" "Board-LLM" || true
 else
-  echo "WARNING: docker not available or daemon not running; skipping compose redis." >&2
+  echo "WARNING: docker not available or daemon not running; falling back to host-run backend tabs." >&2
+  exec "$SCRIPT_DIR/open-services-in-terminal.sh" "$@"
 fi
 
-if [[ -f "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-  if [[ -x "$BACKEND_DIR/scripts/ensure-redis.sh" ]]; then
-    "$BACKEND_DIR/scripts/ensure-redis.sh" || echo "WARNING: Redis check failed; Board-Backend tab may error until Redis is up." >&2
-  else
-    bash "$BACKEND_DIR/scripts/ensure-redis.sh" || echo "WARNING: Redis check failed; Board-Backend tab may error until Redis is up." >&2
-  fi
-fi
-
-exec "$SCRIPT_DIR/open-services-in-terminal.sh" "$@"
+exec "$SCRIPT_DIR/open-services-in-terminal.sh" --docker-stack "$@"

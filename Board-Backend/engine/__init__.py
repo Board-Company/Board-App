@@ -1,1 +1,1 @@
-# Server-side Stockfish (UCI) behind Board-Backend — see engine/routes.py
+# Stockfish engine jobs: Redis queue + job hash (API enqueue; worker runs UCI).

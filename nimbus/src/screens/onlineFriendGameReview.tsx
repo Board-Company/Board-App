@@ -15,6 +15,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import EngineEvalBar from '../components/game/EngineEvalBar';
+import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
+import { useEngineQueueHealth } from '../hooks/useEngineQueueHealth';
+import { resolveEngineStatusLine, REVIEW_ENGINE_DEPTH } from '../services/engineAnalysis';
 import { fetchCompletedOnlineGame, type OnlineCompletedGame } from '../services/onlineGameHistory';
 
 type RootStackParamList = {
@@ -74,6 +78,22 @@ const OnlineFriendGameReviewScreen = () => {
   const currentMove =
     game && moveIndex > 0 ? game.move_history[moveIndex - 1] : null;
 
+  const { queueAvailable } = useEngineQueueHealth(!!game);
+  const engineEval = useEngineAnalysis({
+    gameId: game?.game_id,
+    ply: moveIndex,
+    depth: REVIEW_ENGINE_DEPTH,
+    profile: 'analysis',
+    enabled: !!game && game.move_history.length >= 0,
+  });
+  const engineStatus = resolveEngineStatusLine({
+    queueAvailable,
+    status: engineEval.status,
+    loading: engineEval.loading,
+    error: engineEval.error,
+    waitingForWorker: engineEval.waitingForWorker,
+  });
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -120,7 +140,10 @@ const OnlineFriendGameReviewScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.cardText}>
-            {game.white_username || 'White'} vs {game.black_username || 'Black'}
+            {game.white_username || 'White'} vs{' '}
+            {game.black_player_id
+              ? game.black_username || 'Black'
+              : '— (opponent never joined)'}
           </Text>
           <Text style={styles.cardMeta}>
             Move {moveIndex} / {game.move_history.length}
@@ -142,6 +165,20 @@ const OnlineFriendGameReviewScreen = () => {
             maxBoardWidth={maxBoard}
           />
         </View>
+
+        <EngineEvalBar
+          variant="review"
+          evalText={engineEval.evalText}
+          advantage={engineEval.advantage}
+          whiteShare={engineEval.whiteShare}
+          depth={engineEval.depth}
+          targetDepth={REVIEW_ENGINE_DEPTH}
+          loading={engineEval.loading}
+          error={engineEval.error}
+          label={`Stockfish · depth ${REVIEW_ENGINE_DEPTH}`}
+          statusLine={engineStatus.line}
+          statusTone={engineStatus.tone}
+        />
 
         <View style={styles.controlsRow}>
           <TouchableOpacity

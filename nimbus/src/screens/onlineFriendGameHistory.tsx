@@ -67,14 +67,14 @@ const OnlineFriendGameHistoryScreen = () => {
 
   const labelOpponents = (g: OnlineCompletedGame) => {
     const w = g.white_username || 'White';
-    const b = g.black_username || 'Black';
+    const b = g.black_username || (g.black_player_id ? 'Black' : '— (no opponent)');
     if (!myId) {
       return `${w} vs ${b}`;
     }
     if (g.white_player_id === myId) {
       return `You (White) vs ${b}`;
     }
-    if (g.black_player_id === myId) {
+    if (g.black_player_id && g.black_player_id === myId) {
       return `${w} vs You (Black)`;
     }
     return `${w} vs ${b}`;
@@ -88,7 +88,9 @@ const OnlineFriendGameHistoryScreen = () => {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.title}>Friend games online</Text>
-          <Text style={styles.subtitle}>Finished games saved from Play with Friend</Text>
+          <Text style={styles.subtitle}>
+            Finished, resigned, or expired lobbies from Play with Friend
+          </Text>
         </View>
         <TouchableOpacity style={styles.iconButton} onPress={loadGames} disabled={loading}>
           <Icon name="refresh" size={24} color={loading ? '#5D5D5D' : '#8CB369'} />

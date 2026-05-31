@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis_async
@@ -55,21 +57,51 @@ async def lifespan(app: FastAPI):
         raise
     app.state.redis = client
 
-    sf_path = engine_service.resolve_stockfish_path()
-    if sf_path:
-        engine_service.configure(sf_path)
-        logger.info("Stockfish binary: {}", sf_path)
-    else:
+    from engine.config import default_redis_engine_url
+
+    engine_url = default_redis_engine_url(redis_url)
+    engine_client = redis_async.from_url(engine_url, decode_responses=True)
+    try:
+        await engine_client.ping()
+        logger.info("Redis engine connected at {}", engine_url)
+        app.state.redis_engine = engine_client
+    except Exception as e:
         logger.warning(
-            "Stockfish not found; POST /engine/analyse returns 503 until "
-            "STOCKFISH_PATH is set or stockfish is on PATH"
+            "Redis engine connection failed ({}). /engine/* will return 503 until REDIS_ENGINE_URL is set.",
+            e,
         )
+        app.state.redis_engine = None
+        await engine_client.aclose()
+        engine_client = None
 
-    yield
+    sweep_interval = int(os.getenv("ABANDONED_GAME_SWEEP_SEC", "300"))
 
-    engine_service.shutdown_engine()
-    await client.aclose()
-    logger.info("Redis connection closed")
+    async def abandoned_sweep_loop() -> None:
+        while True:
+            await asyncio.sleep(sweep_interval)
+            try:
+                from game.service import sweep_abandoned_friend_games
+
+                n = await sweep_abandoned_friend_games(client, supabase)
+                if n:
+                    logger.info("Archived {} abandoned (TTL) friend game(s) to Supabase", n)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logger.exception("Abandoned friend game sweep failed")
+
+    sweep_task = asyncio.create_task(abandoned_sweep_loop())
+    try:
+        yield
+    finally:
+        sweep_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await sweep_task
+        await client.aclose()
+        engine_client = getattr(app.state, "redis_engine", None)
+        if engine_client is not None:
+            await engine_client.aclose()
+        logger.info("Redis connection closed")
 
 
 # Configure FastAPI app
@@ -97,7 +129,6 @@ logger.info("Supabase configuration successfully loaded")
 
 from game.routes import router as game_router
 from engine.routes import router as engine_router
-from engine import service as engine_service
 
 app.include_router(game_router, prefix="/games", tags=["games"])
 app.include_router(engine_router, prefix="/engine", tags=["engine"])
@@ -231,15 +262,28 @@ async def root():
 # Health check endpoint
 @app.get("/health")
 async def health_check(request: Request):
-    """Liveness + Redis connectivity (friend games require Redis)."""
+    """Liveness + Redis connectivity (friend games + engine jobs)."""
     r = getattr(request.app.state, "redis", None)
-    if r is None:
-        return {"status": "degraded", "redis": False}
-    try:
-        await r.ping()
-        return {"status": "healthy", "redis": True}
-    except Exception:
-        return {"status": "degraded", "redis": False}
+    re = getattr(request.app.state, "redis_engine", None)
+    games_ok = False
+    engine_ok = False
+    if r is not None:
+        try:
+            await r.ping()
+            games_ok = True
+        except Exception:
+            pass
+    if re is not None:
+        try:
+            await re.ping()
+            engine_ok = True
+        except Exception:
+            pass
+    if games_ok and engine_ok:
+        return {"status": "healthy", "redis": True, "redis_engine": True}
+    if games_ok:
+        return {"status": "degraded", "redis": True, "redis_engine": engine_ok}
+    return {"status": "degraded", "redis": games_ok, "redis_engine": engine_ok}
 
 @app.post("/auth/google", response_model=Token)
 async def google_auth(google_data: GoogleAuthRequest):
