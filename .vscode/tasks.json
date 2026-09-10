@@ -34,13 +34,13 @@
       "problemMatcher": []
     },
     {
-      "label": "Board Stack: Redis + open services",
+      "label": "Board Stack: Redis + open services (iOS)",
       "type": "shell",
-      "command": "./scripts/board-open-with-redis.sh --android",
+      "command": "./scripts/board-open-with-redis.sh --ios",
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "detail": "docker compose up -d redis (Board-Backend), then opens Backend / LLM / Metro / Android tabs. Default build (Cmd+Shift+B). For Cmd+Shift+R see .vscode/README-keybindings.md.",
+      "detail": "docker compose up -d redis (Board-Backend), then opens Backend / LLM / Metro / iOS tabs. For a Cursor shortcut such as Cmd+Option+B, see .vscode/README-keybindings.md.",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -52,6 +52,22 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "Board Stack: Redis + open services (Android)",
+      "type": "shell",
+      "command": "./scripts/board-open-with-redis.sh --android",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "detail": "docker compose up -d redis (Board-Backend), then opens Backend / LLM / Metro / Android tabs.",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "clear": false
+      },
+      "problemMatcher": []
     },
     {
       "label": "Open Board Services",

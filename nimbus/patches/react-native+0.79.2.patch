@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native/React/Views/RCTView.m b/node_modules/react-native/React/Views/RCTView.m
+index 0a2fa36..0e52978 100644
+--- a/node_modules/react-native/React/Views/RCTView.m
++++ b/node_modules/react-native/React/Views/RCTView.m
+@@ -148,6 +148,12 @@ - (instancetype)initWithFrame:(CGRect)frame
+   return self;
+ }
+ 
++- (void)setColor:(UIColor *)color
++{
++  // Some JS view fallbacks can accidentally forward text/icon color to RCTView.
++  // RCTView does not render text, so ignore the prop instead of crashing.
++}
++
+ RCT_NOT_IMPLEMENTED(-(instancetype)initWithCoder : unused)
+ 
+ - (void)setReactLayoutDirection:(UIUserInterfaceLayoutDirection)layoutDirection

@@ -18,4 +18,4 @@ RUN addgroup --system app \
     && chown -R app:app /app
 USER app
 
-CMD ["poetry", "run", "uvicorn", "llm_service:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "llm_service:app", "--host", "0.0.0.0", "--port", "8001"]
