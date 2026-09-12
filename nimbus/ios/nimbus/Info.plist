@@ -57,6 +57,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>boardapp</string>
+				<string>com.googleusercontent.apps.707897598265-f18r9das4pigimbkt1niife5655ol5lc</string>
 			</array>
 		</dict>
 	</array>
