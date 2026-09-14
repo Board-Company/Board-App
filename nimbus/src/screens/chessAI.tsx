@@ -11,13 +11,13 @@ import {
   Platform,
   Animated,
   Dimensions,
-  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import { LLM_API_URL } from '../env';
 
 type Message = {
@@ -59,6 +59,7 @@ const ChessAIScreen = () => {
   const [playerColor] = useState<'w' | 'b'>('w');
   const [lastMove, setLastMove] = useState<{from: string; to: string} | null>(null);
   const [showBoard, setShowBoard] = useState(true);
+  const [gameOver, setGameOver] = useState<{ title: string; subtitle: string } | null>(null);
   
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.min(screenWidth - 32, 300);
@@ -275,9 +276,11 @@ const ChessAIScreen = () => {
             // Check game status
             if (chessRef.current.isCheckmate()) {
               const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
-              Alert.alert('Checkmate!', `${winner} wins!`);
+              setGameOver({ title: 'Checkmate', subtitle: `${winner} wins` });
+            } else if (chessRef.current.isStalemate()) {
+              setGameOver({ title: 'Stalemate', subtitle: 'No legal moves left' });
             } else if (chessRef.current.isDraw()) {
-              Alert.alert('Draw', 'The game is a draw!');
+              setGameOver({ title: 'Draw', subtitle: 'The game is drawn' });
             } else if (chessRef.current.isCheck()) {
               setMessages(prev => [...prev, {
                 id: generateMessageId(),
@@ -350,7 +353,15 @@ const ChessAIScreen = () => {
   };
 
   // Handle manual moves on the board
-  const handleBoardMove = (move: { from: string; to: string }) => {
+  const handleBoardMove = (event: {
+    move?: { from: string; to: string; promotion?: string };
+    from?: string;
+    to?: string;
+  }) => {
+    const move = event?.move ?? event;
+    if (!move?.from || !move?.to) {
+      return;
+    }
     try {
       const result = chessRef.current.move({
         from: move.from,
@@ -369,6 +380,15 @@ const ChessAIScreen = () => {
           moveExecuted: result.san,
         };
         setMessages(prev => [...prev, moveMsg]);
+
+        if (chessRef.current.isCheckmate()) {
+          const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
+          setGameOver({ title: 'Checkmate', subtitle: `${winner} wins` });
+        } else if (chessRef.current.isStalemate()) {
+          setGameOver({ title: 'Stalemate', subtitle: 'No legal moves left' });
+        } else if (chessRef.current.isDraw()) {
+          setGameOver({ title: 'Draw', subtitle: 'The game is drawn' });
+        }
       }
     } catch (error) {
       console.log('Invalid move');
@@ -380,6 +400,7 @@ const ChessAIScreen = () => {
     chessRef.current.reset();
     setFen(chessRef.current.fen());
     setLastMove(null);
+    setGameOver(null);
     setMessages(prev => [...prev, {
       id: generateMessageId(),
       role: 'assistant',
@@ -489,6 +510,7 @@ const ChessAIScreen = () => {
               fen={fen}
               onMove={handleBoardMove}
               playerColor={playerColor}
+              gestureEnabled={!gameOver}
               moveAnimationDuration={10}
             />
           </View>
@@ -614,6 +636,13 @@ const ChessAIScreen = () => {
           <Icon name="send" size={24} color={inputText.trim() ? '#fff' : '#666'} />
         </TouchableOpacity>
       </View>
+      <GameOverOverlay
+        visible={!!gameOver}
+        title={gameOver?.title ?? 'Game over'}
+        subtitle={gameOver?.subtitle}
+        primaryLabel="New game"
+        onPrimary={resetBoard}
+      />
     </KeyboardAvoidingView>
   );
 };

@@ -9,6 +9,7 @@
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTRootView.h>
 #import <React/RCTLinkingManager.h>
+#import <GoogleSignIn/GoogleSignIn.h>
 
 @implementation AppDelegate
 
@@ -36,6 +37,9 @@
    openURL:(NSURL *)url
    options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
 {
+  if ([GIDSignIn.sharedInstance handleURL:url]) {
+    return YES;
+  }
   return [RCTLinkingManager application:application openURL:url options:options];
 }
 

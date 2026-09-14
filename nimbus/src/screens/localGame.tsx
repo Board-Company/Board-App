@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Chess } from 'chess.js';
 import type { ChessboardRef } from 'react-native-chessboard';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 import { saveCompletedLocalGame } from '../services/localGameHistory';
 
@@ -126,17 +127,13 @@ const LocalGameScreen = () => {
     setBoardOrientation(nextTurn);
   }, []);
 
-  const checkGameStatus = useCallback((options?: { showAlert?: boolean }) => {
-    const showAlert = options?.showAlert ?? true;
+  const checkGameStatus = useCallback((_options?: { showAlert?: boolean }) => {
     if (chessRef.current.isCheckmate()) {
       const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
       const message = `Checkmate! ${winner} wins`;
       setIsGameOver(true);
       setGameStatus(message);
       persistCompletedGame(message, 'checkmate');
-      if (showAlert) {
-        Alert.alert('Game Over', message);
-      }
       return;
     }
 
@@ -144,9 +141,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Stalemate');
       persistCompletedGame('Stalemate', 'stalemate');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Stalemate!');
-      }
       return;
     }
 
@@ -154,9 +148,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw by repetition');
       persistCompletedGame('Draw by repetition', 'repetition');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Draw by repetition!');
-      }
       return;
     }
 
@@ -164,9 +155,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw by insufficient material');
       persistCompletedGame('Draw by insufficient material', 'insufficient-material');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Draw by insufficient material!');
-      }
       return;
     }
 
@@ -174,9 +162,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw');
       persistCompletedGame('Draw', 'draw');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Draw!');
-      }
       return;
     }
 
@@ -340,7 +325,6 @@ const LocalGameScreen = () => {
           setIsGameOver(true);
           setGameStatus('White flagged - Black wins');
           persistCompletedGame('White flagged - Black wins', 'timeout');
-          Alert.alert('Game Over', 'White ran out of time. Black wins.');
         }
       } else {
         const nextBlackTime = Math.max(0, blackTimeRef.current - elapsed);
@@ -351,7 +335,6 @@ const LocalGameScreen = () => {
           setIsGameOver(true);
           setGameStatus('Black flagged - White wins');
           persistCompletedGame('Black flagged - White wins', 'timeout');
-          Alert.alert('Game Over', 'Black ran out of time. White wins.');
         }
       }
     }, 1000);
@@ -443,6 +426,7 @@ const LocalGameScreen = () => {
           fen={fen}
           onMove={handleMove}
           playerColor={boardOrientation}
+          gestureEnabled={!isGameOver}
           moveAnimationDuration={0}
         />
       </View>
@@ -464,6 +448,15 @@ const LocalGameScreen = () => {
 
       <View style={styles.footerSpacer} />
       <MoveHistory moves={moveHistory} />
+      <GameOverOverlay
+        visible={isGameOver}
+        title={gameStatus.includes('Checkmate') ? 'Checkmate' : gameStatus.split(' - ')[0] || 'Game over'}
+        subtitle={gameStatus}
+        primaryLabel="New game"
+        onPrimary={startNewGame}
+        secondaryLabel="History"
+        onSecondary={() => navigation.navigate('LocalGameHistory')}
+      />
         </>
       )}
     </View>

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Dimensions } from 'react-native';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 
 const PlayScreen = () => {
@@ -10,6 +11,7 @@ const PlayScreen = () => {
   const [fen, setFen] = useState(chessRef.current.fen());
   const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
   const [gameStatus, setGameStatus] = useState('');
+  const [isGameOver, setIsGameOver] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
 
@@ -35,23 +37,25 @@ const PlayScreen = () => {
   const checkGameStatus = () => {
     if (chessRef.current.isCheckmate()) {
       const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
+      setIsGameOver(true);
       setGameStatus(`Checkmate! ${winner} wins`);
-      Alert.alert('Game Over', `Checkmate! ${winner} wins`);
-    } else if (chessRef.current.isDraw()) {
-      setGameStatus('Draw');
-      Alert.alert('Game Over', 'Draw!');
     } else if (chessRef.current.isStalemate()) {
+      setIsGameOver(true);
       setGameStatus('Stalemate');
-      Alert.alert('Game Over', 'Stalemate!');
     } else if (chessRef.current.isThreefoldRepetition()) {
+      setIsGameOver(true);
       setGameStatus('Draw by repetition');
-      Alert.alert('Game Over', 'Draw by repetition!');
     } else if (chessRef.current.isInsufficientMaterial()) {
+      setIsGameOver(true);
       setGameStatus('Draw by insufficient material');
-      Alert.alert('Game Over', 'Draw by insufficient material!');
+    } else if (chessRef.current.isDraw()) {
+      setIsGameOver(true);
+      setGameStatus('Draw');
     } else if (chessRef.current.isCheck()) {
+      setIsGameOver(false);
       setGameStatus('Check!');
     } else {
+      setIsGameOver(false);
       setGameStatus(`${chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move`);
     }
   };
@@ -93,6 +97,7 @@ const PlayScreen = () => {
     chessRef.current.reset();
     setFen(chessRef.current.fen());
     setMoveHistory([]);
+    setIsGameOver(false);
     setGameStatus('White to move');
   };
 
@@ -110,6 +115,7 @@ const PlayScreen = () => {
     setPlayerColor(color);
     setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
     setGameStatus('playing');
+    setIsGameOver(false);
     setMoveHistory([]);
     if (color === 'b') {
       // If player chooses black, computer (white) goes first
@@ -118,12 +124,16 @@ const PlayScreen = () => {
   };
 
   // Handle player move
-  const handleMove = (move: { from: string; to: string }) => {
+  const handleMove = (event: { move?: { from: string; to: string; promotion?: string }; from?: string; to?: string }) => {
+    const move = event?.move ?? event;
+    if (!move?.from || !move?.to) {
+      return;
+    }
     try {
       const result = chessRef.current.move({
         from: move.from,
         to: move.to,
-        promotion: 'q' // Always promote to queen for simplicity
+        promotion: 'q',
       });
 
       if (result) {
@@ -163,6 +173,7 @@ const PlayScreen = () => {
             fen={fen}
             onMove={handleMove}
             playerColor={playerColor}
+            gestureEnabled={!isGameOver}
             moveAnimationDuration={10}
           />
           {/* Overlay capturable circles using View */}
@@ -219,6 +230,13 @@ const PlayScreen = () => {
       </View>
 
       <MoveHistory moves={moveHistory} />
+      <GameOverOverlay
+        visible={isGameOver}
+        title={gameStatus.includes('Checkmate') ? 'Checkmate' : gameStatus || 'Game over'}
+        subtitle={gameStatus}
+        primaryLabel="New game"
+        onPrimary={startNewGame}
+      />
     </View>
   );
 };

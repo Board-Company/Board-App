@@ -6,6 +6,7 @@ import { useLichessAuth } from '../contexts/LichessAuthContext';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 
 type RootStackParamList = {
@@ -157,6 +158,17 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
     );
   }
 
+  const finishedCopy = game.isCheckmate()
+    ? {
+        title: 'Checkmate',
+        subtitle: `${game.turn() === 'w' ? 'Black' : 'White'} wins`,
+      }
+    : game.isStalemate()
+      ? { title: 'Stalemate', subtitle: 'No legal moves left' }
+      : game.isDraw()
+        ? { title: 'Draw', subtitle: 'The game is drawn' }
+        : { title: 'Game over', subtitle: 'This match has ended' };
+
   return (
     <View style={styles.root}>
       {gameState === 'waiting' ? (
@@ -164,37 +176,31 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
           <ActivityIndicator size="large" color="#8CB369" />
           <Text style={styles.statusText}>Waiting for opponent...</Text>
         </View>
-      ) : gameState === 'playing' ? (
+      ) : (
         <View style={styles.playWrap}>
           <Text style={styles.statusText}>
-            {game.turn() === 'w' ? 'Your turn' : "Opponent's turn"}
+            {gameState === 'finished'
+              ? finishedCopy.title
+              : game.turn() === 'w'
+                ? 'Your turn'
+                : "Opponent's turn"}
           </Text>
           <View style={styles.boardBlock}>
             <ChessBoard
               fen={game.fen()}
               onMove={handleMove}
               playerColor="w"
-              gestureEnabled={game.turn() === 'w'}
+              gestureEnabled={gameState === 'playing' && game.turn() === 'w'}
             />
           </View>
           <MoveHistory moves={game.history()} variant="dark" layout="inline" />
-        </View>
-      ) : (
-        <View style={styles.centerWrap}>
-          <Text style={styles.finishedText}>
-            Game finished!{' '}
-            {game.isCheckmate()
-              ? 'Checkmate!'
-              : game.isDraw()
-                ? 'Draw!'
-                : game.isStalemate()
-                  ? 'Stalemate!'
-                  : 'Game over!'}
-          </Text>
-          <MoveHistory moves={game.history()} variant="dark" layout="inline" />
-          <TouchableOpacity style={styles.primaryBtn} onPress={createGame}>
-            <Text style={styles.primaryBtnText}>Play Again</Text>
-          </TouchableOpacity>
+          <GameOverOverlay
+            visible={gameState === 'finished'}
+            title={finishedCopy.title}
+            subtitle={finishedCopy.subtitle}
+            primaryLabel="Play again"
+            onPrimary={createGame}
+          />
         </View>
       )}
     </View>

@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import EngineEvalBar from '../components/game/EngineEvalBar';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
 import { getAccessToken } from '../services/auth';
@@ -73,6 +74,21 @@ const extractMove = (event: ChessboardMoveEvent): ChessboardMove | null => {
     return event;
   }
   return null;
+};
+
+const friendGameOverCopy = (state: FriendState) => {
+  const reason = (state.finished_reason ?? '').replace(/_/g, ' ');
+  const prettyReason = reason ? reason.charAt(0).toUpperCase() + reason.slice(1) : '';
+  if (state.result === '1-0') {
+    return { title: 'White wins', subtitle: prettyReason || 'Game over' };
+  }
+  if (state.result === '0-1') {
+    return { title: 'Black wins', subtitle: prettyReason || 'Game over' };
+  }
+  if (state.result === '1/2-1/2') {
+    return { title: 'Draw', subtitle: prettyReason || 'The game is drawn' };
+  }
+  return { title: 'Game over', subtitle: prettyReason || 'This match has ended' };
 };
 
 const FriendGameScreen = () => {
@@ -239,7 +255,6 @@ const FriendGameScreen = () => {
               if (eventsRef.current === es) {
                 eventsRef.current = null;
               }
-              void openReview(parsed.game_id);
             }
           } catch {
             /* ignore malformed chunk */
@@ -402,9 +417,6 @@ const FriendGameScreen = () => {
       }
       const next = (await r.json()) as FriendState;
       setState(next);
-      if (next.status === 'finished') {
-        await openReview(next.game_id);
-      }
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Move failed');
       refresh(gameId);
@@ -433,7 +445,6 @@ const FriendGameScreen = () => {
             }
             const next = (await r.json()) as FriendState;
             setState(next);
-            await openReview(next.game_id);
           } catch (e: unknown) {
             Alert.alert('Error', e instanceof Error ? e.message : 'Resign failed');
           }
@@ -455,9 +466,7 @@ const FriendGameScreen = () => {
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>Play a friend</Text>
-          <Text style={styles.hint}>
-            Backend needs Redis and the completed_games table in Supabase. Set BASE_URL in .env to your API (e.g. EC2).
-          </Text>
+          <Text style={styles.hint}>Create a private game and share the invite code, or join with a code.</Text>
           {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity style={styles.btn} onPress={createGame} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create game</Text>}
@@ -538,6 +547,17 @@ const FriendGameScreen = () => {
         />
       </View>
       <MoveHistory moves={state.move_history} variant="dark" layout="inline" />
+      {state.status === 'finished' ? (
+        <GameOverOverlay
+          visible
+          title={friendGameOverCopy(state).title}
+          subtitle={friendGameOverCopy(state).subtitle}
+          primaryLabel="Review game"
+          onPrimary={() => void openReview(state.game_id)}
+          secondaryLabel="Leave"
+          onSecondary={() => void leaveLobby()}
+        />
+      ) : null}
     </View>
   );
 };
