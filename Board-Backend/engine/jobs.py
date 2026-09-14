@@ -77,20 +77,47 @@ def is_terminal_status(status_value: str) -> bool:
     return status_value in TERMINAL_STATUSES
 
 
-def _existing_open_job(r: redis.Redis, mapped_job_id: str | None) -> str | None:
+def _as_text(value: object | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        return value.decode()
+    return str(value)
+
+
+def _reusable_job_id(r: redis.Redis, mapped_job_id: str | None) -> str | None:
+    """Reuse in-flight jobs and completed analyses; never reuse cancelled/failed."""
     if not mapped_job_id:
         return None
-    st = r.hget(job_key(mapped_job_id), "status")
-    if st and not is_terminal_status(st):
+    fields = r.hmget(job_key(mapped_job_id), "status", "cancel_requested")
+    st = _as_text(fields[0] if fields else None)
+    cancel = _as_text(fields[1] if fields and len(fields) > 1 else None)
+    if not st:
+        return None
+    if (cancel or "") in ("1", "true", "True"):
+        return None
+    if st == "done":
+        return mapped_job_id
+    if not is_terminal_status(st):
         return mapped_job_id
     return None
 
 
-async def _existing_open_job_async(r: redis_async.Redis, mapped_job_id: str | None) -> str | None:
+async def _reusable_job_id_async(
+    r: redis_async.Redis, mapped_job_id: str | None
+) -> str | None:
     if not mapped_job_id:
         return None
-    st = await r.hget(job_key(mapped_job_id), "status")
-    if st and not is_terminal_status(st):
+    fields = await r.hmget(job_key(mapped_job_id), "status", "cancel_requested")
+    st = _as_text(fields[0] if fields else None)
+    cancel = _as_text(fields[1] if fields and len(fields) > 1 else None)
+    if not st:
+        return None
+    if (cancel or "") in ("1", "true", "True"):
+        return None
+    if st == "done":
+        return mapped_job_id
+    if not is_terminal_status(st):
         return mapped_job_id
     return None
 
@@ -146,12 +173,12 @@ def create_and_enqueue(
         profile=profile,
     )
 
-    hit = _existing_open_job(r, r.get(dedupe_key(dk)))
+    hit = _reusable_job_id(r, r.get(dedupe_key(dk)))
     if hit:
         return hit, True
 
     if idempotency_key_header:
-        hit = _existing_open_job(r, r.get(idempotency_key(idempotency_key_header)))
+        hit = _reusable_job_id(r, r.get(idempotency_key(idempotency_key_header)))
         if hit:
             return hit, True
 
@@ -206,12 +233,12 @@ async def create_and_enqueue_async(
         profile=profile,
     )
 
-    hit = await _existing_open_job_async(r, await r.get(dedupe_key(dk)))
+    hit = await _reusable_job_id_async(r, await r.get(dedupe_key(dk)))
     if hit:
         return hit, True
 
     if idempotency_key_header:
-        hit = await _existing_open_job_async(
+        hit = await _reusable_job_id_async(
             r, await r.get(idempotency_key(idempotency_key_header))
         )
         if hit:

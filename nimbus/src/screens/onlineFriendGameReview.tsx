@@ -19,6 +19,7 @@ import EngineEvalBar from '../components/game/EngineEvalBar';
 import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
 import { useEngineQueueHealth } from '../hooks/useEngineQueueHealth';
 import { resolveEngineStatusLine, REVIEW_ENGINE_DEPTH } from '../services/engineAnalysis';
+import { fenReplayFromMoves } from '../services/gameReplay';
 import { fetchCompletedOnlineGame, type OnlineCompletedGame } from '../services/onlineGameHistory';
 
 type RootStackParamList = {
@@ -27,16 +28,6 @@ type RootStackParamList = {
 };
 
 const START = new Chess().fen();
-
-const buildFenReplay = (moves: string[]): string[] => {
-  const chess = new Chess();
-  const fens: string[] = [chess.fen()];
-  for (const m of moves) {
-    chess.move(m);
-    fens.push(chess.fen());
-  }
-  return fens;
-};
 
 const noopOnMove = () => {};
 
@@ -70,21 +61,24 @@ const OnlineFriendGameReviewScreen = () => {
     load();
   }, [load]);
 
-  const fenReplay = useMemo(() => (game ? buildFenReplay(game.move_history) : []), [game]);
+  const fenReplay = useMemo(
+    () => (game ? fenReplayFromMoves(game.move_history) : []),
+    [game],
+  );
+  const lastPly = Math.max(0, fenReplay.length - 1);
   const currentFen =
     game && fenReplay.length > 0
-      ? (fenReplay[moveIndex] ?? fenReplay[fenReplay.length - 1])
+      ? (fenReplay[Math.min(moveIndex, lastPly)] ?? fenReplay[lastPly])
       : START;
   const currentMove =
     game && moveIndex > 0 ? game.move_history[moveIndex - 1] : null;
 
   const { queueAvailable } = useEngineQueueHealth(!!game);
   const engineEval = useEngineAnalysis({
-    gameId: game?.game_id,
-    ply: moveIndex,
+    fen: game ? currentFen : null,
     depth: REVIEW_ENGINE_DEPTH,
     profile: 'analysis',
-    enabled: !!game && game.move_history.length >= 0,
+    enabled: !!game,
   });
   const engineStatus = resolveEngineStatusLine({
     queueAvailable,
@@ -146,39 +140,13 @@ const OnlineFriendGameReviewScreen = () => {
               : '— (opponent never joined)'}
           </Text>
           <Text style={styles.cardMeta}>
-            Move {moveIndex} / {game.move_history.length}
+            Move {moveIndex} / {lastPly}
             {currentMove ? ` · ${currentMove}` : ''}
           </Text>
           {game.finished_reason ? (
             <Text style={styles.cardMeta}>{game.finished_reason.replace(/_/g, ' ')}</Text>
           ) : null}
         </View>
-
-        <View style={styles.boardWrap}>
-          <ChessBoard
-            key={`${game.game_id}-${moveIndex}`}
-            fen={currentFen}
-            onMove={noopOnMove}
-            playerColor="w"
-            gestureEnabled={false}
-            moveAnimationDuration={0}
-            maxBoardWidth={maxBoard}
-          />
-        </View>
-
-        <EngineEvalBar
-          variant="review"
-          evalText={engineEval.evalText}
-          advantage={engineEval.advantage}
-          whiteShare={engineEval.whiteShare}
-          depth={engineEval.depth}
-          targetDepth={REVIEW_ENGINE_DEPTH}
-          loading={engineEval.loading}
-          error={engineEval.error}
-          label={`Stockfish · depth ${REVIEW_ENGINE_DEPTH}`}
-          statusLine={engineStatus.line}
-          statusTone={engineStatus.tone}
-        />
 
         <View style={styles.controlsRow}>
           <TouchableOpacity
@@ -196,26 +164,46 @@ const OnlineFriendGameReviewScreen = () => {
             <Text style={styles.ctrlText}>Prev</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.ctrl,
-              moveIndex === game.move_history.length && styles.ctrlDisabled,
-            ]}
-            onPress={() => setMoveIndex(i => Math.min(game.move_history.length, i + 1))}
-            disabled={moveIndex === game.move_history.length}
+            style={[styles.ctrl, moveIndex === lastPly && styles.ctrlDisabled]}
+            onPress={() => setMoveIndex(i => Math.min(lastPly, i + 1))}
+            disabled={moveIndex === lastPly}
           >
             <Text style={styles.ctrlText}>Next</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.ctrl,
-              moveIndex === game.move_history.length && styles.ctrlDisabled,
-            ]}
-            onPress={() => setMoveIndex(game.move_history.length)}
-            disabled={moveIndex === game.move_history.length}
+            style={[styles.ctrl, moveIndex === lastPly && styles.ctrlDisabled]}
+            onPress={() => setMoveIndex(lastPly)}
+            disabled={moveIndex === lastPly}
           >
             <Text style={styles.ctrlText}>End</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.boardWrap} pointerEvents="none">
+          <ChessBoard
+            key={`${game.game_id}-${moveIndex}`}
+            fen={currentFen}
+            onMove={noopOnMove}
+            playerColor="w"
+            gestureEnabled={false}
+            moveAnimationDuration={0}
+            maxBoardWidth={maxBoard}
+          />
+        </View>
+
+          <EngineEvalBar
+          variant="review"
+          evalText={engineEval.evalText}
+          advantage={engineEval.advantage}
+          whiteShare={engineEval.whiteShare}
+          depth={engineEval.depth}
+          targetDepth={REVIEW_ENGINE_DEPTH}
+          loading={engineEval.loading}
+          error={engineEval.error}
+          label={`Stockfish · depth ${REVIEW_ENGINE_DEPTH}`}
+          statusLine={engineStatus.line}
+          statusTone={engineStatus.tone}
+        />
       </ScrollView>
     </View>
   );

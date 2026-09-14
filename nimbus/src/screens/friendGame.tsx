@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -30,6 +31,9 @@ import {
 import { API_URL } from '../env';
 
 const API_BASE_URL = API_URL;
+const SIDE_EVAL_WIDTH = 28;
+const SIDE_EVAL_GAP = 8;
+const LIVE_CONTAINER_PAD = 12;
 
 type RootStackParamList = {
   FriendGame: { gameId?: string } | undefined;
@@ -377,6 +381,10 @@ const FriendGameScreen = () => {
 
   const playerColor: 'w' | 'b' =
     myId && state?.white_player_id === myId ? 'w' : 'b';
+  const showLiveEval = state?.status === 'active';
+  const liveBoardMaxWidth =
+    Dimensions.get('window').width - LIVE_CONTAINER_PAD * 2 - SIDE_EVAL_WIDTH - SIDE_EVAL_GAP;
+  const liveBoardSize = Math.floor(Math.max(liveBoardMaxWidth, 0) / 8) * 8;
   const creatorName = state?.white_username?.trim() || 'Host';
   const isCreatorView = !!(state && myId && state.white_player_id === myId);
   const sessionBannerText = isCreatorView
@@ -527,24 +535,31 @@ const FriendGameScreen = () => {
           {state.invite_code}
         </Text>
       ) : null}
-      {state.status === 'active' ? (
-        <EngineEvalBar
-          evalText={engineEval.evalText}
-          depth={engineEval.depth}
-          loading={engineEval.loading}
-          error={engineEval.error}
-          label="Live eval"
-        />
-      ) : null}
-      <View style={styles.boardBlock}>
-        <ChessBoard
-          key={state.fen + state.updated_at}
-          fen={state.fen}
-          onMove={handleMove}
-          playerColor={playerColor}
-          gestureEnabled={!!isMyTurn && state.status === 'active'}
-          moveAnimationDuration={10}
-        />
+      <View style={styles.boardRow}>
+        {showLiveEval ? (
+          <EngineEvalBar
+            variant="side"
+            evalText={engineEval.evalText}
+            whiteShare={engineEval.whiteShare}
+            depth={engineEval.depth}
+            targetDepth={LIVE_ENGINE_DEPTH}
+            loading={engineEval.loading}
+            error={engineEval.error}
+            flipped={playerColor === 'b'}
+            barHeight={liveBoardSize}
+          />
+        ) : null}
+        <View style={styles.boardBlock}>
+          <ChessBoard
+            key={state.fen + state.updated_at}
+            fen={state.fen}
+            onMove={handleMove}
+            playerColor={playerColor}
+            gestureEnabled={!!isMyTurn && state.status === 'active'}
+            moveAnimationDuration={10}
+            maxBoardWidth={showLiveEval ? liveBoardMaxWidth : undefined}
+          />
+        </View>
       </View>
       <MoveHistory moves={state.move_history} variant="dark" layout="inline" />
       {state.status === 'finished' ? (
@@ -625,6 +640,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
+  },
+  boardRow: {
+    flex: 1,
+    minHeight: 200,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIDE_EVAL_GAP,
   },
   boardBlock: { flex: 1, minHeight: 200, justifyContent: 'center' },
 });

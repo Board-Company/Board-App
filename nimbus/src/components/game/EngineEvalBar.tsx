@@ -13,9 +13,12 @@ type Props = {
   label?: string;
   statusLine?: string;
   statusTone?: EngineStatusTone;
-  /** compact = single row; review = full Analysis card with eval bar */
-  variant?: 'compact' | 'review';
+  /** compact = single row; review = full Analysis card; side = vertical bar beside the board */
+  variant?: 'compact' | 'review' | 'side';
   targetDepth?: number;
+  /** For side bar: flip so White is at the top (when playing Black). */
+  flipped?: boolean;
+  barHeight?: number;
 };
 
 const toneColors: Record<EngineStatusTone, string> = {
@@ -39,14 +42,43 @@ const EngineEvalBar = ({
   statusTone = 'neutral',
   variant = 'compact',
   targetDepth,
+  flipped = false,
+  barHeight = 280,
 }: Props) => {
   const share = clamp(whiteShare, 0, 100);
+  const blackShare = 100 - share;
   const depthLabel =
     depth != null && !error
       ? `d${depth}${targetDepth != null && depth < targetDepth ? ` / d${targetDepth}` : ''}`
       : targetDepth != null
         ? `d${targetDepth}`
         : null;
+
+  if (variant === 'side') {
+    const topShare = flipped ? share : blackShare;
+    const bottomShare = flipped ? blackShare : share;
+    const topColor = flipped ? '#F2F2F2' : '#1A1A1A';
+    const bottomColor = flipped ? '#1A1A1A' : '#F2F2F2';
+    const evalOnWhite = share >= 50;
+    const evalAtBottom = flipped ? !evalOnWhite : evalOnWhite;
+    const evalColor = evalOnWhite ? '#111111' : '#F5F5F5';
+    return (
+      <View style={[styles.sideWrap, { height: barHeight }]}>
+        <View style={styles.sideTrack}>
+          <View style={[styles.sideSegment, { flex: Math.max(topShare, 0.8), backgroundColor: topColor }]} />
+          <View style={[styles.sideSegment, { flex: Math.max(bottomShare, 0.8), backgroundColor: bottomColor }]} />
+          <View
+            pointerEvents="none"
+            style={[styles.sideEvalInBar, evalAtBottom ? styles.sideEvalBottom : styles.sideEvalTop]}
+          >
+            {loading ? <ActivityIndicator size="small" color={evalColor} /> : null}
+            <Text style={[styles.sideEvalInBarText, { color: evalColor }]}>{error ? '—' : evalText}</Text>
+            {depthLabel ? <Text style={[styles.sideDepthInBar, { color: evalColor }]}>{depthLabel}</Text> : null}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   if (variant === 'review') {
     return (
@@ -204,6 +236,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 10,
     textAlign: 'center',
+  },
+  sideWrap: {
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sideTrack: {
+    flex: 1,
+    width: 22,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#4A4A4A',
+  },
+  sideSegment: {
+    width: '100%',
+  },
+  sideEvalInBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 2,
+  },
+  sideEvalTop: { top: 6 },
+  sideEvalBottom: { bottom: 6 },
+  sideEvalInBarText: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  sideDepthInBar: {
+    fontSize: 8,
+    fontWeight: '700',
+    opacity: 0.75,
   },
 });
 
