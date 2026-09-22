@@ -341,6 +341,10 @@ const LocalGameScreen = () => {
     }, 1000);
 
     return () => clearInterval(interval);
+    // `persistCompletedGame` is intentionally not a dependency: it changes identity as
+    // the game progresses, and restarting this 1s interval on each change would drift
+    // the clock. It is only called on a flag, at which point the effect is torn down.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGameOver, selectedTimeControl]);
 
   return (

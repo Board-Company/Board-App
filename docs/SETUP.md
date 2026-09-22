@@ -191,9 +191,22 @@ must be a bcrypt hash produced by the API, never a plaintext password.
 ## Tests
 
 ```bash
-cd Board-Backend && poetry run pytest         # 31 passed, 1 skipped
-cd nimbus && npx tsc --noEmit                 # type check
+cd Board-Backend && poetry run pytest         # 32 passed
+cd nimbus && npx tsc --noEmit                 # type check — clean
+cd nimbus && npm run lint                     # 0 errors, ~160 style warnings
 ```
+
+**On ESLint:** the project pins **ESLint 8**, not 9. `@react-native/eslint-config`
+depends on `eslint-plugin-ft-flow`, which calls `context.getAllComments()` — an API
+ESLint 9 removed — so linting crashes outright on 9 regardless of flat-config setup.
+Moving to 9 means dropping the React Native preset (this is a TypeScript codebase, so
+the Flow plugin earns nothing) and upgrading to `typescript-eslint` v8 and
+`eslint-plugin-react-hooks` v5.
+
+The remaining warnings are formatting only — `semi`, `quotes`, `no-trailing-spaces`,
+`comma-dangle` — where the preset's house style differs from how the files were written.
+They are left alone deliberately: `--fix` would reformat most of the app in one
+unreviewable diff. Fix them per-file when you next touch a file.
 
 ## Benchmarks
 

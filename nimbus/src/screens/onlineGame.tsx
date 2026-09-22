@@ -1,6 +1,6 @@
 // @ts-ignore: No types for rn-eventsource
 import EventSource from 'rn-eventsource';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -24,15 +24,17 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'waiting' | 'playing' | 'finished'>('waiting');
   const [error, setError] = useState<string | null>(null);
-  const [stream, setStream] = useState<EventSource | null>(null);
+  const streamRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // Mount-once: this screen creates exactly one game for the route params it was
+    // opened with. `createGame` is deliberately not a dependency.
     createGame();
     return () => {
-      if (stream) {
-        stream.close();
-      }
+      streamRef.current?.close();
+      streamRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createGame = async () => {
@@ -112,7 +114,7 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
       newStream.close();
     };
 
-    setStream(newStream);
+    streamRef.current = newStream;
   };
 
   const handleMove = async (evt: { move?: { from: string; to: string; promotion?: string } }) => {

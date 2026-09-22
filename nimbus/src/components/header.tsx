@@ -8,7 +8,7 @@ interface HeaderProps {
   // backgroundColor?: string;
 }
 
-const Header: React.FC<HeaderProps> = (props) => {
+const Header: React.FC<HeaderProps> = () => {
   return (
     <View style={styles.safeArea}>
       <View style={styles.header}>

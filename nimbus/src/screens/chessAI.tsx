@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -57,13 +56,11 @@ const ChessAIScreen = () => {
   // Chess game state
   const chessRef = useRef(new Chess());
   const [fen, setFen] = useState(chessRef.current.fen());
+  const [, setLastMove] = useState<{from: string; to: string} | null>(null);
   const [playerColor] = useState<'w' | 'b'>('w');
-  const [lastMove, setLastMove] = useState<{from: string; to: string} | null>(null);
   const [showBoard, setShowBoard] = useState(true);
   const [gameOver, setGameOver] = useState<{ title: string; subtitle: string } | null>(null);
   
-  const screenWidth = Dimensions.get('window').width;
-  const boardSize = Math.min(screenWidth - 32, 300);
   
   // Voice recognition state
   const [isListening, setIsListening] = useState(false);
@@ -459,16 +456,6 @@ const ChessAIScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const clearChat = () => {
-    setMessages([
-      {
-        id: generateMessageId(),
-        role: 'assistant',
-        content: "Chat cleared! How can I help you with chess today?",
-      },
-    ]);
   };
 
   const quickPrompts = [
