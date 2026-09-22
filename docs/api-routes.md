@@ -34,12 +34,49 @@ Requires **`REDIS_URL`** (Redis db **0**). Returns **503** if Redis is down.
 |--------|------|-------------|
 | POST | `/games` | Create lobby → `{ game_id, invite_code }` |
 | POST | `/games/join` | Body: `{ invite_code }` or `{ game_id }` |
+| POST | `/games/watch` | Body: `{ invite_code }` or `{ game_id }` — open as a viewer |
 | GET | `/games/{game_id}` | Live state (poll ~2.5s fallback while active) |
 | GET | `/games/{game_id}/events` | **SSE** — snapshot then live updates via Redis pub/sub |
 | POST | `/games/{game_id}/move` | Body: `{ san }` — validated with python-chess |
 | POST | `/games/{game_id}/resign` | Resign → archive to Supabase, delete Redis keys |
 | GET | `/games/me/completed` | List your archived friend games |
 | GET | `/games/me/completed/{game_id}` | One archived game (review / history) |
+
+### POST `/games/watch`
+
+Opens a live game as a viewer, using the same invite code players use.
+
+```json
+// request
+{ "invite_code": "V22KB5K0" }
+
+// response
+{
+  "state": { "game_id": "...", "fen": "...", "move_history": ["e4"], "status": "active", ... },
+  "role": "spectator",
+  "spectator_count": 1
+}
+```
+
+`role` is `white`, `black` or `spectator`. A player who calls this gets their own seat
+back and is **not** counted as a watcher.
+
+**Admission.** A caller who is not a player is added to the Redis set
+`game:spectators:{game_id}` (48h TTL, deleted when the game is archived). `GET
+/games/{game_id}` and `GET /games/{game_id}/events` admit a non-player only if they are
+in that set, so a stranger cannot watch by guessing a game ID — they get **403**.
+
+Spectators read through exactly the same SSE stream and Redis pub/sub channel as players;
+there is no separate delivery path.
+
+| Status | Meaning |
+|---|---|
+| 200 | Viewer admitted |
+| 400 | Neither `invite_code` nor `game_id` supplied |
+| 403 | Not a player and not an admitted spectator |
+| 404 | Invalid invite code, or game not found / already archived |
+
+---
 
 ### GET `/games/{game_id}/events` (SSE)
 
@@ -50,6 +87,8 @@ Requires **`REDIS_URL`** (Redis db **0**). Returns **503** if Redis is down.
 3. Comment lines `: keepalive` between idle periods.
 
 Nimbus: `rn-eventsource` with `Authorization` header; falls back to polling `GET /games/{id}` (~2.5s) if SSE fails.
+
+Open to players and to spectators admitted through `POST /games/watch`; any other caller gets **403**. The handler subscribes to the channel *before* reading the snapshot, so a move published in between is not lost.
 
 See [complex-logic.md](complex-logic.md#friend-chess-redis--supabase) for Redis keys and lifecycle.
 

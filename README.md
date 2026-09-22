@@ -1,418 +1,240 @@
-# Board-App - Smart Chess Board Application
+# Board-App
 
-![Version](https://img.shields.io/badge/Version-0.1.0-blue)
-![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-green)
+**A smart chess board: a physical ESP32 sensor board, a React Native app, and a Python
+backend that runs live multiplayer, server-side Stockfish analysis, and a voice-driven
+coach.**
+
+![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-green)
+![Backend](https://img.shields.io/badge/backend-FastAPI%20%2B%20Redis-blue)
+![Engine](https://img.shields.io/badge/engine-Stockfish%20workers-orange)
+![Tests](https://img.shields.io/badge/backend%20tests-31%20passing-brightgreen)
+
+Move a piece on the physical board and it moves in the app. Say "knight to f3" and it
+plays. Share an eight-character code and a friend joins your game — or an audience
+watches it live. A pool of Stockfish workers scores every position as you play.
 
 ---
 
-## Description
+## Contents
 
-Board-App is a comprehensive smart chess board ecosystem that combines hardware, mobile, and AI technologies to create an enhanced chess playing experience. The project consists of a React Native mobile application (Nimbus), a FastAPI backend server, ESP32-based firmware for physical board integration, and an LLM-powered chess coaching assistant.
+- [What it does](#what-it-does)
+- [Architecture](#architecture)
+- [Engineering highlights](#engineering-highlights)
+- [Measured results](#measured-results)
+- [Tech stack](#tech-stack)
+- [Repository layout](#repository-layout)
+- [Running it](#running-it)
 
-### Key Features
+---
 
-- **Voice-Controlled Chess** - Speak your moves naturally: "Knight to f3", "Castle kingside", "Queen takes d5"
-- **AI Chess Coach** - Get real-time coaching, position analysis, and strategy advice
-- **Online Play** - Play against opponents worldwide via Lichess integration
-- **Play with Friend** - Create a lobby, share an invite code, and play live chess against friends (Redis-backed state, archived to Supabase when finished)
-- **Server Stockfish Analysis** - Live eval during friend games and depth-20 review of archived games (Redis job queue + worker, SSE to Nimbus)
-- **Smart Board Integration** - Connect to a physical chess board with automatic piece detection
-- **Puzzle Training** - Improve tactical skills with chess puzzles
-- **Multi-Platform** - Available on both iOS and Android
+## What it does
 
-## Voice-Controlled Chess AI
+| Feature | Detail |
+|---|---|
+| **Play a friend** | Create a lobby, share an invite code, play live. State lives in Redis; finished games archive to Supabase. |
+| **Spectate** | Anyone with the invite code watches live — read-only board, eval bar, move list, watcher count. |
+| **Server-side Stockfish** | Live eval at depth 12 while you play; depth-20 review of archived games. |
+| **Voice control** | "Knight to f3", "castle kingside", "queen takes d5" — parsed, validated, played. |
+| **AI coach** | Position analysis, opening and endgame advice through an LLM service. |
+| **Lichess** | OAuth linking and online play against the Lichess pool. |
+| **Physical board** | ESP32 + hall-effect sensors + 16-channel multiplexer detect piece positions. |
+| **Local play** | Pass-and-play, bot games, puzzles, and reviewable local history. |
 
-The Chess AI Coach allows you to play chess using natural language voice commands:
+---
 
-**Supported Commands:**
-- "Move knight to f3" / "Knight f3"
-- "Pawn to e4" / "e4"
-- "Castle kingside" / "Castle queenside"
-- "Queen takes d5" / "Bishop captures c6"
-- "Promote to queen"
-
-The AI parses your voice input, validates the move against the current position, and executes it on the board - all hands-free!
-
-**Additional AI Capabilities:**
-- Position analysis and evaluation
-- Opening recommendations
-- Strategic advice tailored to your position
-- Endgame guidance
-
-## Hardware Prototype
-
-The hardware prototype is **complete** and fully functional:
-
-- **ESP32 Development Board** - Main microcontroller handling sensor data processing
-- **Hall Effect Sensors** - Detect magnetic chess pieces on the board
-- **16-Channel Analog Multiplexer** - Reads multiple sensors simultaneously
-- **Real-time Detection** - Tracks piece positions with state detection (approaching, over, leaving)
-
-The firmware implements multiplexer control, 12-bit ADC readings, noise reduction algorithms, and serial communication for seamless integration with the mobile app.
-
-## Play with Friend (Redis live state)
-
-Friend chess keeps **active game state in Redis** while players are in a lobby or mid-game. When a game ends normally (checkmate, draw, resign), the API writes one row to Supabase `completed_games` and deletes the Redis keys. If a lobby or game goes stale, a **background sweep** archives it as `abandoned` / `expired`.
+## Architecture
 
 ```mermaid
-sequenceDiagram
-  participant App as Nimbus_app
-  participant API as Board_Backend
-  participant R as Redis
-  participant DB as Supabase
-
-  App->>API: POST /games
-  API->>R: SET game:{id} + invite:{code}
-  API-->>App: game_id, invite_code
-
-  App->>API: POST /games/join
-  API->>R: update game JSON (active)
-
-  loop While active
-    App->>API: GET /games/{id}/events (SSE)
-    App->>API: POST /games/{id}/move
-    API->>R: lock, validate (python-chess), SET state, PUBLISH game:events:{id}
+flowchart TB
+  subgraph Clients
+    APP["Nimbus<br/>React Native"]
+    HW["Board-Firmware<br/>ESP32 + hall sensors"]
   end
 
-  alt Finished (mate / draw / resign)
-    API->>DB: INSERT completed_games
-    API->>R: DEL game, invite, shadow
-  else Live key TTL expires (48h inactivity)
-    Note over R: game:shadow:{id} kept longer
-    API->>API: sweep (ABANDONED_GAME_SWEEP_SEC)
-    API->>DB: INSERT abandoned / expired
-    API->>R: DEL shadow
+  subgraph Backend["Board-Backend — FastAPI"]
+    API["API process<br/>routes, auth, SSE"]
+    SWEEP["Abandoned-game sweep"]
   end
+
+  subgraph Workers["engine_worker processes (×3)"]
+    W1["Stockfish UCI"]
+  end
+
+  subgraph Data
+    R0[("Redis db 0<br/>live games, pub/sub")]
+    R1[("Redis db 1<br/>engine job queue")]
+    SB[("Supabase<br/>users, completed_games")]
+  end
+
+  LLM["Board-LLM<br/>coach + move parsing"]
+
+  HW -->|serial| APP
+  APP <-->|"REST + SSE"| API
+  APP <--> LLM
+  API <--> R0
+  API -->|enqueue| R1
+  W1 -->|"BRPOPLPUSH"| R1
+  W1 -->|"publish eval"| R1
+  API --> SB
+  SWEEP --> R0
+  SWEEP --> SB
 ```
+
+The API never runs Stockfish itself. It enqueues a job on Redis and streams the result
+back over SSE, so a depth-20 analysis can't block a move request.
+
+---
+
+## Engineering highlights
+
+### Live games are Redis-native, so the API scales sideways
+
+A friend game's authoritative state is a JSON blob in Redis under `game:{id}` with a 48h
+TTL. Every move takes a short per-game lock, validates against `python-chess`, writes the
+new state, and `PUBLISH`es it. Clients hold an SSE stream subscribed to that channel.
+
+Because coordination lives in Redis rather than in process memory, adding API processes
+adds throughput: at 400 concurrent games, one process delivered 361 moves/s at p95
+1,435 ms, while four processes delivered **637 moves/s at p95 11 ms**.
 
 | Redis key | Purpose |
-|-----------|---------|
-| `game:{id}` | Live JSON state (FEN, moves, players, status); **48h TTL** refreshed on each write |
-| `invite:{code}` | Maps short invite code → `game_id` |
+|---|---|
+| `game:{id}` | Live state (FEN, moves, players, status), 48h TTL refreshed on write |
+| `invite:{code}` | Invite code → `game_id` |
 | `lock:game:{id}` | Short-lived lock for join / move / resign |
-| `game:shadow:{id}` | Compact snapshot after live key expires; used by the abandoned-game sweep |
-| `game:events:{id}` | Pub/sub channel; SSE subscribers receive live state updates |
+| `game:shadow:{id}` | Snapshot outliving the live key, for the abandoned-game sweep |
+| `game:spectators:{id}` | Set of viewers admitted by invite code |
+| `game:events:{id}` | Pub/sub channel feeding every SSE subscriber |
 
-**Requirements:** Redis running (`REDIS_URL`), Supabase `completed_games` table (nullable `black_player_id` for empty lobbies). See [Quick Start](#2-redis-required-for-play-with-friend--online-friend-chess) and [Setting up Supabase](#setting-up-supabase). Technical plan: [docs/plans/online-friend-chess.plan.md](docs/plans/online-friend-chess.plan.md).
+### Spectating reuses the player path instead of duplicating it
 
-## Stockfish engine analysis (Redis job queue)
+Watchers subscribe to the same `game:events:{id}` channel as players, so there is no
+second delivery path to keep correct. What is new is admission: `POST /games/watch`
+takes the invite code players already use, hands players back their own seat, and adds
+anyone else to a Redis set. Reading state or opening the stream requires membership in
+that set, so a stranger cannot watch by guessing a game ID.
 
-Server-side **Stockfish** runs in separate **`engine-worker`** processes — not in the API. The Docker stack starts **3 workers by default** (up to **3 analyses in parallel**); each worker claims one job from the Redis queue at a time. Nimbus enqueues via `POST /engine/jobs` and streams eval over **SSE** (`GET /engine/jobs/{id}/events`). Job state lives on Redis **db 1** (`REDIS_ENGINE_URL`); friend games stay on **db 0** (`REDIS_URL`).
-
-| Use case | Nimbus screen | API request |
-|----------|---------------|-------------|
-| Live eval while playing a friend | `friendGame.tsx` | `fen` + depth 12, `profile: play` |
-| Review archived game at depth 20 | `onlineFriendGameReview.tsx` | `game_id` + `ply` + depth 20 |
-
-```bash
-# After Redis + API are up — start the worker (needs Stockfish binary)
-export REDIS_ENGINE_URL=redis://127.0.0.1:6379/1
-export STOCKFISH_PATH=$(which stockfish)   # macOS: brew install stockfish
-cd Board-Backend && poetry run python -m engine_worker
+```
+POST /games/watch  { "invite_code": "V22KB5K0" }
+  -> { "state": {...}, "role": "spectator", "spectator_count": 1 }
 ```
 
-Or use Docker: `./scripts/docker-stack.sh up` (3× `engine-worker` by default — override with `--engine-workers N`; see [docker/stack.yml](docker/stack.yml)).
+An end-to-end check ([`scripts/verify_spectate_eval.py`](Board-Backend/scripts/verify_spectate_eval.py))
+drives two players, one spectator and a stranger against a live stack — 20 assertions
+covering admission, refusal, per-move delivery and engine eval.
 
-Details: [docs/complex-logic.md](docs/complex-logic.md) · HTTP reference: [docs/api-routes.md](docs/api-routes.md) · Plan: [docs/plans/stockfish-queue-live-analysis.plan.md](docs/plans/stockfish-queue-live-analysis.plan.md).
+### An SSE race that only shows up under load
 
-## Tech Stack
+The stream handler originally read the game state, then subscribed to the channel. A move
+published in the gap between those two steps was lost: not in the snapshot, and not yet
+subscribed for. The fix is to subscribe first and re-read afterwards, so the snapshot can
+only be newer than the subscription:
 
-| Component | Technology |
-|-----------|------------|
-| Mobile App | React Native (CLI), TypeScript, Tamagui |
-| Backend | Python, FastAPI, Supabase, Redis, Stockfish (worker) |
-| LLM Service | Python, Hugging Face, FastAPI |
-| Firmware | C++, PlatformIO, ESP32 |
-| Voice Recognition | @react-native-voice/voice |
-| Authentication | JWT, Google OAuth, Lichess OAuth2 |
+```python
+pubsub.subscribe(channel)
+# Re-read after subscribing so a move published between the permission check
+# and SUBSCRIBE isn't missed.
+snapshot = await get_friend_game(redis, game_id, uid, allow_spectator=True)
+yield f"data: {snapshot.model_dump_json()}\n\n"
+```
+
+### The engine queue does not lose jobs
+
+Workers claim jobs with `BRPOPLPUSH` onto a processing list, so a job is never in flight
+without being recorded somewhere. A reclaimer returns jobs whose worker died past a
+visibility timeout, and repeated failures dead-letter rather than loop. Killing workers
+mid-run with **12 SIGKILLs across 300 jobs lost none** — 11 were recovered by the
+reclaimer and 0 were dead-lettered.
+
+Identical positions requested by both players deduplicate onto one job. Making that claim
+atomic took the dedupe hit rate from 4% to **50%** at 10 games and cut time-to-first-eval
+p95 from 88 ms to 45 ms.
+
+### Blocking calls kept off the event loop
+
+Archiving a finished game calls the Supabase Python client, which is synchronous — and it
+runs while the per-game lock is held. Left on the event loop it stalls every other game on
+that process. It now runs via `asyncio.to_thread`, so the lock is released promptly and
+unrelated games are unaffected.
+
+### One design language, enforced by the type system
+
+The app's dark olive theme was re-typed as hex literals in every screen, which produced
+`#fff` beside `#ffffff`, three different reds and a dozen greys. All of it now resolves
+through [`nimbus/src/theme.ts`](nimbus/src/theme.ts) — semantic colour, spacing, radius
+and type tokens, each documented with the role it plays.
+
+Roughly 350 literals across 19 screens and 8 components were replaced, collapsing the
+near-duplicates. The only hard-coded colour left is Google's brand blue on the Sign-In
+button, which is required to stay that exact value and is commented as such.
+
+---
+
+## Measured results
+
+Full methodology, raw output and reproduction scripts:
+**[Board-Backend/BENCHMARKS.md](Board-Backend/BENCHMARKS.md)**.
+
+Measured on a Mac mini (Apple M4, 10 cores, 16 GB). Supabase and JWT lookup are stubbed
+so the numbers describe the Redis path; everything else is production code.
+
+| Claim | Result |
+|---|---|
+| Moves reach the opponent quickly | **p95 43 ms** at 50 concurrent games, **54 ms** at 200 |
+| The API scales horizontally | 400 games: 1 process **361 moves/s / p95 1,435 ms**; 4 processes **637 moves/s / p95 11 ms** |
+| Simultaneous moves can't corrupt a game | 100 rounds × 20 identical concurrent moves: **exactly 1 accepted each round**, 0 bad states |
+| Engine queue scales with workers | 64 depth-16 jobs: **2.93× with 3 workers, 5.2× with 8** |
+| Live eval is fast | 3 workers sustain **60 eval req/s**, time-to-first-eval **p95 31 ms** |
+| Dedupe shares work between players | Hit rate **4% → 50%**; first-eval p95 **88 → 45 ms** |
+| No lost jobs when workers die | **12 SIGKILLs** during 300 jobs: **0 lost**, 11 reclaimed |
+| Stable under sustained load | 10-min soak, 60 games: **24,125 moves, 48,250 evals, 0 missed**; RSS 75 → 85 MB |
+
+Backend test suite: **31 passing, 1 skipped**.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Mobile | React Native (CLI), TypeScript |
+| Backend | Python 3.12, FastAPI, Redis, Supabase (Postgres) |
+| Engine | Stockfish via UCI in dedicated worker processes |
+| Chess rules | `python-chess` server-side validation |
+| Realtime | Redis pub/sub + Server-Sent Events |
+| LLM | FastAPI service over Hugging Face models |
+| Firmware | C++, PlatformIO, ESP32, hall-effect sensors |
+| Auth | JWT, Google OAuth, Lichess OAuth2 |
+
+---
 
 ## Repository layout
 
 | Path | Purpose |
-|------|---------|
-| `nimbus/` | React Native mobile app |
-| `Board-Backend/` | FastAPI backend |
-| `Board-LLM/` | Chess coach LLM service |
-| `Board-Firmware/` | ESP32 firmware (PlatformIO) |
-| [docs/plans/](docs/plans/) | Technical plans; superseded plans go in [docs/plans/archive/](docs/plans/archive/) |
-| [tools/hardware-sim/](tools/hardware-sim/) | Optional Python hall-effect / magnet visualization scripts |
-| [docs/](docs/) | [API routes](docs/api-routes.md), [architecture](docs/complex-logic.md), [plans](docs/plans/) |
-| [scripts/](scripts/) | Dev helpers: install deps, open Terminal tabs, run all services, Docker stack driver |
-| [docker/stack.yml](docker/stack.yml) | Compose: Redis + API + **3× engine-worker** + LLM (`scripts/docker-stack.sh`) |
-
-## Requirements
-
-- **Node.js** v18+ (https://nodejs.org/)
-- **Python** 3.12+ (https://www.python.org/downloads/)
-- **Poetry** for Python dependency management
-- **React Native CLI** (not Expo)
-- **Android Studio** or **Xcode** for mobile development
-- **PlatformIO** for firmware development (optional)
-
-## Quick Start
-
-### 1. Clone & Setup
-
-```bash
-git clone <repository-url>
-cd Board-App
-```
-
-### 2. Redis (required for friend chess + engine analysis)
-
-Friend games use Redis **db 0**; Stockfish jobs use **db 1** (same server). Start Redis before the backend (pick one):
-
-- **Docker (Board-Backend):** `cd Board-Backend && docker compose up -d redis`
-- **Docker full stack (repo root):** `./scripts/docker-stack.sh up` (API + LLM + **3× engine-worker** + Redis — see [docker/stack.yml](docker/stack.yml))
-- **Homebrew:** `brew install redis && brew services start redis`
-
-Without Redis db 0, `/games` routes return **503**. Without db 1 / `REDIS_ENGINE_URL`, `/engine/*` returns **503**.
-
-On startup the API connects to both databases and runs a **background sweep** every `ABANDONED_GAME_SWEEP_SEC` seconds (default 300) to archive expired friend lobbies from `game:shadow:{id}` into Supabase.
-
-**Stockfish workers (for live eval / review):** Docker stack runs **3 workers** by default (`ENGINE_WORKER_REPLICAS=3`). Host-native dev: install Stockfish (`brew install stockfish`) and run one or more `poetry run python -m engine_worker` processes with `REDIS_ENGINE_URL` and `STOCKFISH_PATH` set.
-
-**Docker shows “Rosetta” errors (Apple Silicon Mac):** Install Apple’s translator once: `softwareupdate --install-rosetta` (or accept the macOS prompt). In **Docker Desktop** → **Settings** → **General**, turn **on** “Use Rosetta for x86_64/amd64 emulation on Apple Silicon” (or **off** if it’s flaky—then prefer **arm64** images only; `redis:7-alpine` is multi-arch). Quit and reopen Docker, then retry `docker compose`. **Workaround:** skip Docker for Redis and use **Homebrew** (`brew install redis && brew services start redis`) with `REDIS_URL=redis://127.0.0.1:6379/0`.
-
-### 3. Start Backend Server
-
-```bash
-cd Board-Backend
-python -m poetry install
-poetry run python api.py 
-```
-
-### 4. Start LLM Service
-
-```bash
-cd Board-LLM
-python -m poetry install
-python -m poetry run python llm_service.py
-```
-
-### 5. Start Stockfish engine worker (optional — live eval & review)
-
-Required for **Live eval** in friend games and **depth-20** analysis on the review screen.
-
-```bash
-cd Board-Backend
-export REDIS_ENGINE_URL=redis://127.0.0.1:6379/1
-export STOCKFISH_PATH=$(which stockfish)
-poetry run python -m engine_worker
-```
-
-### 6. Run Mobile App
-
-```bash
-cd nimbus
-npm install --legacy-peer-deps
-
-# iOS
-cd ios && pod install && cd ..
-npx react-native run-ios
-
-# Android
-npx react-native run-android
-```
-
-## Project Structure
-
-```
-Board-App/
-├── Board-Backend/                 # FastAPI Backend Server
-│   ├── api.py                     # Auth, Lichess OAuth, Redis lifespan + abandoned sweep
-│   ├── auth.py                    # JWT & OAuth logic
-│   ├── game/                      # Friend chess (Redis live state → Supabase archive)
-│   │   ├── routes.py              # /games/* endpoints
-│   │   ├── service.py             # Redis keys, locks, python-chess, sweep
-│   │   └── models.py              # FriendGameState, completed-game summaries
-│   ├── engine/                    # Stockfish job enqueue + SSE (no UCI in API)
-│   │   ├── routes.py              # /engine/jobs*
-│   │   ├── jobs.py, queue.py      # Redis hash + LIST queue helpers
-│   │   └── sse.py                 # SSE subscribe-then-snapshot
-│   ├── engine_worker/             # Separate process: BRPOPLPUSH + Stockfish UCI
-│   ├── Dockerfile.engine-worker   # Worker image (apt install stockfish)
-│   ├── docker-compose.yml         # Redis + API + engine-worker
-│   └── schemas.py                 # Pydantic models
-│
-├── Board-Firmware/                # ESP32 Smart Board Firmware
-│   └── src/main.cpp               # Hall sensor reading, multiplexer control
-│
-├── Board-LLM/                     # AI Chess Coach Service
-│   ├── llm_service.py             # Chat, analysis, move parsing endpoints
-│   └── schemas.py                 # Request/response models
-│
-└── nimbus/                        # React Native Mobile App
-    └── src/
-        ├── screens/
-        │   ├── chessAI.tsx        # Voice-controlled AI Coach
-        │   ├── playMenu.tsx       # Lichess online play
-        │   ├── friendGame.tsx     # Play with Friend (lobby, invite, live game)
-        │   ├── onlineFriendGameHistory.tsx
-        │   ├── onlineFriendGameReview.tsx
-        │   ├── play.tsx           # Local games
-        │   └── puzzle.tsx         # Puzzle training
-        ├── services/
-        │   ├── onlineGameHistory.ts   # Completed friend games API client
-        │   └── engineAnalysis.ts      # POST /engine/jobs, SSE / poll
-        ├── hooks/
-        │   └── useEngineAnalysis.ts   # FEN / game_id+ply → live eval state
-        ├── components/
-        │   └── game/
-        │       ├── ChessBoard.tsx
-        │       └── EngineEvalBar.tsx
-        └── contexts/              # Auth & Lichess contexts
-```
-
-## API Endpoints
-
-### Backend Server (Port 8000)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/token` | POST | User login |
-| `/register` | POST | User registration |
-| `/auth/google` | POST | Google OAuth |
-| `/auth/lichess/login` | GET | Lichess OAuth |
-| `/users/me` | GET | Current user info |
-| `/users/lichess-info` | GET | Linked Lichess account |
-| `/health` | GET | API health; includes Redis connectivity |
-| `/games` | POST | Create friend game (returns `game_id`, `invite_code`) |
-| `/games/join` | POST | Join by `invite_code` or `game_id` |
-| `/games/{id}` | GET | Live game state (Redis) |
-| `/games/{id}/move` | POST | Apply SAN move (`python-chess` validation) |
-| `/games/{id}/resign` | POST | Resign; archives to Supabase |
-| `/games/me/completed` | GET | Your finished / abandoned friend games (Supabase) |
-| `/games/me/completed/{id}` | GET | One archived game for review |
-
-| `/engine/jobs` | POST | Enqueue Stockfish analysis (`fen` or `game_id`+`ply`) |
-| `/engine/jobs/{id}` | GET | Job status + result |
-| `/engine/jobs/{id}/events` | GET | SSE live eval updates |
-| `/engine/jobs/{id}/cancel` | POST | Cancel running job |
-
-Friend chess routes return **503** if Redis db 0 is down. Engine routes return **503** if Redis db 1 / `REDIS_ENGINE_URL` is down. Auth required (Bearer JWT) for `/games/*` and `/engine/*`.
-
-Full reference: [docs/api-routes.md](docs/api-routes.md)
-
-### LLM Service (Port 8001)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/parse-move` | POST | Parse voice/text move commands |
-| `/chat` | POST | AI coaching chat |
-| `/analyze-chess` | POST | Position analysis |
-| `/models` | GET | Available AI models |
-
-## Environment Variables
-
-### Board-Backend (.env)
-
-Create `Board-Backend/.env` (copy from [`Board-Backend/.env.example`](Board-Backend/.env.example)). Typical variables:
-
-```
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-GOOGLE_CLIENT_ID=your_google_client_id
-SECRET_KEY=your_jwt_secret
-REDIS_URL=redis://127.0.0.1:6379/0
-REDIS_ENGINE_URL=redis://127.0.0.1:6379/1
-ABANDONED_GAME_SWEEP_SEC=300
-```
-
-- **`REDIS_URL`** — friend chess (`/games/*`), Redis db **0**. See **Quick Start** → *Redis* above.
-- **`REDIS_ENGINE_URL`** — Stockfish job queue (`/engine/*`), Redis db **1**. Worker uses the same URL.
-- **`ABANDONED_GAME_SWEEP_SEC`** — how often the API archives **expired Redis lobbies** into `completed_games` (`abandoned` / `expired`). Needs Supabase `black_player_id` nullable — see **Setting up Supabase** → *Create the tables*.
-
-Worker-only (not read by API): `STOCKFISH_PATH`, optional `STOCKFISH_HASH_MB`, `STOCKFISH_THREADS` — see [Board-Backend/.env.example](Board-Backend/.env.example).
-
-See [Setting up Supabase](#setting-up-supabase) for `SUPABASE_URL` / `SUPABASE_KEY`.
+|---|---|
+| [`nimbus/`](nimbus/) | React Native app — screens, services, hooks, design tokens |
+| [`Board-Backend/`](Board-Backend/) | FastAPI API, friend-game service, engine queue, workers |
+| [`Board-Backend/engine_worker/`](Board-Backend/engine_worker/) | Separate process: claims jobs, drives Stockfish |
+| [`Board-LLM/`](Board-LLM/) | Coach and move-parsing service |
+| [`Board-Firmware/`](Board-Firmware/) | ESP32 firmware (PlatformIO) |
+| [`docs/`](docs/) | [Setup](docs/SETUP.md) · [API reference](docs/api-routes.md) · [Architecture](docs/complex-logic.md) · [Schema](docs/database-schema.md) · [Design system](docs/design-system.md) |
+| [`Board-Backend/BENCHMARKS.md`](Board-Backend/BENCHMARKS.md) | Performance methodology and results |
+| [`scripts/`](scripts/) | Dev helpers and the Docker stack driver |
 
 ---
 
-## Setting up Supabase
-
-The backend uses Supabase for user accounts and Lichess linking. If your project was deprecated or you need a fresh database:
-
-### 1. Create a new Supabase project
-
-1. Go to [supabase.com](https://supabase.com) and sign in.
-2. **New project** → choose org, name, database password, region.
-3. Wait for the project to be ready.
-
-### 2. Create the tables
-
-1. In the Supabase dashboard, open **SQL Editor**.
-2. **New query**.
-3. Copy the contents of [`Board-Backend/supabase_schema.sql`](Board-Backend/supabase_schema.sql) and run it.
-
-This creates `users`, `lichess_users`, and `completed_games`. The `completed_games.black_player_id` column is **nullable** so expired lobbies (no opponent joined) can be archived as `abandoned` / `expired`.
-
-**If your project already had `completed_games` from an older script** where `black_player_id` was NOT NULL, run **once** in SQL Editor:
-
-- [`Board-Backend/supabase/migrations/002_completed_games_abandoned.sql`](Board-Backend/supabase/migrations/002_completed_games_abandoned.sql)
-
-Without that migration, the background **abandoned-game sweep** (see `.env.example` `ABANDONED_GAME_SWEEP_SEC`) will fail when it tries to insert a row with no Black player.
-
-**Incremental migrations (alternative to full schema):** you can run [`001_completed_games.sql`](Board-Backend/supabase/migrations/001_completed_games.sql) then, only if needed, `002_…` as above — current `001` already uses a nullable `black_player_id`.
-
-### 3. Get your URL and key
-
-1. In the dashboard, go to **Project Settings** (gear) → **API**.
-2. Copy **Project URL** → use as `SUPABASE_URL`.
-3. Copy **service_role** key (under "Project API keys") → use as `SUPABASE_KEY`.  
-   Use the service role so the backend can read/write without Row Level Security. Keep this key secret.
-
-### 4. Configure the backend
-
-In `Board-Backend/.env` set at least:
-
-```bash
-SUPABASE_URL=https://xxxxxxxx.supabase.co
-SUPABASE_KEY=eyJhbGc...your_service_role_key
-SECRET_KEY=any_long_random_string_for_jwt_signing
-REDIS_URL=redis://127.0.0.1:6379/0
-REDIS_ENGINE_URL=redis://127.0.0.1:6379/1
-ABANDONED_GAME_SWEEP_SEC=300
-```
-
-Then start Redis, the API, and (for engine eval) the worker:
+## Running it
 
 ```bash
 cd Board-Backend
-python -m poetry install
-poetry run python api.py
+./scripts/dev-stack.sh up 3      # Redis + API + 3 Stockfish workers
 ```
 
-### 5. (Optional) Restore from your old cluster backup
+Full instructions — environment variables, Supabase, mobile builds, tests and
+benchmarks — are in **[docs/SETUP.md](docs/SETUP.md)**.
 
-If you have a Supabase backup (e.g. `db_cluster-13-06-2025@04-25-42.backup (1).gz`) and want to bring over existing users and Lichess links:
-
-1. Create the tables first (step 2 above) with `Board-Backend/supabase_schema.sql`.
-2. In the Supabase SQL Editor, run **`Board-Backend/restore_from_backup.sql`**.
-
-That file restores the users and `lichess_users` rows extracted from the backup. **Note:** Lichess access tokens from the backup may be expired; users can re-link their Lichess account in the app.
-
-### Board-LLM (.env)
-```
-HF_API_TOKEN=your_huggingface_token
-DEFAULT_MODEL=mistralai/Mistral-7B-Instruct-v0.3
-```
-
-## Mobile App Permissions
-
-**iOS** - Add to `Info.plist`:
-```xml
-<key>NSMicrophoneUsageDescription</key>
-<string>Voice commands for chess moves</string>
-<key>NSSpeechRecognitionUsageDescription</key>
-<string>Speech recognition for move input</string>
-```
-
-**Android** - Add to `AndroidManifest.xml`:
-```xml
-<uses-permission android:name="android.permission.RECORD_AUDIO" />
-```
+---
 
 ## License
 
-This project is proprietary software. All rights reserved.
+Proprietary. All rights reserved.
