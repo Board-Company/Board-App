@@ -24,6 +24,7 @@ import {
   getCompletedLocalGameById,
   type LocalGameRecord,
 } from '../services/localGameHistory';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   LocalGameHistory: undefined;
@@ -96,7 +97,7 @@ const LocalGameReviewScreen = () => {
             style={styles.iconButton}
             onPress={() => navigation.navigate('LocalGameHistory')}
           >
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Game Review</Text>
@@ -104,7 +105,7 @@ const LocalGameReviewScreen = () => {
           <View style={styles.iconButton} />
         </View>
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#8CB369" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Loading game review...</Text>
         </View>
       </View>
@@ -119,7 +120,7 @@ const LocalGameReviewScreen = () => {
             style={styles.iconButton}
             onPress={() => navigation.navigate('LocalGameHistory')}
           >
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Game Review</Text>
@@ -145,7 +146,7 @@ const LocalGameReviewScreen = () => {
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('LocalGameHistory')}>
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Game Review</Text>
@@ -232,7 +233,7 @@ const LocalGameReviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
   },
   scrollContent: {
@@ -254,29 +255,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 13,
     marginTop: 4,
     textAlign: 'center',
   },
   summaryCard: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
   },
   summaryMode: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   summaryText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 8,
   },
@@ -288,19 +289,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   evalValue: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '800',
   },
   evalSummaryText: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
     flexShrink: 1,
     textAlign: 'right',
   },
   boardCard: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 8,
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   evalCard: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -335,26 +336,26 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#111111',
+    backgroundColor: colors.backgroundBlack,
     borderWidth: 1,
-    borderColor: '#4A4A4A',
+    borderColor: colors.borderMuted,
     flexDirection: 'row',
   },
   evalBarWhite: {
     height: '100%',
-    backgroundColor: '#F2F2F2',
+    backgroundColor: colors.textPrimary,
   },
   evalBarBlack: {
     height: '100%',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundSunken,
   },
   evalPlayerLabel: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
   },
   evalHint: {
-    color: '#AAB79B',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 10,
     textAlign: 'center',
@@ -367,16 +368,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   controlButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   disabledButton: {
-    backgroundColor: '#5D5D5D',
+    backgroundColor: colors.textDisabled,
   },
   controlButtonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -387,18 +388,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '700',
   },
   emptySubtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
   },
   loadingText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 12,
     textAlign: 'center',

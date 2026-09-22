@@ -21,6 +21,7 @@ import { useEngineQueueHealth } from '../hooks/useEngineQueueHealth';
 import { resolveEngineStatusLine, REVIEW_ENGINE_DEPTH } from '../services/engineAnalysis';
 import { fenReplayFromMoves } from '../services/gameReplay';
 import { fetchCompletedOnlineGame, type OnlineCompletedGame } from '../services/onlineGameHistory';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   OnlineFriendGameHistory: undefined;
@@ -91,7 +92,7 @@ const OnlineFriendGameReviewScreen = () => {
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.loadingText}>Loading…</Text>
       </View>
     );
@@ -102,7 +103,7 @@ const OnlineFriendGameReviewScreen = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <Text style={styles.title}>Review</Text>
           <View style={styles.iconButton} />
@@ -123,7 +124,7 @@ const OnlineFriendGameReviewScreen = () => {
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={styles.title}>Friend game</Text>
@@ -210,7 +211,7 @@ const OnlineFriendGameReviewScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#2A2A2A', paddingHorizontal: 20 },
+  container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20 },
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { flexGrow: 1 },
   header: {
@@ -220,24 +221,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  subtitle: { color: '#C8D5B9', fontSize: 14, marginTop: 4 },
-  loadingText: { color: '#aaa', marginTop: 12 },
-  error: { color: '#E84855', textAlign: 'center', marginTop: 24 },
+  title: { color: colors.textPrimary, fontSize: 20, fontWeight: '800' },
+  subtitle: { color: colors.textSecondary, fontSize: 14, marginTop: 4 },
+  loadingText: { color: colors.textFaint, marginTop: 12 },
+  error: { color: colors.danger, textAlign: 'center', marginTop: 24 },
   card: {
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#435C33',
+    borderColor: colors.border,
   },
-  cardText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  cardMeta: { color: '#C8D5B9', fontSize: 13, marginTop: 6 },
+  cardText: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+  cardMeta: { color: colors.textSecondary, fontSize: 13, marginTop: 6 },
   boardWrap: { alignItems: 'center', marginVertical: 8 },
   controlsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 16 },
   ctrl: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 10,
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ctrlDisabled: { opacity: 0.4 },
-  ctrlText: { color: '#111', fontWeight: '800' },
+  ctrlText: { color: colors.backgroundBlack, fontWeight: '800' },
 });
 
 export default OnlineFriendGameReviewScreen;

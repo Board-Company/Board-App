@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Header from '../components/header';
 import { register } from '../services/auth.tsx';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   Login: undefined;
@@ -80,7 +81,7 @@ export default function RegisterScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#6F7A68"
+            placeholderTextColor={colors.textPlaceholder}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -89,7 +90,7 @@ export default function RegisterScreen() {
           <TextInput
             style={styles.input}
             placeholder="Username"
-            placeholderTextColor="#6F7A68"
+            placeholderTextColor={colors.textPlaceholder}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -97,7 +98,7 @@ export default function RegisterScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#6F7A68"
+            placeholderTextColor={colors.textPlaceholder}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -119,7 +120,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
   },
   content: {
     paddingHorizontal: 18,
@@ -128,14 +129,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    backgroundColor: '#131313',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -143,37 +144,37 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 25,
     fontWeight: '800',
     lineHeight: 31,
   },
   heroSubtitle: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
   },
   formCard: {
-    backgroundColor: '#151515',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
     gap: 12,
   },
   input: {
     minHeight: 52,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#24351B',
-    backgroundColor: '#111111',
-    color: '#FFFFFF',
+    borderColor: colors.accentDark,
+    backgroundColor: colors.backgroundBlack,
+    color: colors.textPrimary,
     paddingHorizontal: 14,
     fontSize: 15,
   },
   primaryButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 14,
     minHeight: 54,
     alignItems: 'center',
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryButtonText: {
-    color: '#081005',
+    color: colors.accentDeep,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -189,13 +190,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     minHeight: 52,
     borderWidth: 1,
-    borderColor: '#24351B',
-    backgroundColor: '#111111',
+    borderColor: colors.accentDark,
+    backgroundColor: colors.backgroundBlack,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },

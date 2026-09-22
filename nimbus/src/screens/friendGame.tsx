@@ -29,6 +29,7 @@ import {
   setActiveFriendGameId,
 } from '../services/activeFriendGame';
 import { API_URL } from '../env';
+import { colors } from '../theme';
 
 const API_BASE_URL = API_URL;
 const SIDE_EVAL_WIDTH = 28;
@@ -37,6 +38,7 @@ const LIVE_CONTAINER_PAD = 12;
 
 type RootStackParamList = {
   FriendGame: { gameId?: string } | undefined;
+  SpectateGame: { gameId?: string; inviteCode?: string } | undefined;
   OnlineFriendGameHistory: undefined;
   OnlineFriendGameReview: { gameId: string };
 };
@@ -464,7 +466,7 @@ const FriendGameScreen = () => {
   if (!hydrated) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -477,19 +479,29 @@ const FriendGameScreen = () => {
           <Text style={styles.hint}>Create a private game and share the invite code, or join with a code.</Text>
           {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity style={styles.btn} onPress={createGame} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create game</Text>}
+            {loading ? <ActivityIndicator color={colors.textPrimary} /> : <Text style={styles.btnText}>Create game</Text>}
           </TouchableOpacity>
           <Text style={styles.sub}>Join with invite code</Text>
           <TextInput
             style={styles.input}
             placeholder="INVITE CODE"
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.textFaint}
             autoCapitalize="characters"
             value={inviteInput}
             onChangeText={setInviteInput}
           />
           <TouchableOpacity style={styles.btn} onPress={joinGame} disabled={loading}>
             <Text style={styles.btnText}>Join game</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() =>
+              navigation.navigate('SpectateGame', {
+                inviteCode: inviteInput.trim().toUpperCase() || undefined,
+              })
+            }
+          >
+            <Text style={styles.secondaryBtnText}>Watch a game instead</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -499,7 +511,7 @@ const FriendGameScreen = () => {
   if (!state) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <TouchableOpacity style={styles.btn} onPress={leaveLobby}>
           <Text style={styles.btnText}>Back</Text>
         </TouchableOpacity>
@@ -578,64 +590,72 @@ const FriendGameScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#2A2A2A', padding: 12 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 12 },
   scroll: { padding: 16, gap: 16 },
-  title: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  hint: { color: '#aaa', fontSize: 14 },
-  sub: { color: '#ccc', marginTop: 16 },
+  title: { color: colors.textPrimary, fontSize: 24, fontWeight: 'bold' },
+  hint: { color: colors.textFaint, fontSize: 14 },
+  sub: { color: colors.textMuted, marginTop: 16 },
   input: {
-    backgroundColor: '#3A3A3A',
-    color: '#fff',
+    backgroundColor: colors.surfaceRaised,
+    color: colors.textPrimary,
     padding: 14,
     borderRadius: 8,
     fontSize: 18,
     letterSpacing: 2,
   },
   btn: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
   },
-  btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  error: { color: '#E84855' },
+  btnText: { color: colors.textPrimary, fontSize: 18, fontWeight: 'bold' },
+  secondaryBtn: {
+    borderColor: colors.accent,
+    borderWidth: 1,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  secondaryBtnText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  error: { color: colors.danger },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
   sessionBanner: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#435C33',
+    borderColor: colors.border,
   },
   sessionBannerLabel: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   sessionBannerTitle: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     marginTop: 6,
   },
   sessionBannerText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 6,
     lineHeight: 18,
   },
-  link: { color: '#8CB369', fontSize: 16 },
-  resign: { color: '#E84855', fontSize: 16 },
-  status: { color: '#eee', marginBottom: 8, textAlign: 'center' },
+  link: { color: colors.accent, fontSize: 16 },
+  resign: { color: colors.danger, fontSize: 16 },
+  status: { color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   code: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',

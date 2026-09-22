@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Header from '../components/header';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
+import { colors } from '../theme';
 
 const LichessScreen = () => {
   const { isAuthenticated, user, isLoading, error, login, logout } = useLichessAuth();
@@ -9,7 +10,7 @@ const LichessScreen = () => {
   if (isLoading) {
     return (
       <View style={styles.centerState}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.centerTitle}>Loading Lichess</Text>
       </View>
     );
@@ -51,7 +52,7 @@ const LichessScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
   },
   content: {
     paddingHorizontal: 18,
@@ -61,26 +62,26 @@ const styles = StyleSheet.create({
   },
   centerState: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
   centerTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
     marginTop: 16,
   },
   heroCard: {
-    backgroundColor: '#131313',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -88,53 +89,53 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 25,
     fontWeight: '800',
     lineHeight: 31,
   },
   heroSubtitle: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
   },
   panel: {
-    backgroundColor: '#151515',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 14,
     minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    color: '#081005',
+    color: colors.accentDeep,
     fontSize: 16,
     fontWeight: '800',
   },
   secondaryButton: {
-    backgroundColor: '#111111',
+    backgroundColor: colors.backgroundBlack,
     borderRadius: 14,
     minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   errorText: {
-    color: '#D96C6C',
+    color: colors.danger,
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center',

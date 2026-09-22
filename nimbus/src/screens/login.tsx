@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -70,7 +71,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#8CB369" />
+              <ActivityIndicator color={colors.accent} />
             ) : (
               <>
                 <Image source={require('../../assets/images/google.png')} style={styles.googleIcon} />
@@ -84,7 +85,7 @@ export default function LoginScreen() {
             style={styles.secondaryButton}
             onPress={() => navigation.navigate('UserLogin')}
           >
-            <Icon name="person" size={18} color="#8CB369" />
+            <Icon name="person" size={18} color={colors.accent} />
             <Text style={styles.secondaryButtonText}>Continue with Username</Text>
           </TouchableOpacity>
 
@@ -98,7 +99,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
   },
   content: {
     paddingHorizontal: 18,
@@ -107,14 +108,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    backgroundColor: '#131313',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -122,27 +123,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 26,
     fontWeight: '800',
     lineHeight: 32,
   },
   heroSubtitle: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
   },
   panel: {
-    backgroundColor: '#151515',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 14,
     minHeight: 54,
     alignItems: 'center',
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   primaryButtonText: {
-    color: '#081005',
+    color: colors.accentDeep,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -158,8 +159,8 @@ const styles = StyleSheet.create({
     minHeight: 54,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#24351B',
-    backgroundColor: '#111111',
+    borderColor: colors.accentDark,
+    backgroundColor: colors.backgroundBlack,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -183,16 +184,16 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: '#24351B',
+    backgroundColor: colors.accentDark,
   },
   dividerText: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   errorText: {
-    color: '#D96C6C',
+    color: colors.danger,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 2,

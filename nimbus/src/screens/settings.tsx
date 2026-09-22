@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
+import { colors } from '../theme';
 
 interface AppUser {
   id: string;
@@ -94,7 +95,7 @@ const SettingsScreen = () => {
             disabled={isUnlinking || isLichessLoading}
           >
             {isUnlinking ? (
-              <ActivityIndicator color="#081005" />
+              <ActivityIndicator color={colors.accentDeep} />
             ) : (
               <Text style={styles.primaryButtonText}>Unlink Lichess</Text>
             )}
@@ -108,7 +109,7 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
   },
   content: {
     paddingHorizontal: 18,
@@ -117,14 +118,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    backgroundColor: '#131313',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -132,44 +133,44 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 25,
     fontWeight: '800',
     lineHeight: 31,
   },
   heroSubtitle: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
   },
   sectionCard: {
-    backgroundColor: '#151515',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
     gap: 10,
   },
   sectionTitle: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   sectionValue: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
   },
   helperText: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
   },
   primaryButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 14,
     minHeight: 52,
     alignItems: 'center',
@@ -178,23 +179,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryButtonText: {
-    color: '#081005',
+    color: colors.accentDeep,
     fontSize: 15,
     fontWeight: '800',
   },
   secondaryButton: {
-    backgroundColor: '#111111',
+    backgroundColor: colors.backgroundBlack,
     borderRadius: 14,
     minHeight: 52,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     marginTop: 4,
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },

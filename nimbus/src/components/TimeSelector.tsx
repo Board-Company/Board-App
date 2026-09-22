@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { colors } from '../theme';
 
 interface TimeSelectorProps {
   onTimeSelected: (time: number) => void;
@@ -24,12 +25,12 @@ const TimeSelector: React.FC<TimeSelectorProps> = ({ onTimeSelected }) => {
         style={styles.selector} 
         onPress={() => setIsExpanded(!isExpanded)}
       >
-        <Icon name="timer" size={24} color="#8CB369" style={styles.icon} />
+        <Icon name="timer" size={24} color={colors.accent} style={styles.icon} />
         <Text style={styles.timeText}>{selectedTime} min</Text>
         <Icon 
           name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
           size={24} 
-          color="white" 
+          color={colors.textPrimary} 
         />
       </TouchableOpacity>
       
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
   selector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3A3A3A',
+    backgroundColor: colors.surfaceRaised,
     padding: 15,
     borderRadius: 8,
     justifyContent: 'space-between',
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   timeText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 18,
     flex: 1,
   },
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: '#3A3A3A',
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 8,
     marginTop: 4,
     zIndex: 1000,
@@ -84,10 +85,10 @@ const styles = StyleSheet.create({
   option: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
+    borderBottomColor: colors.background,
   },
   optionText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
   },
 });

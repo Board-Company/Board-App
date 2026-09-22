@@ -8,6 +8,7 @@ import {
   getCompletedLocalGames,
   type LocalGameRecord,
 } from '../services/localGameHistory';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   LocalGame: undefined;
@@ -56,14 +57,14 @@ const LocalGameHistoryScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('LocalGame')}>
-          <Icon name="arrow-back" size={24} color="#8CB369" />
+          <Icon name="arrow-back" size={24} color={colors.accent} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.title}>Local Game History</Text>
           <Text style={styles.subtitle}>Review your completed pass-and-play games</Text>
         </View>
         <TouchableOpacity style={styles.iconButton} onPress={handleClearHistory} disabled={games.length === 0}>
-          <Icon name="delete-outline" size={24} color={games.length === 0 ? '#5D5D5D' : '#D97B66'} />
+          <Icon name="delete-outline" size={24} color={games.length === 0 ? colors.textDisabled : colors.dangerMuted} />
         </TouchableOpacity>
       </View>
 
@@ -93,7 +94,7 @@ const LocalGameHistoryScreen = () => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Icon name="history" size={54} color="#5D5D5D" />
+            <Icon name="history" size={54} color={colors.textDisabled} />
             <Text style={styles.emptyTitle}>No saved games yet</Text>
             <Text style={styles.emptyText}>Finished local games will show up here automatically.</Text>
           </View>
@@ -106,7 +107,7 @@ const LocalGameHistoryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
   },
   header: {
@@ -125,12 +126,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 28,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 6,
     textAlign: 'center',
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gameCard: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -151,26 +152,26 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gameResult: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
   gameMeta: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 6,
   },
   playedAt: {
-    color: '#A0A0A0',
+    color: colors.textFaint,
     fontSize: 12,
   },
   gameDetails: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 14,
     marginTop: 14,
   },
   reviewPrompt: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
     marginTop: 10,
@@ -184,13 +185,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '700',
     marginTop: 16,
   },
   emptyText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 15,
     marginTop: 10,
     textAlign: 'center',

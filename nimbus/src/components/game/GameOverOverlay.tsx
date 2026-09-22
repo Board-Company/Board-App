@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../../theme';
 
 type GameOverOverlayProps = {
   visible: boolean;
@@ -42,20 +43,20 @@ const GameOverOverlay = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(8, 10, 6, 0.78)',
+    backgroundColor: colors.overlayDeep,
     justifyContent: 'center',
     paddingHorizontal: 28,
   },
   card: {
-    backgroundColor: '#131313',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 22,
     paddingHorizontal: 22,
     paddingVertical: 24,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.4,
@@ -63,26 +64,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 34,
   },
   subtitle: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 15,
     lineHeight: 21,
     marginTop: 8,
   },
   primary: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 22,
   },
   primaryText: {
-    color: '#081005',
+    color: colors.accentDeep,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   secondaryText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 15,
     fontWeight: '700',
   },

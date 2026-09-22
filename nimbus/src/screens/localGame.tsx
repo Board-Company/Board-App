@@ -9,6 +9,7 @@ import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 import { saveCompletedLocalGame } from '../services/localGameHistory';
+import { colors } from '../theme';
 
 type TimeControl = {
   label: string;
@@ -347,7 +348,7 @@ const LocalGameScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs')}>
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Local Game</Text>
@@ -357,7 +358,7 @@ const LocalGameScreen = () => {
             {!isSetupScreen && <Text style={styles.status}>{gameStatus}</Text>}
           </View>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('LocalGameHistory')}>
-            <Icon name="history" size={24} color="#8CB369" />
+            <Icon name="history" size={24} color={colors.accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -466,7 +467,7 @@ const LocalGameScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     padding: 16,
   },
   header: {
@@ -490,17 +491,17 @@ const styles = StyleSheet.create({
     width: 40,
   },
   title: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 28,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 6,
   },
   status: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 18,
     fontWeight: '600',
     marginTop: 10,
@@ -515,25 +516,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectedModeSummary: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 18,
     marginBottom: 18,
   },
   selectedModeSummaryLabel: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   selectedModeSummaryValue: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 30,
     fontWeight: '800',
     marginTop: 8,
   },
   selectedModeSummaryMeta: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 14,
     marginTop: 8,
   },
@@ -544,22 +545,22 @@ const styles = StyleSheet.create({
   },
   clockCard: {
     flex: 1,
-    backgroundColor: '#3A3A3A',
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
   activeClockCard: {
     borderWidth: 2,
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   clockLabel: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 13,
     marginBottom: 4,
   },
   clockValue: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: 'bold',
   },
@@ -578,7 +579,7 @@ const styles = StyleSheet.create({
 
   },
   modeBanner: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     paddingVertical: 14,
   },
@@ -587,12 +588,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modeBannerTitle: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   modeBannerSubtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
   },
@@ -602,66 +603,66 @@ const styles = StyleSheet.create({
   },
   modeCard: {
     width: 118,
-    backgroundColor: '#444444',
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
   selectedModeCard: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
   },
   modeCategory: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   modeLabel: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
     marginTop: 8,
   },
   modeMeta: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 12,
     marginTop: 18,
   },
   startGameButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 18,
   },
   startGameButtonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '800',
   },
   button: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     marginHorizontal: 8,
   },
   secondaryButton: {
-    backgroundColor: '#5D5D5D',
+    backgroundColor: colors.textDisabled,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     marginHorizontal: 8,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
   selectedButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: colors.textPrimary,
   },
   footerSpacer: {
     height: 72,

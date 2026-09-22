@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   Home: undefined;
@@ -88,7 +89,7 @@ function ActionCard({ action, onPress }: { action: HomeAction; onPress: () => vo
   return (
     <TouchableOpacity activeOpacity={0.9} style={styles.actionCard} onPress={onPress}>
       <View style={styles.iconWrap}>
-        <Icon name={action.icon} size={22} color="#081005" />
+        <Icon name={action.icon} size={22} color={colors.accentDeep} />
       </View>
       <View style={styles.actionTextWrap}>
         <Text style={styles.actionTitle} numberOfLines={2}>
@@ -98,7 +99,7 @@ function ActionCard({ action, onPress }: { action: HomeAction; onPress: () => vo
           {action.subtitle}
         </Text>
       </View>
-      <Icon name="chevron-right" size={22} color="#5A6B52" style={styles.chevron} />
+      <Icon name="chevron-right" size={22} color={colors.iconMuted} style={styles.chevron} />
     </TouchableOpacity>
   );
 }
@@ -152,7 +153,7 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
   },
   content: {
     paddingHorizontal: 14,
@@ -160,14 +161,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroCard: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#435C33',
+    borderColor: colors.border,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.1,
@@ -175,13 +176,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     lineHeight: 26,
   },
   heroSubtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '800',
     paddingHorizontal: 2,
@@ -203,12 +204,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionCard: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#435C33',
+    borderColor: colors.border,
     minHeight: 64,
     alignItems: 'center',
     flexDirection: 'row',
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
   },
   actionTextWrap: {
     flex: 1,
@@ -232,12 +233,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   actionTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '800',
   },
   actionSubtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 14,
     marginTop: 2,

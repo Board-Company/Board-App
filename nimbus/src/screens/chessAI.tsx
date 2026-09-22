@@ -19,6 +19,7 @@ import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import { LLM_API_URL } from '../env';
+import { colors } from '../theme';
 
 type Message = {
   id: string;
@@ -486,18 +487,18 @@ const ChessAIScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color="#8CB369" />
+          <Icon name="arrow-back" size={24} color={colors.accent} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <Icon name="psychology" size={28} color="#8CB369" />
+          <Icon name="psychology" size={28} color={colors.accent} />
           <Text style={styles.title}>Chess AI Coach</Text>
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity onPress={() => setShowBoard(!showBoard)} style={styles.headerIconButton}>
-            <Icon name={showBoard ? "visibility-off" : "visibility"} size={22} color="#888" />
+            <Icon name={showBoard ? "visibility-off" : "visibility"} size={22} color={colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity onPress={resetBoard} style={styles.headerIconButton}>
-            <Icon name="refresh" size={22} color="#888" />
+            <Icon name="refresh" size={22} color={colors.textFaint} />
           </TouchableOpacity>
         </View>
       </View>
@@ -515,7 +516,7 @@ const ChessAIScreen = () => {
             />
           </View>
           <View style={styles.turnIndicator}>
-            <View style={[styles.turnDot, { backgroundColor: chessRef.current.turn() === 'w' ? '#fff' : '#333' }]} />
+            <View style={[styles.turnDot, { backgroundColor: chessRef.current.turn() === 'w' ? colors.textPrimary : colors.surface }]} />
             <Text style={styles.turnText}>
               {chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move
             </Text>
@@ -539,7 +540,7 @@ const ChessAIScreen = () => {
             ]}
           >
             {message.role === 'assistant' && (
-              <Icon name="smart-toy" size={20} color="#8CB369" style={styles.messageIcon} />
+              <Icon name="smart-toy" size={20} color={colors.accent} style={styles.messageIcon} />
             )}
             <Text
               style={[
@@ -553,7 +554,7 @@ const ChessAIScreen = () => {
         ))}
         {isLoading && (
           <View style={[styles.messageBubble, styles.assistantMessage]}>
-            <ActivityIndicator size="small" color="#8CB369" />
+            <ActivityIndicator size="small" color={colors.accent} />
             <Text style={styles.loadingText}>Thinking...</Text>
           </View>
         )}
@@ -574,7 +575,7 @@ const ChessAIScreen = () => {
           style={[styles.quickPrompt, styles.fenPrompt]}
           onPress={() => setShowFenInput(!showFenInput)}
         >
-          <Icon name="grid-on" size={16} color="#8CB369" />
+          <Icon name="grid-on" size={16} color={colors.accent} />
           <Text style={styles.quickPromptText}>Analyze FEN</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -587,7 +588,7 @@ const ChessAIScreen = () => {
             value={fenInput}
             onChangeText={setFenInput}
             placeholder="Paste FEN notation here..."
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textDisabled}
             multiline
           />
           <TouchableOpacity style={styles.fenAnalyzeButton} onPress={analyzePosition}>
@@ -615,7 +616,7 @@ const ChessAIScreen = () => {
             <Icon 
               name={isListening ? 'mic' : 'mic-none'} 
               size={24} 
-              color={isListening ? '#fff' : '#8CB369'} 
+              color={isListening ? colors.textPrimary : colors.accent} 
             />
           </TouchableOpacity>
         )}
@@ -624,7 +625,7 @@ const ChessAIScreen = () => {
           value={inputText}
           onChangeText={setInputText}
           placeholder={isListening ? "Listening..." : "Ask about chess..."}
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textDisabled}
           multiline
           maxLength={500}
         />
@@ -633,7 +634,7 @@ const ChessAIScreen = () => {
           onPress={() => sendChatMessage(inputText)}
           disabled={!inputText.trim() || isLoading}
         >
-          <Icon name="send" size={24} color={inputText.trim() ? '#fff' : '#666'} />
+          <Icon name="send" size={24} color={inputText.trim() ? colors.textPrimary : colors.textDisabled} />
         </TouchableOpacity>
       </View>
       <GameOverOverlay
@@ -650,7 +651,7 @@ const ChessAIScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundSunken,
   },
   header: {
     flexDirection: 'row',
@@ -659,9 +660,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 48,
     paddingBottom: 16,
-    backgroundColor: '#222',
+    backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: colors.surface,
   },
   backButton: {
     padding: 8,
@@ -672,7 +673,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -686,15 +687,15 @@ const styles = StyleSheet.create({
   boardContainer: {
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#222',
+    backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: colors.surface,
   },
   boardWrapper: {
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   turnIndicator: {
     flexDirection: 'row',
@@ -707,10 +708,10 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#666',
+    borderColor: colors.textDisabled,
   },
   turnText: {
-    color: '#aaa',
+    color: colors.textFaint,
     fontSize: 14,
   },
   messagesContainer: {
@@ -729,12 +730,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   userMessage: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
   },
   assistantMessage: {
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
   },
@@ -748,13 +749,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userMessageText: {
-    color: '#fff',
+    color: colors.textPrimary,
   },
   assistantMessageText: {
-    color: '#eee',
+    color: colors.textPrimary,
   },
   loadingText: {
-    color: '#888',
+    color: colors.textFaint,
     marginLeft: 8,
     fontSize: 14,
   },
@@ -762,75 +763,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: colors.surface,
   },
   quickPrompt: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: colors.borderMuted,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   fenPrompt: {
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   quickPromptText: {
-    color: '#ccc',
+    color: colors.textMuted,
     fontSize: 13,
   },
   fenInputContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#222',
+    backgroundColor: colors.surfaceMuted,
     gap: 8,
   },
   fenTextInput: {
     flex: 1,
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 10,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   fenAnalyzeButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     paddingHorizontal: 16,
     borderRadius: 8,
     justifyContent: 'center',
   },
   fenAnalyzeButtonText: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontWeight: 'bold',
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    backgroundColor: '#222',
+    backgroundColor: colors.surfaceMuted,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: colors.surface,
     alignItems: 'flex-end',
     gap: 8,
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     maxHeight: 100,
   },
   sendButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -838,7 +839,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#444',
+    backgroundColor: colors.borderMuted,
   },
   micButton: {
     width: 44,
@@ -846,30 +847,30 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   micButtonActive: {
-    backgroundColor: '#E63946',
-    borderColor: '#E63946',
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
   },
   recordingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    backgroundColor: 'rgba(230, 57, 70, 0.1)',
+    backgroundColor: colors.dangerTint,
     gap: 8,
   },
   recordingDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#E63946',
+    backgroundColor: colors.danger,
   },
   recordingText: {
-    color: '#E63946',
+    color: colors.danger,
     fontSize: 14,
     fontWeight: '500',
   },

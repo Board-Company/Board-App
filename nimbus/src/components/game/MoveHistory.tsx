@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { colors } from '../../theme';
 
 interface MoveHistoryProps {
   moves: string[];
@@ -75,26 +76,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   historyContainerLight: {
-    backgroundColor: 'white',
+    backgroundColor: colors.textPrimary,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: colors.lightBorder,
   },
   historyContainerDark: {
-    backgroundColor: '#333333',
+    backgroundColor: colors.surface,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#444444',
+    borderTopColor: colors.surfaceRaised,
   },
   historyTitleLight: {
-    color: 'black',
+    color: colors.black,
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
     paddingHorizontal: 16,
   },
   historyTitleDark: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
@@ -110,22 +111,22 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   moveNumberLight: {
-    color: '#4A90E2',
+    color: colors.info,
     fontSize: 14,
     marginRight: 4,
   },
   moveNumberDark: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 14,
     marginRight: 4,
   },
   moveHistoryTextLight: {
-    color: 'black',
+    color: colors.black,
     fontSize: 14,
     marginRight: 8,
   },
   moveHistoryTextDark: {
-    color: '#EAEAEA',
+    color: colors.textPrimary,
     fontSize: 14,
     marginRight: 8,
   },

@@ -8,6 +8,7 @@ import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
+import { colors } from '../theme';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -54,7 +55,7 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
             increment: 0,
           },
           variant: gameType === 'chess960' ? 'chess960' : 'standard',
-          color: 'white',
+          color: colors.textPrimary,
         }),
       });
 
@@ -173,7 +174,7 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
     <View style={styles.root}>
       {gameState === 'waiting' ? (
         <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color="#8CB369" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.statusText}>Waiting for opponent...</Text>
         </View>
       ) : (
@@ -210,7 +211,7 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     padding: 12,
   },
   playWrap: {
@@ -228,31 +229,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   statusText: {
-    color: '#EEEEEE',
+    color: colors.textPrimary,
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 8,
   },
   finishedText: {
-    color: '#EEEEEE',
+    color: colors.textPrimary,
     fontSize: 20,
     textAlign: 'center',
     marginBottom: 16,
   },
   errorText: {
-    color: '#E84855',
+    color: colors.danger,
     textAlign: 'center',
     marginBottom: 16,
   },
   primaryBtn: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,
     marginTop: 16,
   },
   primaryBtnText: {
-    color: '#111',
+    color: colors.backgroundBlack,
     fontSize: 17,
     fontWeight: '800',
   },

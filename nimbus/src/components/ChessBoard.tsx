@@ -2,6 +2,7 @@
 import React from 'react';
 import { Dimensions } from 'react-native';
 import Chessboard from 'react-native-chessboard';
+import { colors } from '../theme';
 
 interface ChessBoardProps {
   fen: string;
@@ -19,11 +20,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ fen, onMove, playerColor }) => 
       onMove={onMove}
       boardSize={boardSize}
       colors={{
-        black: '#769656',
-        white: '#eeeed2',
-        lastMoveHighlight: 'rgba(255,255,0, 0.5)',
-        checkmateHighlight: '#E84855',
-        promotionPieceButton: '#FF9B71'
+        black: colors.boardDark,
+        white: colors.boardLight,
+        lastMoveHighlight: colors.boardLastMove,
+        checkmateHighlight: colors.danger,
+        promotionPieceButton: colors.warning
       }}
       gestureEnabled={true}
       withLetters={true}

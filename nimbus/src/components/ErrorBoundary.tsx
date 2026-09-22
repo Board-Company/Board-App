@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { colors } from '../theme';
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
@@ -27,9 +28,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.textPrimary }}>
           <Text style={{ color: 'red', fontSize: 18, marginBottom: 8 }}>Something went wrong:</Text>
-          <Text style={{ color: 'black', fontSize: 14 }}>{String(this.state.error)}</Text>
+          <Text style={{ color: colors.black, fontSize: 14 }}>{String(this.state.error)}</Text>
         </View>
       );
     }

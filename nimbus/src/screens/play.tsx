@@ -4,6 +4,7 @@ import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
+import { colors } from '../theme';
 
 const PlayScreen = () => {
   // Create a reference to the chess.js instance
@@ -164,7 +165,7 @@ const PlayScreen = () => {
       <View style={styles.boardContainer}>
         {isLoading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#8CB369" />
+            <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.loadingText}>Thinking...</Text>
           </View>
         )}
@@ -191,7 +192,7 @@ const PlayScreen = () => {
                   height: squareSize - 12,
                   borderRadius: (squareSize - 12) / 2,
                   borderWidth: 3,
-                  borderColor: '#888',
+                  borderColor: colors.textFaint,
                   zIndex: 10,
                 }}
               />
@@ -244,7 +245,7 @@ const PlayScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     padding: 16,
   },
   header: {
@@ -254,12 +255,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   status: {
     fontSize: 18,
-    color: '#8CB369',
+    color: colors.accent,
     marginBottom: 8,
   },
   boardContainer: {
@@ -271,14 +272,14 @@ const styles = StyleSheet.create({
   loadingOverlay: {
     position: 'absolute',
     zIndex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlayStrong,
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: 'white',
+    color: colors.textPrimary,
     marginTop: 10,
     fontSize: 16,
   },
@@ -291,26 +292,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     marginHorizontal: 8,
   },
   colorButton: {
-    backgroundColor: '#5D5D5D',
+    backgroundColor: colors.textDisabled,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     marginHorizontal: 8,
   },
   selectedButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: colors.textPrimary,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   colorText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     marginBottom: 8,
   },
