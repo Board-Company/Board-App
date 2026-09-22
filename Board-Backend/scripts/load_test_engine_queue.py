@@ -147,10 +147,24 @@ def spawn_workers(count: int, *, redis_url: str, stockfish_path: str) -> list[su
             cwd=ROOT,
             env=env,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
+            # Unread PIPEs fill up and block the worker; logs aren't needed for timing.
+            stderr=subprocess.DEVNULL,
         )
         procs.append(proc)
     return procs
+
+
+def wait_for_idle_workers(r: redis.Redis, count: int, *, timeout_sec: float = 60.0) -> None:
+    """Block until `count` workers are waiting in BRPOPLPUSH, so startup isn't timed."""
+    deadline = time.perf_counter() + timeout_sec
+    while time.perf_counter() < deadline:
+        waiting = sum(
+            1 for c in r.client_list() if c.get("cmd") in ("brpoplpush", "blmove")
+        )
+        if waiting >= count:
+            return
+        time.sleep(0.1)
+    raise SystemExit(f"only {waiting}/{count} workers became ready within {timeout_sec:.0f}s")
 
 
 def stop_workers(procs: list[subprocess.Popen], *, grace_sec: float = 3.0) -> None:
@@ -213,7 +227,7 @@ def run_trial(
     fens = unique_fens(job_count, seed=seed)
 
     procs = spawn_workers(workers, redis_url=redis_url, stockfish_path=stockfish_path)
-    time.sleep(0.75)
+    wait_for_idle_workers(r, workers)
 
     started = time.perf_counter()
     job_ids = enqueue_jobs(r, fens, depth=depth, profile=profile)
@@ -262,6 +276,8 @@ def _print_result(label: str, result: TrialResult) -> None:
     if result.done:
         print(f"  avg/job:     {result.elapsed_sec / result.done:.2f}s")
     print(f"  engine CPU:  {result.engine_cpu_sec:.2f}s total Stockfish time across jobs")
+    if result.done:
+        print(f"  engine/job:  {result.engine_cpu_sec / result.done:.3f}s average Stockfish time per job")
 
 
 def main() -> None:

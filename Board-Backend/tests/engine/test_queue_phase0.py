@@ -137,3 +137,34 @@ def test_manual_enqueue_ready_only_job_id(redis_client):
     enqueue_ready(redis_client, job_id)
     claimed = claim_job(redis_client, block_timeout_sec=1)
     assert claimed == job_id
+
+
+async def test_concurrent_identical_requests_share_one_job():
+    """Both players ask for the same position at once; only one Stockfish job is queued."""
+    import asyncio
+
+    import fakeredis.aioredis
+
+    from engine.jobs import create_and_enqueue_async
+    from engine.keys import QUEUE_READY
+
+    r = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    real_get = r.get
+
+    async def slow_get(*args, **kwargs):
+        # Force both requests past the dedupe lookup before either writes, as happens
+        # when two API requests interleave on real Redis round trips.
+        await asyncio.sleep(0.01)
+        return await real_get(*args, **kwargs)
+
+    r.get = slow_get
+    fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    (a_id, a_hit), (b_id, b_hit) = await asyncio.gather(
+        create_and_enqueue_async(r, fen=fen, depth=12, profile="play"),
+        create_and_enqueue_async(r, fen=fen, depth=12, profile="play"),
+    )
+
+    assert a_id == b_id
+    assert sorted([a_hit, b_hit]) == [False, True]
+    assert await r.llen(QUEUE_READY) == 1
+    assert len([k async for k in r.scan_iter("engine:job:*")]) == 1

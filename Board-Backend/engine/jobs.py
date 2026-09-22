@@ -197,7 +197,13 @@ def create_and_enqueue(
         movetime_ms=movetime_ms,
     )
     r.hset(job_key(job_id), mapping=_hash_mapping(fen=fen, payload=payload, now=now))
-    r.setex(dedupe_key(dk), DEDUPE_TTL_SEC, job_id)
+    # Claim the dedupe key atomically (see create_and_enqueue_async).
+    if not r.set(dedupe_key(dk), job_id, nx=True, ex=DEDUPE_TTL_SEC):
+        hit = _reusable_job_id(r, r.get(dedupe_key(dk)))
+        if hit:
+            r.delete(job_key(job_id))
+            return hit, True
+        r.set(dedupe_key(dk), job_id, ex=DEDUPE_TTL_SEC)
     if idempotency_key_header:
         r.setex(idempotency_key(idempotency_key_header), DEDUPE_TTL_SEC, job_id)
     from engine.queue import enqueue_ready
@@ -259,7 +265,17 @@ async def create_and_enqueue_async(
         movetime_ms=movetime_ms,
     )
     await r.hset(job_key(job_id), mapping=_hash_mapping(fen=fen, payload=payload, now=now))
-    await r.setex(dedupe_key(dk), DEDUPE_TTL_SEC, job_id)
+    # Claim the dedupe key atomically. Both players request the same position within
+    # milliseconds of each other; a GET above plus a plain SETEX here let both requests
+    # miss and both enqueue. The hash is written first, so whoever owns the key always
+    # has a readable job. The loser drops its unqueued hash and shares the winner's job.
+    if not await r.set(dedupe_key(dk), job_id, nx=True, ex=DEDUPE_TTL_SEC):
+        hit = await _reusable_job_id_async(r, await r.get(dedupe_key(dk)))
+        if hit:
+            await r.delete(job_key(job_id))
+            return hit, True
+        # Mapped job was cancelled, failed or expired: take the key over.
+        await r.set(dedupe_key(dk), job_id, ex=DEDUPE_TTL_SEC)
     if idempotency_key_header:
         await r.setex(idempotency_key(idempotency_key_header), DEDUPE_TTL_SEC, job_id)
     await r.lpush("engine:queue:ready", job_id)

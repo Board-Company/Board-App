@@ -13,6 +13,14 @@ class MoveRequestBody(BaseModel):
     san: str = Field(..., description="Standard algebraic notation, e.g. e4, Nf3")
 
 
+class WatchGameResponse(BaseModel):
+    """Opening a live game as a viewer: the state plus who the caller is."""
+
+    state: "FriendGameState"
+    role: Literal["white", "black", "spectator"]
+    spectator_count: int
+
+
 class CreateGameResponse(BaseModel):
     game_id: str
     invite_code: str
