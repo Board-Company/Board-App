@@ -1,8 +1,18 @@
 # Nimbus design system
 
-Every colour, spacing step and type size in the app resolves through
-[`nimbus/src/theme.ts`](../nimbus/src/theme.ts). Screens import tokens; they do not write
-hex literals.
+[`nimbus/src/theme.ts`](../nimbus/src/theme.ts) defines the app's colour, spacing,
+radius and type tokens.
+
+**Adoption is partial, and deliberately so far colour-only.** Every colour in every
+screen and component resolves through this module — no screen writes a hex literal. The
+`spacing`, `radius` and `typography` scales are defined but **not yet applied**: roughly
+443 raw numeric literals remain in `StyleSheet` blocks, spread across 14 distinct font
+sizes (11–30) and 12 distinct border radii (4–24).
+
+Colour could be migrated mechanically because a hex value means the same thing wherever
+it appears. Spacing cannot: a `padding: 3` is not obviously `spacing.xs`, and rounding
+values to the nearest step changes layout in ways only a device can confirm. That pass
+is outstanding — see [Outstanding work](#outstanding-work).
 
 ## Why
 
@@ -80,6 +90,8 @@ expect, not brand colours. `boardLastMove` is the yellow highlight.
 
 ## Scales
 
+These are defined and ready to use, but **not yet applied** across the app.
+
 ```ts
 spacing  = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 }   // 4pt rhythm
 radius   = { sm: 8, md: 10, card: 12, lg: 14, pill: 999 }
@@ -112,6 +124,15 @@ In JSX, pass tokens as expressions rather than strings:
 ```tsx
 <Icon name="chevron-right" size={22} color={colors.iconMuted} />
 ```
+
+## Outstanding work
+
+1. **Apply `spacing` and `radius`** to the 443 remaining numeric literals, screen by
+   screen, checking each against a running build. Highest-drift screens first:
+   `playMenu.tsx` (49), `chessAI.tsx` (44), `localGame.tsx` (41), `localGameReview.tsx` (29).
+2. **Collapse the type ramp** from 14 sizes onto the 7 `typography` steps.
+3. **A visual pass across the game screens** — the four scopes agreed earlier. None of
+   this has been verified on a device; there are no screenshots yet.
 
 ## Rules
 

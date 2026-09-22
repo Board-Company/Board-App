@@ -157,16 +157,23 @@ runs while the per-game lock is held. Left on the event loop it stalls every oth
 that process. It now runs via `asyncio.to_thread`, so the lock is released promptly and
 unrelated games are unaffected.
 
-### One design language, enforced by the type system
+### Consolidating the design language
 
 The app's dark olive theme was re-typed as hex literals in every screen, which produced
-`#fff` beside `#ffffff`, three different reds and a dozen greys. All of it now resolves
-through [`nimbus/src/theme.ts`](nimbus/src/theme.ts) — semantic colour, spacing, radius
-and type tokens, each documented with the role it plays.
+`#fff` beside `#ffffff`, three different reds and a dozen greys separated by a few points
+of luminance that nobody had chosen deliberately.
 
-Roughly 350 literals across 19 screens and 8 components were replaced, collapsing the
-near-duplicates. The only hard-coded colour left is Google's brand blue on the Sign-In
-button, which is required to stay that exact value and is commented as such.
+[`nimbus/src/theme.ts`](nimbus/src/theme.ts) now defines semantic colour, spacing, radius
+and type tokens, each documented with the role it plays. **Colour is fully migrated** —
+roughly 350 literals across 19 screens and 8 components, collapsed onto named tokens; the
+only hard-coded colour left is Google's brand blue on the Sign-In button, which has to
+stay that exact value and is commented as such.
+
+The spacing, radius and type scales are defined but **not yet applied**: ~443 numeric
+literals remain, across 14 font sizes and 12 border radii. Colour migrated cleanly because
+a hex value means the same thing wherever it appears; spacing does not, and rounding to
+the nearest step changes layout in ways only a device can confirm. That pass is tracked in
+[docs/design-system.md](docs/design-system.md).
 
 ---
 
