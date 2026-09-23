@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { colors } from '../../theme';
+import { colors, spacing } from '../../theme';
 
 interface MoveHistoryProps {
   moves: string[];
@@ -73,17 +73,17 @@ const styles = StyleSheet.create({
   },
   historyInline: {
     position: 'relative',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   historyContainerLight: {
     backgroundColor: colors.textPrimary,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.lightBorder,
   },
   historyContainerDark: {
     backgroundColor: colors.surface,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.surfaceRaised,
   },
@@ -91,44 +91,44 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   historyTitleDark: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   movesList: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   moveHistoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   moveNumberLight: {
     color: colors.info,
     fontSize: 14,
-    marginRight: 4,
+    marginRight: spacing.xs,
   },
   moveNumberDark: {
     color: colors.accent,
     fontSize: 14,
-    marginRight: 4,
+    marginRight: spacing.xs,
   },
   moveHistoryTextLight: {
     color: colors.black,
     fontSize: 14,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   moveHistoryTextDark: {
     color: colors.textPrimary,
     fontSize: 14,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
 });
 

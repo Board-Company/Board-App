@@ -21,7 +21,7 @@ import { useEngineQueueHealth } from '../hooks/useEngineQueueHealth';
 import { resolveEngineStatusLine, REVIEW_ENGINE_DEPTH } from '../services/engineAnalysis';
 import { fenReplayFromMoves } from '../services/gameReplay';
 import { fetchCompletedOnlineGame, type OnlineCompletedGame } from '../services/onlineGameHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   OnlineFriendGameHistory: undefined;
@@ -217,31 +217,31 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.textPrimary, fontSize: 20, fontWeight: '800' },
-  subtitle: { color: colors.textSecondary, fontSize: 14, marginTop: 4 },
-  loadingText: { color: colors.textFaint, marginTop: 12 },
-  error: { color: colors.danger, textAlign: 'center', marginTop: 24 },
+  subtitle: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.xs },
+  loadingText: { color: colors.textFaint, marginTop: spacing.md },
+  error: { color: colors.danger, textAlign: 'center', marginTop: spacing.xl },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.card,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   cardText: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   cardMeta: { color: colors.textSecondary, fontSize: 13, marginTop: 6 },
-  boardWrap: { alignItems: 'center', marginVertical: 8 },
-  controlsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 16 },
+  boardWrap: { alignItems: 'center', marginVertical: spacing.sm },
+  controlsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.lg },
   ctrl: {
     backgroundColor: colors.accent,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
     minWidth: 72,
     alignItems: 'center',
   },

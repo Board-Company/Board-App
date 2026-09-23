@@ -9,7 +9,7 @@ import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 import { saveCompletedLocalGame } from '../services/localGameHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type TimeControl = {
   label: string;
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+    padding: spacing.lg,
   },
   header: {
     marginBottom: 20,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   },
   selectedModeSummary: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     padding: 18,
     marginBottom: 18,
   },
@@ -535,22 +535,22 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 30,
     fontWeight: '800',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   selectedModeSummaryMeta: {
     color: colors.textPrimary,
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   clockRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     marginBottom: 14,
   },
   clockCard: {
     flex: 1,
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 10,
+    borderRadius: radius.md,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   clockLabel: {
     color: colors.textSecondary,
     fontSize: 13,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   clockValue: {
     color: colors.textPrimary,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   },
   modeBanner: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     paddingVertical: 14,
   },
   modeBannerHeader: {
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   modeBannerSubtitle: {
     color: colors.textSecondary,
     fontSize: 12,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   modeBannerScroll: {
     paddingHorizontal: 14,
@@ -608,9 +608,9 @@ const styles = StyleSheet.create({
   modeCard: {
     width: 118,
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
   },
   selectedModeCard: {
     backgroundColor: colors.accent,
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   modeMeta: {
     color: colors.textPrimary,
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   startGameButton: {
     backgroundColor: colors.accent,
-    borderRadius: 10,
+    borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 18,
@@ -646,17 +646,17 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: colors.accent,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   secondaryButton: {
     backgroundColor: colors.textDisabled,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   buttonText: {
     color: colors.textPrimary,

@@ -18,7 +18,7 @@ import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import { LLM_API_URL } from '../env';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type Message = {
   id: string;
@@ -644,20 +644,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingTop: 48,
-    paddingBottom: 16,
+    paddingBottom: spacing.lg,
     backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
     borderBottomColor: colors.surface,
   },
   backButton: {
-    padding: 8,
+    padding: spacing.sm,
   },
   headerTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   title: {
     color: colors.textPrimary,
@@ -666,20 +666,20 @@ const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.xs,
   },
   headerIconButton: {
-    padding: 8,
+    padding: spacing.sm,
   },
   boardContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
     borderBottomColor: colors.surface,
   },
   boardWrapper: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: colors.accent,
@@ -687,8 +687,8 @@ const styles = StyleSheet.create({
   turnIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
   turnDot: {
     width: 12,
@@ -705,14 +705,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   messageBubble: {
     maxWidth: '85%',
-    padding: 12,
+    padding: spacing.md,
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   messageIcon: {
-    marginRight: 8,
+    marginRight: spacing.sm,
     marginTop: 2,
   },
   messageText: {
@@ -743,21 +743,21 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: colors.textFaint,
-    marginLeft: 8,
+    marginLeft: spacing.sm,
     fontSize: 14,
   },
   quickPromptsContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.surface,
   },
   quickPrompt: {
     backgroundColor: colors.background,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderRadius: 20,
-    marginRight: 8,
+    marginRight: spacing.sm,
     borderWidth: 1,
     borderColor: colors.borderMuted,
     flexDirection: 'row',
@@ -773,15 +773,15 @@ const styles = StyleSheet.create({
   },
   fenInputContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.surfaceMuted,
-    gap: 8,
+    gap: spacing.sm,
   },
   fenTextInput: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     padding: 10,
     color: colors.textPrimary,
     fontSize: 12,
@@ -789,8 +789,8 @@ const styles = StyleSheet.create({
   },
   fenAnalyzeButton: {
     backgroundColor: colors.accent,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.sm,
     justifyContent: 'center',
   },
   fenAnalyzeButtonText: {
@@ -799,19 +799,19 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: spacing.md,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
     backgroundColor: colors.surfaceMuted,
     borderTopWidth: 1,
     borderTopColor: colors.surface,
     alignItems: 'flex-end',
-    gap: 8,
+    gap: spacing.sm,
   },
   textInput: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
     color: colors.textPrimary,
     fontSize: 16,
@@ -846,9 +846,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.dangerTint,
-    gap: 8,
+    gap: spacing.sm,
   },
   recordingDot: {
     width: 12,

@@ -24,7 +24,7 @@ import {
   getCompletedLocalGameById,
   type LocalGameRecord,
 } from '../services/localGameHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   LocalGameHistory: undefined;
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   iconButton: {
     width: 40,
@@ -262,14 +262,14 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colors.accent,
     fontSize: 13,
-    marginTop: 4,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   summaryCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   summaryMode: {
     color: colors.textPrimary,
@@ -279,14 +279,14 @@ const styles = StyleSheet.create({
   summaryText: {
     color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   evalSummaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    gap: 12,
+    marginTop: spacing.md,
+    gap: spacing.md,
   },
   evalValue: {
     color: colors.textPrimary,
@@ -302,10 +302,10 @@ const styles = StyleSheet.create({
   },
   boardCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.md,
     alignSelf: 'center',
     maxWidth: '100%',
   },
@@ -315,26 +315,26 @@ const styles = StyleSheet.create({
   },
   evalCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   evalCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   evalBarLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 14,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   evalBarTrack: {
     width: '100%',
     height: 18,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: 'hidden',
     backgroundColor: colors.backgroundBlack,
     borderWidth: 1,
@@ -364,12 +364,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   controlButton: {
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   emptyTitle: {
     color: colors.textPrimary,
@@ -395,13 +395,13 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   loadingText: {
     color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 12,
+    marginTop: spacing.md,
     textAlign: 'center',
   },
 });

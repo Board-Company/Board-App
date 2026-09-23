@@ -3,16 +3,33 @@
 [`nimbus/src/theme.ts`](../nimbus/src/theme.ts) defines the app's colour, spacing,
 radius and type tokens.
 
-**Adoption is partial, and deliberately so far colour-only.** Every colour in every
-screen and component resolves through this module — no screen writes a hex literal. The
-`spacing`, `radius` and `typography` scales are defined but **not yet applied**: roughly
-443 raw numeric literals remain in `StyleSheet` blocks, spread across 14 distinct font
-sizes (11–30) and 12 distinct border radii (4–24).
+**Adoption status.** Colour is fully migrated: every screen and component resolves its
+colours here and none writes a hex literal. Spacing and radius are **partly** migrated —
+298 of 452 literals now use tokens. Typography is **not** migrated.
 
-Colour could be migrated mechanically because a hex value means the same thing wherever
-it appears. Spacing cannot: a `padding: 3` is not obviously `spacing.xs`, and rounding
-values to the nearest step changes layout in ways only a device can confirm. That pass
-is outstanding — see [Outstanding work](#outstanding-work).
+The migration was strictly value-preserving: only literals matching a token *exactly*
+were rewritten, nothing was rounded, and a checker resolved every token back to its
+number to confirm the source is byte-identical to before. The rendered layout did not
+change.
+
+### What the leftovers tell us
+
+154 literals have no exact token, and they are not noise — they cluster:
+
+| Value | Uses | |
+|---|---|---|
+| `14` | 31 | spacing |
+| `10` | 29 | spacing |
+| `18` | 23 | spacing, and 15 more as radius |
+| `6` | 13 | spacing |
+| `20`, `22` | 11 | spacing |
+
+**The app is built on a 2pt rhythm, not the 4pt one this scale assumes.** `10`, `14` and
+`18` are the app's real workhorse steps and none of them exist as tokens. Before
+finishing the migration, decide which is true: extend the scale to match the app
+(`xs:4, sm:6, …, md:10, …, lg:14, …, xl:18`), or deliberately snap the app onto 4pt and
+accept that spacing shifts by a point or two on nearly every screen — a visual change
+that needs a device to judge.
 
 ## Why
 
@@ -90,7 +107,7 @@ expect, not brand colours. `boardLastMove` is the yellow highlight.
 
 ## Scales
 
-These are defined and ready to use, but **not yet applied** across the app.
+`spacing` and `radius` are partly applied (see above); `typography` is not yet used.
 
 ```ts
 spacing  = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 }   // 4pt rhythm
@@ -127,10 +144,11 @@ In JSX, pass tokens as expressions rather than strings:
 
 ## Outstanding work
 
-1. **Apply `spacing` and `radius`** to the 443 remaining numeric literals, screen by
-   screen, checking each against a running build. Highest-drift screens first:
-   `playMenu.tsx` (49), `chessAI.tsx` (44), `localGame.tsx` (41), `localGameReview.tsx` (29).
-2. **Collapse the type ramp** from 14 sizes onto the 7 `typography` steps.
+1. **Resolve the 2pt-vs-4pt question above**, then finish the remaining 154 spacing and
+   radius literals. Most concentrated in `playMenu.tsx` (27), `localGame.tsx` (19) and
+   `chessAI.tsx` (15).
+2. **Collapse the type ramp** from 14 sizes (11–30) onto the 7 `typography` steps. Not
+   started, and not value-preserving — it will change type on every screen.
 3. **A visual pass across the game screens** — the four scopes agreed earlier. None of
    this has been verified on a device; there are no screenshots yet.
 

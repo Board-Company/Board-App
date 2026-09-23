@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Header from '../components/header';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 const LichessScreen = () => {
   const { isAuthenticated, user, isLoading, error, login, logout } = useLichessAuth();
@@ -56,22 +56,22 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 32,
-    gap: 16,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
   },
   centerState: {
     flex: 1,
     backgroundColor: colors.backgroundDeep,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   centerTitle: {
     color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   heroCard: {
     backgroundColor: colors.backgroundSunken,
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
     color: colors.textPrimary,
@@ -98,19 +98,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   panel: {
     backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
-    padding: 16,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.accentDark,
-    gap: 12,
+    gap: spacing.md,
   },
   primaryButton: {
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: colors.backgroundBlack,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',

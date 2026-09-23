@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../theme';
+import { colors, radius, spacing } from '../../theme';
 
 type GameOverOverlayProps = {
   visible: boolean;
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSunken,
     borderRadius: 22,
     paddingHorizontal: 22,
-    paddingVertical: 24,
+    paddingVertical: spacing.xl,
     borderWidth: 1,
     borderColor: colors.accentDark,
   },
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   title: {
     color: colors.textPrimary,
@@ -73,11 +73,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 15,
     lineHeight: 21,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   primary: {
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 22,
@@ -88,10 +88,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   secondary: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   secondaryText: {
     color: colors.textSecondary,

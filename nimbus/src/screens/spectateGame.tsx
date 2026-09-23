@@ -27,7 +27,7 @@ import {
   type LiveGameState,
   type ViewerRole,
 } from '../services/liveGame';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 const SIDE_EVAL_WIDTH = 28;
 const SIDE_EVAL_GAP = 8;
@@ -333,28 +333,28 @@ const SpectateGameScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: CONTAINER_PAD },
-  scroll: { padding: 16, gap: 16 },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
   title: { color: colors.textPrimary, fontSize: 24, fontWeight: 'bold' },
   hint: { color: colors.textFaint, fontSize: 14, lineHeight: 20 },
   input: {
     backgroundColor: colors.surfaceRaised,
     color: colors.textPrimary,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     fontSize: 18,
     letterSpacing: 2,
   },
-  btn: { backgroundColor: colors.accent, padding: 16, borderRadius: 10, alignItems: 'center' },
+  btn: { backgroundColor: colors.accent, padding: spacing.lg, borderRadius: radius.md, alignItems: 'center' },
   btnDisabled: { opacity: 0.5 },
   btnText: { color: colors.textPrimary, fontSize: 18, fontWeight: 'bold' },
-  error: { color: colors.danger, marginBottom: 8 },
+  error: { color: colors.danger, marginBottom: spacing.sm },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerMeta: { color: colors.textFaint, fontSize: 13 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
   liveDotOn: { backgroundColor: colors.accent },
@@ -364,9 +364,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   ownGameText: { color: colors.textSecondary, fontSize: 13 },
   playersRow: {
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.card,
     paddingVertical: 10,
     paddingHorizontal: 14,
     gap: 10,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   versus: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
-  status: { color: colors.textPrimary, textAlign: 'center', marginVertical: 8 },
+  status: { color: colors.textPrimary, textAlign: 'center', marginVertical: spacing.sm },
   boardRow: {
     flex: 1,
     minHeight: 200,

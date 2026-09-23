@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { EngineStatusTone } from '../../services/engineAnalysis';
-import { colors } from '../../theme';
+import { colors, radius, spacing } from '../../theme';
 
 type Props = {
   evalText: string;
@@ -134,7 +134,7 @@ const EngineEvalBar = ({
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: radius.md,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: 10,
@@ -148,16 +148,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  row: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 },
-  spinner: { marginRight: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: spacing.sm },
+  spinner: { marginRight: spacing.xs },
   eval: { color: colors.textPrimary, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
   depth: { color: colors.textSecondary, fontSize: 14, marginLeft: 'auto' },
   error: { color: colors.danger, fontSize: 11, marginTop: 6 },
   reviewCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.card,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -170,19 +170,19 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: spacing.sm,
     marginTop: 10,
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   statusLine: {
     flex: 1,
@@ -195,9 +195,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 14,
-    gap: 12,
+    gap: spacing.md,
   },
-  reviewEvalRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reviewEvalRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   reviewEvalValue: {
     color: colors.textPrimary,
     fontSize: 24,
@@ -216,14 +216,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 14,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   barPlayerLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   depthInline: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   barTrack: {
     width: '100%',
     height: 18,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: 'hidden',
     backgroundColor: colors.backgroundBlack,
     borderWidth: 1,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   sideTrack: {
     flex: 1,
     width: 22,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     overflow: 'hidden',
     backgroundColor: colors.backgroundBlack,
     borderWidth: 1,

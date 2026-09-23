@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Header from '../components/header';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 const BotGameScreen = () => (
   <View style={styles.container}>
@@ -34,8 +34,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 18,
-    paddingTop: 12,
-    gap: 16,
+    paddingTop: spacing.md,
+    gap: spacing.lg,
   },
   heroCard: {
     backgroundColor: colors.backgroundSunken,
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   title: {
     color: colors.textPrimary,
@@ -62,12 +62,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   panel: {
     backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
-    padding: 16,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.accentDark,
     gap: 10,
@@ -85,10 +85,10 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 52,
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   buttonText: {
     color: colors.accentDeep,

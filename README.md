@@ -169,10 +169,16 @@ roughly 350 literals across 19 screens and 8 components, collapsed onto named to
 only hard-coded colour left is Google's brand blue on the Sign-In button, which has to
 stay that exact value and is commented as such.
 
-The spacing, radius and type scales are defined but **not yet applied**: ~443 numeric
-literals remain, across 14 font sizes and 12 border radii. Colour migrated cleanly because
-a hex value means the same thing wherever it appears; spacing does not, and rounding to
-the nearest step changes layout in ways only a device can confirm. That pass is tracked in
+Spacing and radius are **partly** migrated — 298 of 452 literals — done strictly
+value-preserving: only exact token matches were rewritten, nothing rounded, and a checker
+resolved every token back to its number to prove the source was byte-identical afterwards.
+The layout did not move.
+
+The 154 leftovers turned out to be the interesting part. They cluster on `10`, `14` and
+`18`, which means **the app is built on a 2pt rhythm, not the 4pt scale the tokens
+assume**. Finishing the job means first deciding which is correct — extend the scale, or
+snap the app onto 4pt and accept a visible shift. Typography is untouched for the same
+reason: collapsing 14 sizes onto 7 changes every screen. Tracked in
 [docs/design-system.md](docs/design-system.md).
 
 ---

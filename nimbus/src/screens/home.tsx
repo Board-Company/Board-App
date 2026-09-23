@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   Home: undefined;
@@ -157,13 +157,13 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 14,
-    paddingTop: 8,
+    paddingTop: spacing.sm,
     gap: 10,
   },
   heroCard: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: radius.lg,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   heroTitle: {
     color: colors.textPrimary,
@@ -185,10 +185,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 16,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   section: {
-    gap: 8,
+    gap: spacing.sm,
   },
   sectionTitle: {
     color: colors.textPrimary,
@@ -198,14 +198,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   actionList: {
-    gap: 8,
+    gap: spacing.sm,
   },
   actionListItem: {
     width: '100%',
   },
   actionCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.card,
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderWidth: 1,
@@ -218,10 +218,10 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
     backgroundColor: colors.accent,
   },
   actionTextWrap: {
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chevron: {
-    marginLeft: 4,
+    marginLeft: spacing.xs,
   },
   actionTitle: {
     color: colors.textPrimary,

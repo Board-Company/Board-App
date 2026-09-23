@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 interface TimeSelectorProps {
   onTimeSelected: (time: number) => void;
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
     padding: 15,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     justifyContent: 'space-between',
   },
   icon: {
@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 8,
-    marginTop: 4,
+    borderRadius: radius.sm,
+    marginTop: spacing.xs,
     zIndex: 1000,
   },
   option: {

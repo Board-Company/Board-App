@@ -9,7 +9,7 @@ import {
   fetchMyCompletedOnlineGames,
   type OnlineCompletedGame,
 } from '../services/onlineGameHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 const apiBase = API_URL;
 
@@ -151,13 +151,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
+    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
   },
   iconButton: {
     width: 40,
@@ -177,28 +177,28 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 4,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
-  error: { color: colors.danger, marginBottom: 8, textAlign: 'center' },
+  error: { color: colors.danger, marginBottom: spacing.sm, textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: colors.textFaint, marginTop: 12 },
-  listContent: { paddingBottom: 24, gap: 12 },
+  loadingText: { color: colors.textFaint, marginTop: spacing.md },
+  listContent: { paddingBottom: spacing.xl, gap: spacing.md },
   emptyContainer: { flexGrow: 1, justifyContent: 'center' },
   gameCard: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
-  gameCardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  gameCardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   gameResult: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
-  reason: { color: colors.textMuted, fontSize: 13, marginTop: 4, textTransform: 'capitalize' },
-  players: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
+  reason: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs, textTransform: 'capitalize' },
+  players: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
   playedAt: { color: colors.textFaint, fontSize: 12 },
-  meta: { color: colors.accent, fontSize: 13, marginTop: 12, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingHorizontal: 24 },
-  emptyTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '700', marginTop: 16 },
+  meta: { color: colors.accent, fontSize: 13, marginTop: spacing.md, fontWeight: '600' },
+  emptyState: { alignItems: 'center', paddingHorizontal: spacing.xl },
+  emptyTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '700', marginTop: spacing.lg },
   emptyText: { color: colors.textSecondary, fontSize: 14, marginTop: 10, textAlign: 'center', lineHeight: 20 },
 });
 

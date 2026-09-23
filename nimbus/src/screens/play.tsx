@@ -4,7 +4,7 @@ import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 const PlayScreen = () => {
   // Create a reference to the chess.js instance
@@ -246,22 +246,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+    padding: spacing.lg,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   status: {
     fontSize: 18,
     color: colors.accent,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   boardContainer: {
     alignItems: 'center',
@@ -289,21 +289,21 @@ const styles = StyleSheet.create({
   buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   button: {
     backgroundColor: colors.accent,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   colorButton: {
     backgroundColor: colors.textDisabled,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   selectedButton: {
     backgroundColor: colors.accent,
@@ -317,12 +317,12 @@ const styles = StyleSheet.create({
   },
   colorSelection: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   colorText: {
     color: colors.textPrimary,
     fontSize: 16,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 });
 

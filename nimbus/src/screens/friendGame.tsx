@@ -29,7 +29,7 @@ import {
   setActiveFriendGameId,
 } from '../services/activeFriendGame';
 import { API_URL } from '../env';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 const API_BASE_URL = API_URL;
 const SIDE_EVAL_WIDTH = 28;
@@ -590,23 +590,23 @@ const FriendGameScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 12 },
-  scroll: { padding: 16, gap: 16 },
+  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
   title: { color: colors.textPrimary, fontSize: 24, fontWeight: 'bold' },
   hint: { color: colors.textFaint, fontSize: 14 },
-  sub: { color: colors.textMuted, marginTop: 16 },
+  sub: { color: colors.textMuted, marginTop: spacing.lg },
   input: {
     backgroundColor: colors.surfaceRaised,
     color: colors.textPrimary,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     fontSize: 18,
     letterSpacing: 2,
   },
   btn: {
     backgroundColor: colors.accent,
-    padding: 16,
-    borderRadius: 10,
+    padding: spacing.lg,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   btnText: { color: colors.textPrimary, fontSize: 18, fontWeight: 'bold' },
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderWidth: 1,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   secondaryBtnText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
@@ -622,11 +622,11 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   sessionBanner: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.card,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
@@ -653,13 +653,13 @@ const styles = StyleSheet.create({
   },
   link: { color: colors.accent, fontSize: 16 },
   resign: { color: colors.danger, fontSize: 16 },
-  status: { color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  status: { color: colors.textPrimary, marginBottom: spacing.sm, textAlign: 'center' },
   code: {
     color: colors.accent,
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   boardRow: {
     flex: 1,

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 interface AppUser {
   id: string;
@@ -113,9 +113,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingTop: 12,
+    paddingTop: spacing.md,
     paddingBottom: 120,
-    gap: 16,
+    gap: spacing.lg,
   },
   heroCard: {
     backgroundColor: colors.backgroundSunken,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
     color: colors.textPrimary,
@@ -142,12 +142,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   sectionCard: {
     backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
-    padding: 16,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.accentDark,
     gap: 10,
@@ -171,12 +171,12 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginTop: 4,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xs,
   },
   primaryButtonText: {
     color: colors.accentDeep,
@@ -185,14 +185,14 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: colors.backgroundBlack,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 52,
     borderWidth: 1,
     borderColor: colors.accentDark,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginTop: 4,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xs,
   },
   secondaryButtonText: {
     color: colors.textPrimary,

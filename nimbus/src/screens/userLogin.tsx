@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Header from '../components/header';
 import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -97,9 +97,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 32,
-    gap: 16,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
   },
   heroCard: {
     backgroundColor: colors.backgroundSunken,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
     color: colors.textPrimary,
@@ -126,19 +126,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   formCard: {
     backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
-    padding: 16,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.accentDark,
-    gap: 12,
+    gap: spacing.md,
   },
   input: {
     minHeight: 52,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.accentDark,
     backgroundColor: colors.backgroundBlack,
@@ -148,11 +148,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   primaryButtonText: {
     color: colors.accentDeep,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   secondaryButton: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 52,
     borderWidth: 1,
     borderColor: colors.accentDark,

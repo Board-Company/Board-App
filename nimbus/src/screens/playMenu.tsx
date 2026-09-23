@@ -14,7 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/header';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
-    paddingTop: 12,
+    paddingTop: spacing.md,
     paddingBottom: 120,
     gap: 20,
   },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
     color: colors.textPrimary,
@@ -361,13 +361,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   section: {
-    gap: 12,
+    gap: spacing.md,
   },
   sectionTitle: {
     color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   infoCard: {
     backgroundColor: colors.surfaceMuted,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   infoLabel: {
     color: colors.accent,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   ratingCard: {
     width: '50%',
     paddingHorizontal: 6,
-    paddingBottom: 12,
+    paddingBottom: spacing.md,
   },
   ratingLabel: {
     color: colors.accent,
@@ -431,14 +431,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
     minHeight: 64,
   },
   selectorCard: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderMuted,
     minHeight: 82,
@@ -450,13 +450,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   selectorValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   selectorValue: {
     color: colors.textPrimary,
@@ -481,9 +481,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.accent,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   secondaryOutlineButtonText: {
     color: colors.textPrimary,
@@ -500,9 +500,9 @@ const styles = StyleSheet.create({
   },
   secondaryPillButton: {
     backgroundColor: colors.accentDark,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     minHeight: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundDeep,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   centerStateTitle: {
     color: colors.textPrimary,
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   modalBackdrop: {
@@ -542,25 +542,25 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
     minHeight: 360,
     maxHeight: '72%',
   },
   modalHandle: {
     width: 54,
     height: 6,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     backgroundColor: colors.textDisabled,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   modalTitle: {
     color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   modalList: {
     flexGrow: 0,
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.borderMuted,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   modalCancelText: {
     color: colors.textPrimary,

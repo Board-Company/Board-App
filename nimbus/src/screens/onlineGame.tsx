@@ -8,7 +8,7 @@ import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 12,
+    padding: spacing.md,
   },
   playWrap: {
     flex: 1,
@@ -228,31 +228,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   statusText: {
     color: colors.textPrimary,
     fontSize: 18,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   finishedText: {
     color: colors.textPrimary,
     fontSize: 20,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
     color: colors.danger,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   primaryBtn: {
     backgroundColor: colors.accent,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
     paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: radius.card,
+    marginTop: spacing.lg,
   },
   primaryBtnText: {
     color: colors.backgroundBlack,

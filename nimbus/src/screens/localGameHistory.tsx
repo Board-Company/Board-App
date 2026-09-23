@@ -8,7 +8,7 @@ import {
   getCompletedLocalGames,
   type LocalGameRecord,
 } from '../services/localGameHistory';
-import { colors } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   LocalGame: undefined;
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   header: {
     flexDirection: 'row',
@@ -137,19 +137,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   listContent: {
-    paddingBottom: 24,
-    gap: 12,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   gameCard: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   gameCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   gameResult: {
     color: colors.textPrimary,
@@ -182,13 +182,13 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   emptyTitle: {
     color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '700',
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   emptyText: {
     color: colors.textSecondary,
