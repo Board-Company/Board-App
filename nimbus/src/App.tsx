@@ -36,6 +36,7 @@ import LocalGameHistoryScreen from './screens/localGameHistory.tsx'
 import LocalGameReviewScreen from './screens/localGameReview.tsx'
 import OnlineFriendGameHistoryScreen from './screens/onlineFriendGameHistory.tsx'
 import OnlineFriendGameReviewScreen from './screens/onlineFriendGameReview.tsx'
+import SpectateGameScreen from './screens/spectateGame.tsx'
 
 type RootStackParamList = {
   Login: undefined
@@ -52,6 +53,7 @@ type RootStackParamList = {
   OnlineFriendGameHistory: undefined
   OnlineFriendGameReview: { gameId: string }
   FriendGame: { gameId?: string } | undefined
+  SpectateGame: { gameId?: string; inviteCode?: string } | undefined
   ChessAI: undefined
 }
 
@@ -274,6 +276,10 @@ const App = () => {
                       component={withScreenSafeArea(OnlineFriendGameReviewScreen)}
                     />
                     <Stack.Screen name="FriendGame" component={withScreenSafeArea(FriendGameScreen)} />
+                    <Stack.Screen
+                      name="SpectateGame"
+                      component={withScreenSafeArea(SpectateGameScreen)}
+                    />
                     <Stack.Screen name="ChessAI" component={withScreenSafeArea(ChessAIScreen)} />
                   </Stack.Navigator>
                 </NavigationContainer>

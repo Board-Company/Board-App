@@ -44,6 +44,8 @@ sequenceDiagram
 
 - **Where in code:** [`Board-Backend/game/realtime.py`](../Board-Backend/game/realtime.py) (channel + `publish_friend_game_state`), [`Board-Backend/game/service.py`](../Board-Backend/game/service.py) (publish after mutations), [`Board-Backend/game/routes.py`](../Board-Backend/game/routes.py) (`GET /{game_id}/events`), [`nimbus/src/screens/friendGame.tsx`](../nimbus/src/screens/friendGame.tsx) (`rn-eventsource` + `Authorization` header; **poll every 2.5s** only if the stream errors).
 - **Summary:** Each live game has a Redis channel `game:events:{game_id}`. On create/join/move/resign the API **PUBLISH**es a `FriendGameState` JSON string. The SSE handler **SUBSCRIBE**s, sends the current state as the first `data:` event, then forwards publishes. Moves are still submitted with **`POST /games/{id}/move`** (not over SSE).
+- **Ordering:** the handler **SUBSCRIBE**s *before* re-reading the state it sends as the first event. Reading first would drop any move published between the read and the subscribe — a gap that only appears under load.
+- **Spectators:** `POST /games/watch` redeems the invite code and adds non-players to the Redis set `game:spectators:{id}` (48h TTL, deleted on archive). `GET /games/{id}` and the SSE stream admit a non-player only if they are in that set, so a game ID alone is not enough to watch. Spectators consume the *same* channel as players — there is no second delivery path.
 
 ### Friend chess client: resume + deep links
 

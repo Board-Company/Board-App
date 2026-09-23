@@ -14,6 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/header';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -48,7 +49,7 @@ function PickerButton({ label, value, onPress }: PickerButtonProps) {
       <Text style={styles.selectorLabel}>{label}</Text>
       <View style={styles.selectorValueRow}>
         <Text style={styles.selectorValue}>{value}</Text>
-        <Icon name="expand-more" size={22} color="#8CB369" />
+        <Icon name="expand-more" size={22} color={colors.accent} />
       </View>
     </TouchableOpacity>
   );
@@ -86,7 +87,7 @@ function OptionModal({ visible, title, options, selectedValue, onSelect, onClose
                   <Text style={[styles.modalOptionText, selected && styles.modalOptionTextSelected]}>
                     {option.label}
                   </Text>
-                  {selected ? <Icon name="check" size={20} color="#111111" /> : null}
+                  {selected ? <Icon name="check" size={20} color={colors.backgroundBlack} /> : null}
                 </TouchableOpacity>
               );
             })}
@@ -179,7 +180,7 @@ const PlayMenuScreen = () => {
   if (isMatchmaking) {
     return (
       <View style={styles.centerState}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.centerStateTitle}>Finding opponent...</Text>
         <Text style={styles.centerStateSubtitle}>Nimbus is searching for a match on Lichess.</Text>
       </View>
@@ -189,7 +190,7 @@ const PlayMenuScreen = () => {
   if (isLoading || profileLoading) {
     return (
       <View style={styles.centerState}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.centerStateTitle}>Loading online play</Text>
       </View>
     );
@@ -252,8 +253,8 @@ const PlayMenuScreen = () => {
                   <Switch
                     value={playOnline}
                     onValueChange={setPlayOnline}
-                    thumbColor={playOnline ? '#8CB369' : '#D0D0D0'}
-                    trackColor={{ false: '#4A4A4A', true: '#314420' }}
+                    thumbColor={playOnline ? colors.accent : colors.neutral}
+                    trackColor={{ false: colors.borderMuted, true: colors.accentTrack }}
                   />
                 </View>
 
@@ -324,78 +325,78 @@ const PlayMenuScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
   },
   content: {
     paddingHorizontal: 18,
-    paddingTop: 12,
+    paddingTop: spacing.md,
     paddingBottom: 120,
     gap: 20,
   },
   heroCard: {
-    backgroundColor: '#2D2D2D',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 24,
     padding: 22,
     borderWidth: 1,
-    borderColor: '#3C3C3C',
+    borderColor: colors.borderMuted,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 30,
     fontWeight: '800',
     lineHeight: 36,
   },
   heroSubtitle: {
-    color: '#C7C7C7',
+    color: colors.neutral,
     fontSize: 15,
     lineHeight: 22,
     marginTop: 10,
   },
   section: {
-    gap: 12,
+    gap: spacing.md,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   infoCard: {
-    backgroundColor: '#2F2F2F',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#3C3C3C',
+    borderColor: colors.borderMuted,
     gap: 14,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   infoLabel: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   infoValue: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 19,
     fontWeight: '800',
   },
   helperText: {
-    color: '#B8B8B8',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -407,20 +408,20 @@ const styles = StyleSheet.create({
   ratingCard: {
     width: '50%',
     paddingHorizontal: 6,
-    paddingBottom: 12,
+    paddingBottom: spacing.md,
   },
   ratingLabel: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   ratingValue: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: '800',
-    backgroundColor: '#292929',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     overflow: 'hidden',
     paddingVertical: 14,
@@ -430,41 +431,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
     minHeight: 64,
   },
   selectorCard: {
-    backgroundColor: '#292929',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
     borderWidth: 1,
-    borderColor: '#3C3C3C',
+    borderColor: colors.borderMuted,
     minHeight: 82,
     justifyContent: 'center',
   },
   selectorLabel: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   selectorValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   selectorValue: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '800',
     flex: 1,
   },
   primaryButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderRadius: 18,
     minHeight: 58,
     alignItems: 'center',
@@ -472,94 +473,94 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   primaryButtonText: {
-    color: '#111111',
+    color: colors.backgroundBlack,
     fontSize: 17,
     fontWeight: '800',
   },
   secondaryOutlineButton: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#8CB369',
-    paddingHorizontal: 16,
+    borderColor: colors.accent,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   secondaryOutlineButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '800',
     textAlign: 'center',
   },
   secondaryOutlineHint: {
-    color: '#B8B8B8',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
     textAlign: 'center',
     marginTop: 6,
   },
   secondaryPillButton: {
-    backgroundColor: '#232F1A',
-    borderRadius: 14,
+    backgroundColor: colors.accentDark,
+    borderRadius: radius.lg,
     minHeight: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryPillButtonText: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '800',
   },
   centerState: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   centerStateTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: '800',
     marginTop: 18,
     textAlign: 'center',
   },
   centerStateSubtitle: {
-    color: '#B8B8B8',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.overlaySoft,
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#2D2D2D',
+    backgroundColor: colors.surfaceMuted,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
     minHeight: 360,
     maxHeight: '72%',
   },
   modalHandle: {
     width: 54,
     height: 6,
-    borderRadius: 999,
-    backgroundColor: '#6C6C6C',
+    borderRadius: radius.pill,
+    backgroundColor: colors.textDisabled,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   modalTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   modalList: {
     flexGrow: 0,
@@ -567,38 +568,38 @@ const styles = StyleSheet.create({
   modalOption: {
     minHeight: 58,
     borderRadius: 16,
-    backgroundColor: '#292929',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#3C3C3C',
-    paddingHorizontal: 16,
+    borderColor: colors.borderMuted,
+    paddingHorizontal: spacing.lg,
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   modalOptionSelected: {
-    backgroundColor: '#8CB369',
-    borderColor: '#8CB369',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   modalOptionText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   modalOptionTextSelected: {
-    color: '#111111',
+    color: colors.backgroundBlack,
   },
   modalCancelButton: {
     minHeight: 54,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#4A4A4A',
+    borderColor: colors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   modalCancelText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },

@@ -27,12 +27,25 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_metro._tcp</string>
+		<string>_react-native._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Nimbus uses the local network to load the Metro bundler and reach the Board backend on your Mac mini.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voice commands for chess moves</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition for move input</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string/>
+	<key>GIDClientID</key>
+	<string>707897598265-f18r9das4pigimbkt1niife5655ol5lc.apps.googleusercontent.com</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -57,6 +70,16 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>boardapp</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>Google Sign-In</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.707897598265-f18r9das4pigimbkt1niife5655ol5lc</string>
 			</array>
 		</dict>
 	</array>

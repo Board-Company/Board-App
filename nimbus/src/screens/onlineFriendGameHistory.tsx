@@ -9,6 +9,7 @@ import {
   fetchMyCompletedOnlineGames,
   type OnlineCompletedGame,
 } from '../services/onlineGameHistory';
+import { colors, radius, spacing } from '../theme';
 
 const apiBase = API_URL;
 
@@ -84,7 +85,7 @@ const OnlineFriendGameHistoryScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#8CB369" />
+          <Icon name="arrow-back" size={24} color={colors.accent} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.title}>Friend games online</Text>
@@ -93,7 +94,7 @@ const OnlineFriendGameHistoryScreen = () => {
           </Text>
         </View>
         <TouchableOpacity style={styles.iconButton} onPress={loadGames} disabled={loading}>
-          <Icon name="refresh" size={24} color={loading ? '#5D5D5D' : '#8CB369'} />
+          <Icon name="refresh" size={24} color={loading ? colors.textDisabled : colors.accent} />
         </TouchableOpacity>
       </View>
 
@@ -101,7 +102,7 @@ const OnlineFriendGameHistoryScreen = () => {
 
       {loading && games.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#8CB369" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Loading history…</Text>
         </View>
       ) : (
@@ -133,7 +134,7 @@ const OnlineFriendGameHistoryScreen = () => {
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Icon name="cloud-off" size={54} color="#5D5D5D" />
+              <Icon name="cloud-off" size={54} color={colors.textDisabled} />
               <Text style={styles.emptyTitle}>No finished friend games yet</Text>
               <Text style={styles.emptyText}>
                 Complete a game from Play with Friend — it will archive here automatically.
@@ -149,14 +150,14 @@ const OnlineFriendGameHistoryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
-    paddingHorizontal: 16,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
+    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
   },
   iconButton: {
     width: 40,
@@ -169,36 +170,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 4,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
-  error: { color: '#E84855', marginBottom: 8, textAlign: 'center' },
+  error: { color: colors.danger, marginBottom: spacing.sm, textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: '#aaa', marginTop: 12 },
-  listContent: { paddingBottom: 24, gap: 12 },
+  loadingText: { color: colors.textFaint, marginTop: spacing.md },
+  listContent: { paddingBottom: spacing.xl, gap: spacing.md },
   emptyContainer: { flexGrow: 1, justifyContent: 'center' },
   gameCard: {
-    backgroundColor: '#333333',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
-  gameCardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  gameResult: { color: 'white', fontSize: 18, fontWeight: '700' },
-  reason: { color: '#AEB8A8', fontSize: 13, marginTop: 4, textTransform: 'capitalize' },
-  players: { color: '#C8D5B9', fontSize: 14, marginTop: 8 },
-  playedAt: { color: '#A0A0A0', fontSize: 12 },
-  meta: { color: '#8CB369', fontSize: 13, marginTop: 12, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingHorizontal: 24 },
-  emptyTitle: { color: 'white', fontSize: 20, fontWeight: '700', marginTop: 16 },
-  emptyText: { color: '#C8D5B9', fontSize: 14, marginTop: 10, textAlign: 'center', lineHeight: 20 },
+  gameCardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+  gameResult: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
+  reason: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs, textTransform: 'capitalize' },
+  players: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
+  playedAt: { color: colors.textFaint, fontSize: 12 },
+  meta: { color: colors.accent, fontSize: 13, marginTop: spacing.md, fontWeight: '600' },
+  emptyState: { alignItems: 'center', paddingHorizontal: spacing.xl },
+  emptyTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '700', marginTop: spacing.lg },
+  emptyText: { color: colors.textSecondary, fontSize: 14, marginTop: 10, textAlign: 'center', lineHeight: 20 },
 });
 
 export default OnlineFriendGameHistoryScreen;

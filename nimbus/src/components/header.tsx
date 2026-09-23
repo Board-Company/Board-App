@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { colors } from '../theme';
 
 interface HeaderProps {
   // Add any props you might need here, such as
@@ -7,7 +8,7 @@ interface HeaderProps {
   // backgroundColor?: string;
 }
 
-const Header: React.FC<HeaderProps> = (props) => {
+const Header: React.FC<HeaderProps> = () => {
   return (
     <View style={styles.safeArea}>
       <View style={styles.header}>
@@ -19,18 +20,18 @@ const Header: React.FC<HeaderProps> = (props) => {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
   },
   header: {
     height: 60,
     width: '100%',
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
   title: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 21,
     fontWeight: '700',
     letterSpacing: 2.6,

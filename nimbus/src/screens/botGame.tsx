@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Header from '../components/header';
+import { colors, radius, spacing } from '../theme';
 
 const BotGameScreen = () => (
   <View style={styles.container}>
@@ -28,69 +29,69 @@ const BotGameScreen = () => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#202020',
+    backgroundColor: colors.backgroundDeep,
   },
   content: {
     flex: 1,
     paddingHorizontal: 18,
-    paddingTop: 12,
-    gap: 16,
+    paddingTop: spacing.md,
+    gap: spacing.lg,
   },
   heroCard: {
-    backgroundColor: '#131313',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
   },
   eyebrow: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   title: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 26,
     fontWeight: '800',
     lineHeight: 32,
   },
   subtitle: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   panel: {
-    backgroundColor: '#151515',
+    backgroundColor: colors.backgroundSunken,
     borderRadius: 18,
-    padding: 16,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#24351B',
+    borderColor: colors.accentDark,
     gap: 10,
   },
   panelTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
   },
   panelText: {
-    color: '#AEB8A8',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
   },
   button: {
     minHeight: 52,
-    backgroundColor: '#8CB369',
-    borderRadius: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   buttonText: {
-    color: '#081005',
+    color: colors.accentDeep,
     fontSize: 15,
     fontWeight: '800',
   },

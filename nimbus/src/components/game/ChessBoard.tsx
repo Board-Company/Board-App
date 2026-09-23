@@ -3,6 +3,7 @@ import { Dimensions, Image, StyleSheet, View } from 'react-native';
 import Chessboard, { ChessboardRef } from 'react-native-chessboard';
 import { PIECES } from 'react-native-chessboard/lib/commonjs/constants';
 import type { ChessboardState } from 'react-native-chessboard/lib/typescript/helpers/get-chessboard-state';
+import { colors } from '../../theme';
 
 interface ChessBoardProps {
   fen: string;
@@ -29,13 +30,13 @@ const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
     return Math.floor(Math.max(capped, 0) / 8) * 8;
   }, [screenWidth, maxBoardWidth]);
   const pieceSize = boardSize / 8;
-  const colors = useMemo(
+  const boardColors = useMemo(
     () => ({
-      black: '#769656',
-      white: '#eeeed2',
-      lastMoveHighlight: 'rgba(255,255,0, 0.5)',
-      checkmateHighlight: '#E84855',
-      promotionPieceButton: '#FF9B71',
+      black: colors.boardDark,
+      white: colors.boardLight,
+      lastMoveHighlight: colors.boardLastMove,
+      checkmateHighlight: colors.danger,
+      promotionPieceButton: colors.warning,
     }),
     [],
   );
@@ -74,7 +75,7 @@ const ChessBoard = forwardRef<ChessboardRef, ChessBoardProps>(
         fen={fen}
         onMove={onMove}
         boardSize={boardSize}
-        colors={colors}
+        colors={boardColors}
         gestureEnabled={gestureEnabled}
         durations={durations}
         withLetters={true}

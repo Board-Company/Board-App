@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { colors, spacing } from '../theme';
 
 export const GoogleSignInButton: React.FC = () => {
   const { signIn, loading, error } = useAuth();
@@ -13,7 +14,7 @@ export const GoogleSignInButton: React.FC = () => {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textPrimary} />
         ) : (
           <Text style={styles.buttonText}>Sign in with Google</Text>
         )}
@@ -29,9 +30,11 @@ export const GoogleSignInButton: React.FC = () => {
 
 const styles = StyleSheet.create({
   button: {
+    // Google's brand blue. Deliberately not a theme token: the Sign-In button
+    // has to match Google's branding guidelines, not ours.
     backgroundColor: '#4285F4',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
     borderRadius: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -39,13 +42,13 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
   errorText: {
     color: 'red',
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
 }); 

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { colors, spacing } from '../../theme';
 
 interface MoveHistoryProps {
   moves: string[];
@@ -72,62 +73,62 @@ const styles = StyleSheet.create({
   },
   historyInline: {
     position: 'relative',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   historyContainerLight: {
-    backgroundColor: 'white',
-    paddingVertical: 8,
+    backgroundColor: colors.textPrimary,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: colors.lightBorder,
   },
   historyContainerDark: {
-    backgroundColor: '#333333',
-    paddingVertical: 8,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#444444',
+    borderTopColor: colors.surfaceRaised,
   },
   historyTitleLight: {
-    color: 'black',
+    color: colors.black,
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   historyTitleDark: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   movesList: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   moveHistoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   moveNumberLight: {
-    color: '#4A90E2',
+    color: colors.info,
     fontSize: 14,
-    marginRight: 4,
+    marginRight: spacing.xs,
   },
   moveNumberDark: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 14,
-    marginRight: 4,
+    marginRight: spacing.xs,
   },
   moveHistoryTextLight: {
-    color: 'black',
+    color: colors.black,
     fontSize: 14,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   moveHistoryTextDark: {
-    color: '#EAEAEA',
+    color: colors.textPrimary,
     fontSize: 14,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
 });
 

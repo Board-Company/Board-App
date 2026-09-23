@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from typing import Optional, Dict
@@ -24,6 +27,12 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-for-development-only")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+
+# Authenticated requests look the user up by JWT subject. Cache the row briefly so a
+# move or SSE reconnect doesn't cost a Supabase round-trip each time. A disabled user
+# keeps access for at most this long. Set to 0 to disable.
+USER_CACHE_TTL_SEC = float(os.getenv("AUTH_USER_CACHE_SEC", "30"))
+_user_cache: dict[str, tuple[float, "UserInDB"]] = {}
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -98,14 +107,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def get_user(username: str, supabase: Client):
     try:
-        logger.info(f"Looking up user with username: {username}")
-        response = supabase.table("users").select("*").eq("username", username).execute()
-        logger.debug(f"Supabase response for user lookup: {response}")
-        
+        # supabase-py is synchronous; run it off the event loop so one lookup doesn't
+        # stall every other request and open SSE stream on this process.
+        response = await asyncio.to_thread(
+            lambda: supabase.table("users").select("*").eq("username", username).execute()
+        )
         if response.data:
-            user_dict = response.data[0]
-            logger.info(f"User found: {user_dict}")
-            return UserInDB(**user_dict)
+            return UserInDB(**response.data[0])
         logger.warning(f"No user found with username: {username}")
         return None
     except Exception as e:
@@ -156,10 +164,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    
+
+    cached = _user_cache.get(token_data.username)
+    if cached and cached[0] > time.monotonic():
+        return cached[1]
+
     user = await get_user(username=token_data.username, supabase=supabase)
     if user is None:
         raise credentials_exception
+    if USER_CACHE_TTL_SEC > 0:
+        _user_cache[token_data.username] = (time.monotonic() + USER_CACHE_TTL_SEC, user)
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):

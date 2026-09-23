@@ -10,12 +10,14 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
 import EngineEvalBar from '../components/game/EngineEvalBar';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
 import { getAccessToken } from '../services/auth';
@@ -27,11 +29,16 @@ import {
   setActiveFriendGameId,
 } from '../services/activeFriendGame';
 import { API_URL } from '../env';
+import { colors, radius, spacing } from '../theme';
 
 const API_BASE_URL = API_URL;
+const SIDE_EVAL_WIDTH = 28;
+const SIDE_EVAL_GAP = 8;
+const LIVE_CONTAINER_PAD = 12;
 
 type RootStackParamList = {
   FriendGame: { gameId?: string } | undefined;
+  SpectateGame: { gameId?: string; inviteCode?: string } | undefined;
   OnlineFriendGameHistory: undefined;
   OnlineFriendGameReview: { gameId: string };
 };
@@ -73,6 +80,21 @@ const extractMove = (event: ChessboardMoveEvent): ChessboardMove | null => {
     return event;
   }
   return null;
+};
+
+const friendGameOverCopy = (state: FriendState) => {
+  const reason = (state.finished_reason ?? '').replace(/_/g, ' ');
+  const prettyReason = reason ? reason.charAt(0).toUpperCase() + reason.slice(1) : '';
+  if (state.result === '1-0') {
+    return { title: 'White wins', subtitle: prettyReason || 'Game over' };
+  }
+  if (state.result === '0-1') {
+    return { title: 'Black wins', subtitle: prettyReason || 'Game over' };
+  }
+  if (state.result === '1/2-1/2') {
+    return { title: 'Draw', subtitle: prettyReason || 'The game is drawn' };
+  }
+  return { title: 'Game over', subtitle: prettyReason || 'This match has ended' };
 };
 
 const FriendGameScreen = () => {
@@ -239,7 +261,6 @@ const FriendGameScreen = () => {
               if (eventsRef.current === es) {
                 eventsRef.current = null;
               }
-              void openReview(parsed.game_id);
             }
           } catch {
             /* ignore malformed chunk */
@@ -362,6 +383,10 @@ const FriendGameScreen = () => {
 
   const playerColor: 'w' | 'b' =
     myId && state?.white_player_id === myId ? 'w' : 'b';
+  const showLiveEval = state?.status === 'active';
+  const liveBoardMaxWidth =
+    Dimensions.get('window').width - LIVE_CONTAINER_PAD * 2 - SIDE_EVAL_WIDTH - SIDE_EVAL_GAP;
+  const liveBoardSize = Math.floor(Math.max(liveBoardMaxWidth, 0) / 8) * 8;
   const creatorName = state?.white_username?.trim() || 'Host';
   const isCreatorView = !!(state && myId && state.white_player_id === myId);
   const sessionBannerText = isCreatorView
@@ -402,9 +427,6 @@ const FriendGameScreen = () => {
       }
       const next = (await r.json()) as FriendState;
       setState(next);
-      if (next.status === 'finished') {
-        await openReview(next.game_id);
-      }
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Move failed');
       refresh(gameId);
@@ -433,7 +455,6 @@ const FriendGameScreen = () => {
             }
             const next = (await r.json()) as FriendState;
             setState(next);
-            await openReview(next.game_id);
           } catch (e: unknown) {
             Alert.alert('Error', e instanceof Error ? e.message : 'Resign failed');
           }
@@ -445,7 +466,7 @@ const FriendGameScreen = () => {
   if (!hydrated) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -455,24 +476,32 @@ const FriendGameScreen = () => {
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>Play a friend</Text>
-          <Text style={styles.hint}>
-            Backend needs Redis and the completed_games table in Supabase. Set BASE_URL in .env to your API (e.g. EC2).
-          </Text>
+          <Text style={styles.hint}>Create a private game and share the invite code, or join with a code.</Text>
           {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity style={styles.btn} onPress={createGame} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create game</Text>}
+            {loading ? <ActivityIndicator color={colors.textPrimary} /> : <Text style={styles.btnText}>Create game</Text>}
           </TouchableOpacity>
           <Text style={styles.sub}>Join with invite code</Text>
           <TextInput
             style={styles.input}
             placeholder="INVITE CODE"
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.textFaint}
             autoCapitalize="characters"
             value={inviteInput}
             onChangeText={setInviteInput}
           />
           <TouchableOpacity style={styles.btn} onPress={joinGame} disabled={loading}>
             <Text style={styles.btnText}>Join game</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() =>
+              navigation.navigate('SpectateGame', {
+                inviteCode: inviteInput.trim().toUpperCase() || undefined,
+              })
+            }
+          >
+            <Text style={styles.secondaryBtnText}>Watch a game instead</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -482,7 +511,7 @@ const FriendGameScreen = () => {
   if (!state) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#8CB369" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <TouchableOpacity style={styles.btn} onPress={leaveLobby}>
           <Text style={styles.btnText}>Back</Text>
         </TouchableOpacity>
@@ -518,93 +547,126 @@ const FriendGameScreen = () => {
           {state.invite_code}
         </Text>
       ) : null}
-      {state.status === 'active' ? (
-        <EngineEvalBar
-          evalText={engineEval.evalText}
-          depth={engineEval.depth}
-          loading={engineEval.loading}
-          error={engineEval.error}
-          label="Live eval"
-        />
-      ) : null}
-      <View style={styles.boardBlock}>
-        <ChessBoard
-          key={state.fen + state.updated_at}
-          fen={state.fen}
-          onMove={handleMove}
-          playerColor={playerColor}
-          gestureEnabled={!!isMyTurn && state.status === 'active'}
-          moveAnimationDuration={10}
-        />
+      <View style={styles.boardRow}>
+        {showLiveEval ? (
+          <EngineEvalBar
+            variant="side"
+            evalText={engineEval.evalText}
+            whiteShare={engineEval.whiteShare}
+            depth={engineEval.depth}
+            targetDepth={LIVE_ENGINE_DEPTH}
+            loading={engineEval.loading}
+            error={engineEval.error}
+            flipped={playerColor === 'b'}
+            barHeight={liveBoardSize}
+          />
+        ) : null}
+        <View style={styles.boardBlock}>
+          <ChessBoard
+            key={state.fen + state.updated_at}
+            fen={state.fen}
+            onMove={handleMove}
+            playerColor={playerColor}
+            gestureEnabled={!!isMyTurn && state.status === 'active'}
+            moveAnimationDuration={10}
+            maxBoardWidth={showLiveEval ? liveBoardMaxWidth : undefined}
+          />
+        </View>
       </View>
       <MoveHistory moves={state.move_history} variant="dark" layout="inline" />
+      {state.status === 'finished' ? (
+        <GameOverOverlay
+          visible
+          title={friendGameOverCopy(state).title}
+          subtitle={friendGameOverCopy(state).subtitle}
+          primaryLabel="Review game"
+          onPrimary={() => void openReview(state.game_id)}
+          secondaryLabel="Leave"
+          onSecondary={() => void leaveLobby()}
+        />
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#2A2A2A', padding: 12 },
-  scroll: { padding: 16, gap: 16 },
-  title: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  hint: { color: '#aaa', fontSize: 14 },
-  sub: { color: '#ccc', marginTop: 16 },
+  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
+  title: { color: colors.textPrimary, fontSize: 24, fontWeight: 'bold' },
+  hint: { color: colors.textFaint, fontSize: 14 },
+  sub: { color: colors.textMuted, marginTop: spacing.lg },
   input: {
-    backgroundColor: '#3A3A3A',
-    color: '#fff',
+    backgroundColor: colors.surfaceRaised,
+    color: colors.textPrimary,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     fontSize: 18,
     letterSpacing: 2,
   },
   btn: {
-    backgroundColor: '#8CB369',
-    padding: 16,
-    borderRadius: 10,
+    backgroundColor: colors.accent,
+    padding: spacing.lg,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
-  btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  error: { color: '#E84855' },
+  btnText: { color: colors.textPrimary, fontSize: 18, fontWeight: 'bold' },
+  secondaryBtn: {
+    borderColor: colors.accent,
+    borderWidth: 1,
+    padding: 14,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  secondaryBtnText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  error: { color: colors.danger },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   sessionBanner: {
-    backgroundColor: '#333333',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#435C33',
+    borderColor: colors.border,
   },
   sessionBannerLabel: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   sessionBannerTitle: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     marginTop: 6,
   },
   sessionBannerText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 6,
     lineHeight: 18,
   },
-  link: { color: '#8CB369', fontSize: 16 },
-  resign: { color: '#E84855', fontSize: 16 },
-  status: { color: '#eee', marginBottom: 8, textAlign: 'center' },
+  link: { color: colors.accent, fontSize: 16 },
+  resign: { color: colors.danger, fontSize: 16 },
+  status: { color: colors.textPrimary, marginBottom: spacing.sm, textAlign: 'center' },
   code: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+  },
+  boardRow: {
+    flex: 1,
+    minHeight: 200,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIDE_EVAL_GAP,
   },
   boardBlock: { flex: 1, minHeight: 200, justifyContent: 'center' },
 });

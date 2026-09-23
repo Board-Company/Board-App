@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../theme';
 
 const PuzzleScreen = () => (
   <View style={styles.container}>
@@ -10,12 +11,12 @@ const PuzzleScreen = () => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   text: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 28,
     fontWeight: 'bold',
   },
