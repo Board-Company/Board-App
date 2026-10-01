@@ -1,0 +1,245 @@
+diff --git a/node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js b/node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js
+index 199484f..7b6db5e 100644
+--- a/node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js
++++ b/node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js
+@@ -185,6 +185,7 @@ const SceneView = ({
+     headerTopInsetEnabled,
+     headerBack
+   });
++  const resolvedHeaderConfig = header !== undefined || headerShown === false ? undefined : headerConfig;
+   return /*#__PURE__*/_jsx(NavigationContext.Provider, {
+     value: navigation,
+     children: /*#__PURE__*/_jsx(NavigationRouteContext.Provider, {
+@@ -211,13 +212,6 @@ const SceneView = ({
+         stackPresentation: presentation === 'card' ? 'push' : presentation,
+         stackAnimation: animation,
+         screenOrientation: orientation,
+-        sheetAllowedDetents: sheetAllowedDetents,
+-        sheetLargestUndimmedDetentIndex: sheetLargestUndimmedDetentIndex,
+-        sheetGrabberVisible: sheetGrabberVisible,
+-        sheetInitialDetentIndex: sheetInitialDetentIndex,
+-        sheetCornerRadius: sheetCornerRadius,
+-        sheetElevation: sheetElevation,
+-        sheetExpandsWhenScrolledToEdge: sheetExpandsWhenScrolledToEdge,
+         statusBarAnimation: statusBarAnimation,
+         statusBarHidden: statusBarHidden,
+         statusBarStyle: statusBarStyle,
+@@ -231,7 +225,6 @@ const SceneView = ({
+         onDisappear: onDisappear,
+         onDismissed: onDismissed,
+         onGestureCancel: onGestureCancel,
+-        onSheetDetentChanged: onSheetDetentChanged,
+         gestureResponseDistance: gestureResponseDistance,
+         nativeBackButtonDismissalEnabled: false // on Android
+         ,
+@@ -239,42 +232,11 @@ const SceneView = ({
+         preventNativeDismiss: isRemovePrevented // on iOS
+         ,
+         onNativeDismissCancelled: onNativeDismissCancelled
+-        // Unfortunately, because of the bug that exists on Fabric, where native event drivers
+-        // for Animated objects are being created after the first notifications about the header height
+-        // from the native side, `onHeaderHeightChange` event does not notify
+-        // `animatedHeaderHeight` about initial values on appearing screens at the moment.
+         ,
+-        onHeaderHeightChange: Animated.event([{
+-          nativeEvent: {
+-            headerHeight: rawAnimatedHeaderHeight
+-          }
+-        }], {
+-          useNativeDriver,
+-          listener: e => {
+-            if (Platform.OS === 'android' && (options.headerBackground != null || options.headerTransparent)) {
+-              // FIXME: On Android, we get 0 if the header is translucent
+-              // So we set a default height in that case
+-              setHeaderHeight(ANDROID_DEFAULT_HEADER_HEIGHT + topInset);
+-              return;
+-            }
+-            if (e.nativeEvent && typeof e.nativeEvent === 'object' && 'headerHeight' in e.nativeEvent && typeof e.nativeEvent.headerHeight === 'number') {
+-              const headerHeight = e.nativeEvent.headerHeight + headerHeightCorrectionOffset;
+-
+-              // Only debounce if header has large title or search bar
+-              // As it's the only case where the header height can change frequently
+-              const doesHeaderAnimate = Platform.OS === 'ios' && (options.headerLargeTitle || options.headerSearchBarOptions);
+-              if (doesHeaderAnimate) {
+-                setHeaderHeightDebounced(headerHeight);
+-              } else {
+-                setHeaderHeight(headerHeight);
+-              }
+-            }
+-          }
+-        }),
+         contentStyle: [presentation !== 'transparentModal' && presentation !== 'containedTransparentModal' && {
+           backgroundColor: colors.background
+         }, contentStyle],
+-        headerConfig: headerConfig,
++        headerConfig: resolvedHeaderConfig,
+         unstable_sheetFooter: unstable_sheetFooter
+         // When ts-expect-error is added, it affects all the props below it
+         // So we keep any props that need it at the end
+diff --git a/node_modules/@react-navigation/native-stack/lib/module/views/useHeaderConfigProps.js b/node_modules/@react-navigation/native-stack/lib/module/views/useHeaderConfigProps.js
+index 2f92ba5..63c906a 100644
+--- a/node_modules/@react-navigation/native-stack/lib/module/views/useHeaderConfigProps.js
++++ b/node_modules/@react-navigation/native-stack/lib/module/views/useHeaderConfigProps.js
+@@ -43,6 +43,12 @@ export function useHeaderConfigProps({
+     fonts
+   } = useTheme();
+   const tintColor = headerTintColor ?? (Platform.OS === 'ios' ? colors.primary : colors.text);
++  if (headerShown === false) {
++    return {
++      hidden: true,
++      children: null
++    };
++  }
+   const headerBackTitleStyleFlattened = StyleSheet.flatten([fonts.regular, headerBackTitleStyle]) || {};
+   const headerLargeTitleStyleFlattened = StyleSheet.flatten([Platform.select({
+     ios: fonts.heavy,
+@@ -66,7 +72,6 @@ export function useHeaderConfigProps({
+   const largeTitleBackgroundColor = headerLargeStyleFlattened.backgroundColor;
+   const largeTitleColor = 'color' in headerLargeTitleStyleFlattened ? headerLargeTitleStyleFlattened.color : undefined;
+   const largeTitleFontSize = 'fontSize' in headerLargeTitleStyleFlattened ? headerLargeTitleStyleFlattened.fontSize : undefined;
+-  const largeTitleFontWeight = headerLargeTitleStyleFlattened.fontWeight;
+   const headerTitleStyleSupported = {
+     color: titleColor
+   };
+@@ -190,7 +195,6 @@ export function useHeaderConfigProps({
+     largeTitleColor,
+     largeTitleFontFamily,
+     largeTitleFontSize,
+-    largeTitleFontWeight,
+     largeTitleHideShadow: headerLargeTitleShadowVisible === false,
+     title: titleText,
+     titleColor,
+diff --git a/node_modules/@react-navigation/native-stack/src/views/NativeStackView.native.tsx b/node_modules/@react-navigation/native-stack/src/views/NativeStackView.native.tsx
+index fd48b20..09f5f74 100644
+--- a/node_modules/@react-navigation/native-stack/src/views/NativeStackView.native.tsx
++++ b/node_modules/@react-navigation/native-stack/src/views/NativeStackView.native.tsx
+@@ -279,6 +279,8 @@ const SceneView = ({
+     headerTopInsetEnabled,
+     headerBack,
+   });
++  const resolvedHeaderConfig =
++    header !== undefined || headerShown === false ? undefined : headerConfig;
+ 
+   return (
+     <NavigationContext.Provider value={navigation}>
+@@ -309,13 +311,6 @@ const SceneView = ({
+           stackPresentation={presentation === 'card' ? 'push' : presentation}
+           stackAnimation={animation}
+           screenOrientation={orientation}
+-          sheetAllowedDetents={sheetAllowedDetents}
+-          sheetLargestUndimmedDetentIndex={sheetLargestUndimmedDetentIndex}
+-          sheetGrabberVisible={sheetGrabberVisible}
+-          sheetInitialDetentIndex={sheetInitialDetentIndex}
+-          sheetCornerRadius={sheetCornerRadius}
+-          sheetElevation={sheetElevation}
+-          sheetExpandsWhenScrolledToEdge={sheetExpandsWhenScrolledToEdge}
+           statusBarAnimation={statusBarAnimation}
+           statusBarHidden={statusBarHidden}
+           statusBarStyle={statusBarStyle}
+@@ -329,63 +324,11 @@ const SceneView = ({
+           onDisappear={onDisappear}
+           onDismissed={onDismissed}
+           onGestureCancel={onGestureCancel}
+-          onSheetDetentChanged={onSheetDetentChanged}
+           gestureResponseDistance={gestureResponseDistance}
+           nativeBackButtonDismissalEnabled={false} // on Android
+           onHeaderBackButtonClicked={onHeaderBackButtonClicked}
+           preventNativeDismiss={isRemovePrevented} // on iOS
+           onNativeDismissCancelled={onNativeDismissCancelled}
+-          // Unfortunately, because of the bug that exists on Fabric, where native event drivers
+-          // for Animated objects are being created after the first notifications about the header height
+-          // from the native side, `onHeaderHeightChange` event does not notify
+-          // `animatedHeaderHeight` about initial values on appearing screens at the moment.
+-          onHeaderHeightChange={Animated.event(
+-            [
+-              {
+-                nativeEvent: {
+-                  headerHeight: rawAnimatedHeaderHeight,
+-                },
+-              },
+-            ],
+-            {
+-              useNativeDriver,
+-              listener: (e) => {
+-                if (
+-                  Platform.OS === 'android' &&
+-                  (options.headerBackground != null ||
+-                    options.headerTransparent)
+-                ) {
+-                  // FIXME: On Android, we get 0 if the header is translucent
+-                  // So we set a default height in that case
+-                  setHeaderHeight(ANDROID_DEFAULT_HEADER_HEIGHT + topInset);
+-                  return;
+-                }
+-
+-                if (
+-                  e.nativeEvent &&
+-                  typeof e.nativeEvent === 'object' &&
+-                  'headerHeight' in e.nativeEvent &&
+-                  typeof e.nativeEvent.headerHeight === 'number'
+-                ) {
+-                  const headerHeight =
+-                    e.nativeEvent.headerHeight + headerHeightCorrectionOffset;
+-
+-                  // Only debounce if header has large title or search bar
+-                  // As it's the only case where the header height can change frequently
+-                  const doesHeaderAnimate =
+-                    Platform.OS === 'ios' &&
+-                    (options.headerLargeTitle ||
+-                      options.headerSearchBarOptions);
+-
+-                  if (doesHeaderAnimate) {
+-                    setHeaderHeightDebounced(headerHeight);
+-                  } else {
+-                    setHeaderHeight(headerHeight);
+-                  }
+-                }
+-              },
+-            }
+-          )}
+           contentStyle={[
+             presentation !== 'transparentModal' &&
+               presentation !== 'containedTransparentModal' && {
+@@ -393,7 +336,7 @@ const SceneView = ({
+               },
+             contentStyle,
+           ]}
+-          headerConfig={headerConfig}
++          headerConfig={resolvedHeaderConfig}
+           unstable_sheetFooter={unstable_sheetFooter}
+           // When ts-expect-error is added, it affects all the props below it
+           // So we keep any props that need it at the end
+diff --git a/node_modules/@react-navigation/native-stack/src/views/useHeaderConfigProps.tsx b/node_modules/@react-navigation/native-stack/src/views/useHeaderConfigProps.tsx
+index 7fa1559..264c921 100644
+--- a/node_modules/@react-navigation/native-stack/src/views/useHeaderConfigProps.tsx
++++ b/node_modules/@react-navigation/native-stack/src/views/useHeaderConfigProps.tsx
+@@ -55,6 +55,13 @@ export function useHeaderConfigProps({
+   const tintColor =
+     headerTintColor ?? (Platform.OS === 'ios' ? colors.primary : colors.text);
+ 
++  if (headerShown === false) {
++    return {
++      hidden: true,
++      children: null,
++    };
++  }
++
+   const headerBackTitleStyleFlattened =
+     StyleSheet.flatten([fonts.regular, headerBackTitleStyle]) || {};
+   const headerLargeTitleStyleFlattened =
+@@ -102,7 +109,6 @@ export function useHeaderConfigProps({
+     'fontSize' in headerLargeTitleStyleFlattened
+       ? headerLargeTitleStyleFlattened.fontSize
+       : undefined;
+-  const largeTitleFontWeight = headerLargeTitleStyleFlattened.fontWeight;
+ 
+   const headerTitleStyleSupported: TextStyle = { color: titleColor };
+ 
+@@ -293,7 +299,6 @@ export function useHeaderConfigProps({
+     largeTitleColor,
+     largeTitleFontFamily,
+     largeTitleFontSize,
+-    largeTitleFontWeight,
+     largeTitleHideShadow: headerLargeTitleShadowVisible === false,
+     title: titleText,
+     titleColor,

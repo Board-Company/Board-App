@@ -1,6 +1,7 @@
 """Engine analysis job HTTP routes (enqueue + read — no Stockfish in API process)."""
 from __future__ import annotations
 
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -71,7 +72,8 @@ async def _resolve_enqueue_params(
             detail="fen or (game_id and ply) required",
         )
 
-    fen, gid, ply = load_completed_game_fen(
+    fen, gid, ply = await asyncio.to_thread(
+        load_completed_game_fen,
         supabase,
         game_id=body.game_id,
         ply=body.ply,

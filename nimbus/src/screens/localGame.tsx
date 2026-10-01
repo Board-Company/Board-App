@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Chess } from 'chess.js';
 import type { ChessboardRef } from 'react-native-chessboard';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
 import { saveCompletedLocalGame } from '../services/localGameHistory';
+import { colors, radius, spacing } from '../theme';
 
 type TimeControl = {
   label: string;
@@ -126,17 +128,13 @@ const LocalGameScreen = () => {
     setBoardOrientation(nextTurn);
   }, []);
 
-  const checkGameStatus = useCallback((options?: { showAlert?: boolean }) => {
-    const showAlert = options?.showAlert ?? true;
+  const checkGameStatus = useCallback((_options?: { showAlert?: boolean }) => {
     if (chessRef.current.isCheckmate()) {
       const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
       const message = `Checkmate! ${winner} wins`;
       setIsGameOver(true);
       setGameStatus(message);
       persistCompletedGame(message, 'checkmate');
-      if (showAlert) {
-        Alert.alert('Game Over', message);
-      }
       return;
     }
 
@@ -144,9 +142,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Stalemate');
       persistCompletedGame('Stalemate', 'stalemate');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Stalemate!');
-      }
       return;
     }
 
@@ -154,9 +149,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw by repetition');
       persistCompletedGame('Draw by repetition', 'repetition');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Draw by repetition!');
-      }
       return;
     }
 
@@ -164,9 +156,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw by insufficient material');
       persistCompletedGame('Draw by insufficient material', 'insufficient-material');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Draw by insufficient material!');
-      }
       return;
     }
 
@@ -174,9 +163,6 @@ const LocalGameScreen = () => {
       setIsGameOver(true);
       setGameStatus('Draw');
       persistCompletedGame('Draw', 'draw');
-      if (showAlert) {
-        Alert.alert('Game Over', 'Draw!');
-      }
       return;
     }
 
@@ -340,7 +326,6 @@ const LocalGameScreen = () => {
           setIsGameOver(true);
           setGameStatus('White flagged - Black wins');
           persistCompletedGame('White flagged - Black wins', 'timeout');
-          Alert.alert('Game Over', 'White ran out of time. Black wins.');
         }
       } else {
         const nextBlackTime = Math.max(0, blackTimeRef.current - elapsed);
@@ -351,12 +336,15 @@ const LocalGameScreen = () => {
           setIsGameOver(true);
           setGameStatus('Black flagged - White wins');
           persistCompletedGame('Black flagged - White wins', 'timeout');
-          Alert.alert('Game Over', 'Black ran out of time. White wins.');
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
+    // `persistCompletedGame` is intentionally not a dependency: it changes identity as
+    // the game progresses, and restarting this 1s interval on each change would drift
+    // the clock. It is only called on a flag, at which point the effect is torn down.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGameOver, selectedTimeControl]);
 
   return (
@@ -364,7 +352,7 @@ const LocalGameScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs')}>
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Local Game</Text>
@@ -374,7 +362,7 @@ const LocalGameScreen = () => {
             {!isSetupScreen && <Text style={styles.status}>{gameStatus}</Text>}
           </View>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('LocalGameHistory')}>
-            <Icon name="history" size={24} color="#8CB369" />
+            <Icon name="history" size={24} color={colors.accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -443,6 +431,7 @@ const LocalGameScreen = () => {
           fen={fen}
           onMove={handleMove}
           playerColor={boardOrientation}
+          gestureEnabled={!isGameOver}
           moveAnimationDuration={0}
         />
       </View>
@@ -464,6 +453,15 @@ const LocalGameScreen = () => {
 
       <View style={styles.footerSpacer} />
       <MoveHistory moves={moveHistory} />
+      <GameOverOverlay
+        visible={isGameOver}
+        title={gameStatus.includes('Checkmate') ? 'Checkmate' : gameStatus.split(' - ')[0] || 'Game over'}
+        subtitle={gameStatus}
+        primaryLabel="New game"
+        onPrimary={startNewGame}
+        secondaryLabel="History"
+        onSecondary={() => navigation.navigate('LocalGameHistory')}
+      />
         </>
       )}
     </View>
@@ -473,8 +471,8 @@ const LocalGameScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
-    padding: 16,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
   },
   header: {
     marginBottom: 20,
@@ -497,17 +495,17 @@ const styles = StyleSheet.create({
     width: 40,
   },
   title: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 28,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 6,
   },
   status: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 18,
     fontWeight: '600',
     marginTop: 10,
@@ -522,51 +520,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectedModeSummary: {
-    backgroundColor: '#333333',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     padding: 18,
     marginBottom: 18,
   },
   selectedModeSummaryLabel: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   selectedModeSummaryValue: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 30,
     fontWeight: '800',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   selectedModeSummaryMeta: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   clockRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     marginBottom: 14,
   },
   clockCard: {
     flex: 1,
-    backgroundColor: '#3A3A3A',
-    borderRadius: 10,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
   activeClockCard: {
     borderWidth: 2,
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   clockLabel: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   clockValue: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: 'bold',
   },
@@ -585,8 +583,8 @@ const styles = StyleSheet.create({
 
   },
   modeBanner: {
-    backgroundColor: '#333333',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     paddingVertical: 14,
   },
   modeBannerHeader: {
@@ -594,14 +592,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modeBannerTitle: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   modeBannerSubtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   modeBannerScroll: {
     paddingHorizontal: 14,
@@ -609,66 +607,66 @@ const styles = StyleSheet.create({
   },
   modeCard: {
     width: 118,
-    backgroundColor: '#444444',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
   },
   selectedModeCard: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
   },
   modeCategory: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   modeLabel: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   modeMeta: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 12,
     marginTop: 18,
   },
   startGameButton: {
-    backgroundColor: '#8CB369',
-    borderRadius: 10,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 18,
   },
   startGameButtonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '800',
   },
   button: {
-    backgroundColor: '#8CB369',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   secondaryButton: {
-    backgroundColor: '#5D5D5D',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    backgroundColor: colors.textDisabled,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
   selectedButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: colors.textPrimary,
   },
   footerSpacer: {
     height: 72,

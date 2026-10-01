@@ -106,3 +106,72 @@ def test_job_record_to_sse_data_includes_fen_and_job_id():
     assert data["job_id"] == job_id
     assert data["fen"] == START_FEN
     assert format_sse_event(data).startswith("data: ")
+
+
+async def _no_message(*_args, **_kwargs):
+    # Yield to the loop like a real socket wait would, so a stream that never ends
+    # fails the test's wait_for instead of spinning forever.
+    await asyncio.sleep(0.01)
+    return None
+
+
+def _mock_pubsub(async_redis, *, on_subscribe=None, get_message=None):
+    pubsub_instance = MagicMock()
+    pubsub_instance.subscribe = AsyncMock(side_effect=on_subscribe)
+    pubsub_instance.unsubscribe = AsyncMock()
+    pubsub_instance.aclose = AsyncMock()
+    pubsub_instance.get_message = AsyncMock(side_effect=get_message or _no_message)
+    async_redis.pubsub = MagicMock(return_value=pubsub_instance)
+    return pubsub_instance
+
+
+def _done_result(job_id: str) -> JobResult:
+    return JobResult(
+        job_id=job_id,
+        fen=START_FEN,
+        status="done",
+        depth=8,
+        lines=[AnalysisLine(uci_pv=["e2e4"], score_cp=30)],
+        bestmove_uci="e2e4",
+    )
+
+
+@pytest.mark.asyncio
+async def test_stream_sees_job_that_finished_before_subscribe(async_redis):
+    """Job finishes (and publishes to nobody) between the first read and SUBSCRIBE."""
+    job_id, _ = await create_and_enqueue_async(async_redis, fen=START_FEN, depth=8)
+
+    async def finish_during_subscribe(*_args, **_kwargs):
+        await set_job_result_async(async_redis, job_id, _done_result(job_id))
+
+    _mock_pubsub(async_redis, on_subscribe=finish_during_subscribe)
+
+    async def collect():
+        return [chunk async for chunk in stream_job_events(async_redis, job_id)]
+
+    chunks = await asyncio.wait_for(collect(), timeout=2)
+    data = [json.loads(c.removeprefix("data: ").strip()) for c in chunks if c.startswith("data: ")]
+    assert data[-1]["status"] == "done"
+
+
+@pytest.mark.asyncio
+async def test_stream_rereads_hash_when_notify_is_missed(async_redis, monkeypatch):
+    """No publish ever arrives; the keepalive timeout re-read still delivers the result."""
+    job_id, _ = await create_and_enqueue_async(async_redis, fen=START_FEN, depth=8)
+    calls = 0
+
+    async def silent_get_message(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            await set_job_result_async(async_redis, job_id, _done_result(job_id))
+        return await _no_message()
+
+    _mock_pubsub(async_redis, get_message=silent_get_message)
+
+    async def collect():
+        return [chunk async for chunk in stream_job_events(async_redis, job_id)]
+
+    chunks = await asyncio.wait_for(collect(), timeout=2)
+    data = [json.loads(c.removeprefix("data: ").strip()) for c in chunks if c.startswith("data: ")]
+    assert [d["status"] for d in data] == ["queued", "done"]

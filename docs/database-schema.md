@@ -9,9 +9,9 @@ Living reference for **Board-Backend** persistence. Source of truth for Postgres
 | Primary DB | Supabase (PostgreSQL) | [`Board-Backend/supabase_client.py`](../Board-Backend/supabase_client.py) — Python client; backend typically uses **service_role** (bypasses RLS). |
 | ORM | None | Tables are accessed via Supabase client; **`game/models.py`** and **`schemas.py`** are Pydantic DTOs, not ORM entities. |
 | Live friend chess | Redis | [`Board-Backend/game/service.py`](../Board-Backend/game/service.py) — in-memory game state and invites; archived to Postgres when the game ends. |
-| Engine (Stockfish) | **No DB / no Redis (MVP)** | [`Board-Backend/engine/service.py`](../Board-Backend/engine/service.py) — stateless `POST /engine/analyse`; position in request, JSON out. Binary: **`STOCKFISH_PATH`** or `stockfish` on **`PATH`**. |
+| Engine (Stockfish) | **Redis db 1** (`REDIS_ENGINE_URL`), no Postgres | Jobs are enqueued by [`engine/routes.py`](../Board-Backend/engine/routes.py) and run in separate [`engine_worker/`](../Board-Backend/engine_worker/) processes; [`engine/service.py`](../Board-Backend/engine/service.py) holds the UCI helpers the worker uses. Binary: **`STOCKFISH_PATH`** or `stockfish` on **`PATH`**. See the [engine keyspace](#engine-stockfish--redis-job-queue) below. |
 
-App startup **requires Redis** (ping in [`Board-Backend/api.py`](../Board-Backend/api.py) lifespan). `GET /health` reports Redis reachability only (it does **not** report Stockfish availability; use `POST /engine/analyse` or logs for engine config).
+App startup **requires Redis** (ping in [`Board-Backend/api.py`](../Board-Backend/api.py) lifespan). `GET /health` reports reachability of **both** Redis databases — `{"status":"healthy","redis":true,"redis_engine":true}` — and does **not** report Stockfish availability; check worker logs for engine config.
 
 ---
 
@@ -81,6 +81,7 @@ Configured via **`REDIS_URL`** (default `redis://127.0.0.1:6379/0`). Values are 
 | `game:{game_id}` | Full [`FriendGameState`](../Board-Backend/game/models.py) document (FEN, moves, players, status, etc.) | 48h (`TTL_SEC`) |
 | `invite:{code}` | Maps invite code → `game_id` | Same as game |
 | `lock:game:{game_id}` | Concurrency lock for mutations | 5s (`LOCK_TTL_SEC`); released with **GET + conditional DELETE** (no Lua; compatible with fakeredis in tests) |
+| `game:spectators:{game_id}` | **Set** of user ids admitted as viewers via `POST /games/watch`. Membership is what lets a non-player read state or open the SSE stream | 48h (`TTL_SEC`), refreshed on each watch; deleted on archive |
 
 **Pub/sub (not a key):** channel `game:events:{game_id}` — JSON payload is the same shape as `GET /games/{game_id}`; emitted on create/join/move/resign for SSE subscribers ([`game/realtime.py`](../Board-Backend/game/realtime.py)).
 
@@ -88,12 +89,32 @@ On terminal outcome, service upserts **`completed_games`** then removes the game
 
 ---
 
-## Engine (Stockfish) — MVP vs future Redis
+## Engine (Stockfish) — Redis job queue
 
-**Shipped today:** There are **no** Postgres tables and **no** Redis keys for the engine. Analysis is **stateless**: client sends FEN + search options, API returns eval and PVs. Operational config only: **`STOCKFISH_PATH`** (optional) and **`PATH`** (fallback `which stockfish`). See [`Board-Backend/engine/service.py`](../Board-Backend/engine/service.py) and [api-routes.md](api-routes.md) (`POST /engine/analyse`).
+Configured via **`REDIS_ENGINE_URL`** (default: db **1** on the same host as `REDIS_URL`).
+No Postgres tables — engine state is entirely in Redis. Key names live in
+[`Board-Backend/engine/keys.py`](../Board-Backend/engine/keys.py); tuning in
+[`engine/config.py`](../Board-Backend/engine/config.py).
 
-**Not in this keyspace yet:** A **queued / live-analysis** design may add **`engine:*`** keys (queues, job hashes, pub/sub channels) and optionally **`REDIS_ENGINE_URL`** (e.g. Redis logical DB **1** while friend games stay on **0**). That layout is specified in [`plans/stockfish-queue-live-analysis.plan.md`](plans/stockfish-queue-live-analysis.plan.md). **Do not** document concrete `engine:*` TTLs or channels in this file until that code ships (or the maintainer agrees the contract); avoid colliding with `game:*`, `invite:*`, and `lock:game:*`.
+| Key pattern | Type | Purpose | TTL |
+|---|---|---|---|
+| `engine:queue:ready` | list | Jobs waiting to be claimed. Workers block on `BRPOPLPUSH` into the processing list | — |
+| `engine:queue:processing` | list | Jobs claimed by a worker. A job is never in flight without being recorded here | — |
+| `engine:job:{job_id}` | hash | Job document: position, options, status, attempts, result | 24h once terminal (`ENGINE_JOB_TERMINAL_TTL_SEC`) |
+| `engine:dedupe:{hash}` | string | Maps an identical analysis request → existing `job_id`, so both players share one job. Claimed atomically with `SET NX` | 24h (`ENGINE_DEDUPE_TTL_SEC`) |
+| `engine:idempo:{key}` | string | `Idempotency-Key` header → `job_id` | 24h (`ENGINE_DEDUPE_TTL_SEC`) |
+| `engine:dead:{job_id}` | — | Dead letter after `ENGINE_MAX_ATTEMPTS` (default 3) failures | — |
+
+**Pub/sub (not a key):** channel `engine:events:{job_id}` — progress and final eval for SSE
+subscribers, throttled to `ENGINE_PUBSUB_THROTTLE_PER_SEC` (default 10) messages/sec.
+
+**Reclaim:** a job whose worker dies stays in `engine:queue:processing`. After
+`ENGINE_VISIBILITY_TIMEOUT_SEC` (default 120) a reclaimer returns it to `engine:queue:ready`
+and increments its attempt count. Measured behaviour: 12 worker `SIGKILL`s during 300 jobs
+lost none — see [BENCHMARKS.md](../Board-Backend/BENCHMARKS.md).
+
+**Search cap:** `ENGINE_MAX_DEPTH` (default 30) bounds requested depth.
 
 ---
 
-_Last updated: 2026-04-09_
+_Last updated: 2026-09-21_

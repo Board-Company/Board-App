@@ -1,6 +1,7 @@
 """Friend chess: Redis live state, archive to Supabase on terminal."""
 from __future__ import annotations
 
+import asyncio
 import json
 import secrets
 import string
@@ -21,6 +22,8 @@ INVITE_PREFIX = "invite:"
 LOCK_PREFIX = "lock:game:"
 # Survives past main `game:{id}` TTL so a sweeper can insert an analytics row (abandoned / expired).
 SHADOW_PREFIX = "game:shadow:"
+# Users who opened the game with its invite code but hold no seat.
+SPECTATOR_PREFIX = "game:spectators:"
 TTL_SEC = 48 * 3600
 SHADOW_GRACE_SEC = 24 * 3600
 LOCK_TTL_SEC = 5
@@ -145,8 +148,11 @@ async def _archive_and_clear(redis: Redis, supabase: Client, state: dict) -> Non
         "finished_at": _now_iso(),
     }
     try:
-        # Idempotent: duplicate finish (e.g. retry) merges on game_id unique constraint
-        supabase.table("completed_games").upsert(row, on_conflict="game_id").execute()
+        # Idempotent: duplicate finish (e.g. retry) merges on game_id unique constraint.
+        # Sync client off the event loop: this runs while the game lock is held.
+        await asyncio.to_thread(
+            lambda: supabase.table("completed_games").upsert(row, on_conflict="game_id").execute()
+        )
     except Exception as e:
         logger.exception("completed_games insert failed: {}", e)
         raise HTTPException(
@@ -155,6 +161,7 @@ async def _archive_and_clear(redis: Redis, supabase: Client, state: dict) -> Non
         ) from e
 
     await redis.delete(f"{GAME_PREFIX}{gid}")
+    await redis.delete(f"{SPECTATOR_PREFIX}{gid}")
     await _delete_shadow(redis, gid)
     code = state.get("invite_code")
     if code:
@@ -197,6 +204,22 @@ async def create_friend_game(redis: Redis, user_id: str, username: str) -> Creat
     )
 
 
+async def _resolve_game_id(
+    redis: Redis, game_id: str | None, invite_code: str | None
+) -> str:
+    if invite_code:
+        gid = await redis.get(f"{INVITE_PREFIX}{invite_code.strip().upper()}")
+        if not gid:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invite code")
+        return str(gid)
+    if game_id:
+        return game_id
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Provide game_id or invite_code",
+    )
+
+
 async def join_friend_game(
     redis: Redis,
     game_id: str | None,
@@ -204,18 +227,7 @@ async def join_friend_game(
     user_id: str,
     username: str,
 ) -> FriendGameState:
-    if invite_code:
-        gid = await redis.get(f"{INVITE_PREFIX}{invite_code.strip().upper()}")
-        if not gid:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invite code")
-        gid = str(gid)
-    elif game_id:
-        gid = game_id
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provide game_id or invite_code",
-        )
+    gid = await _resolve_game_id(redis, game_id, invite_code)
 
     lock_token = await _acquire_game_lock(redis, gid)
     try:
@@ -250,13 +262,64 @@ async def join_friend_game(
         await _release_game_lock(redis, gid, lock_token)
 
 
-async def get_friend_game(redis: Redis, game_id: str, user_id: str) -> FriendGameState:
+def _is_player(state: dict, user_id: str) -> bool:
+    return user_id in (state["white_player_id"], state.get("black_player_id"))
+
+
+async def _is_spectator(redis: Redis, game_id: str, user_id: str) -> bool:
+    return bool(await redis.sismember(f"{SPECTATOR_PREFIX}{game_id}", user_id))
+
+
+async def spectator_count(redis: Redis, game_id: str) -> int:
+    return int(await redis.scard(f"{SPECTATOR_PREFIX}{game_id}") or 0)
+
+
+def viewer_role(state: dict, user_id: str) -> str:
+    if user_id == state["white_player_id"]:
+        return "white"
+    if user_id == state.get("black_player_id"):
+        return "black"
+    return "spectator"
+
+
+async def get_friend_game(
+    redis: Redis,
+    game_id: str,
+    user_id: str,
+    *,
+    allow_spectator: bool = False,
+) -> FriendGameState:
     state = await _load_raw(redis, game_id)
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
-    if user_id not in (state["white_player_id"], state.get("black_player_id")):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a player in this game")
+    if not _is_player(state, user_id):
+        # Spectators are only admitted once they have redeemed the invite code through
+        # POST /games/watch, so a stranger can't stream a game by guessing its id.
+        if not (allow_spectator and await _is_spectator(redis, game_id, user_id)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Not a player in this game"
+            )
     return _dict_to_state(state)
+
+
+async def watch_friend_game(
+    redis: Redis,
+    game_id: str | None,
+    invite_code: str | None,
+    user_id: str,
+) -> tuple[FriendGameState, str, int]:
+    """Open a game as a viewer using the invite code. Returns (state, role, spectators)."""
+    gid = await _resolve_game_id(redis, game_id, invite_code)
+    state = await _load_raw(redis, gid)
+    if not state:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+
+    role = viewer_role(state, user_id)
+    if role == "spectator":
+        key = f"{SPECTATOR_PREFIX}{gid}"
+        await redis.sadd(key, user_id)
+        await redis.expire(key, TTL_SEC)
+    return _dict_to_state(state), role, await spectator_count(redis, gid)
 
 
 async def apply_move(
@@ -365,7 +428,9 @@ async def _archive_abandoned_from_shadow(redis: Redis, supabase: Client, raw: di
         "started_at": raw["created_at"],
         "finished_at": _now_iso(),
     }
-    supabase.table("completed_games").upsert(row, on_conflict="game_id").execute()
+    await asyncio.to_thread(
+        lambda: supabase.table("completed_games").upsert(row, on_conflict="game_id").execute()
+    )
     await redis.delete(f"{SHADOW_PREFIX}{gid}")
 
 
@@ -389,8 +454,8 @@ async def sweep_abandoned_friend_games(redis: Redis, supabase: Client) -> int:
             continue
         try:
             gid = raw.get("game_id", game_id)
-            existing = (
-                supabase.table("completed_games")
+            existing = await asyncio.to_thread(
+                lambda: supabase.table("completed_games")
                 .select("game_id")
                 .eq("game_id", gid)
                 .limit(1)

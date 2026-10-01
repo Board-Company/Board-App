@@ -1,0 +1,74 @@
+diff --git a/node_modules/react-native-screens/lib/module/components/Screen.js b/node_modules/react-native-screens/lib/module/components/Screen.js
+index 9f83268..f35250a 100644
+--- a/node_modules/react-native-screens/lib/module/components/Screen.js
++++ b/node_modules/react-native-screens/lib/module/components/Screen.js
+@@ -260,6 +260,32 @@ export const InnerScreen = /*#__PURE__*/React.forwardRef(function InnerScreen(pr
+       style,
+       // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       onComponentRef,
++      // Native-stack/screen-only props must not be forwarded to Animated.View.
++      // React Native tries to call matching Obj-C setters on RCTView and crashes
++      // for props such as onSheetDetentChanged.
++      isNativeStack,
++      hasLargeHeader,
++      shouldFreeze,
++      stackPresentation,
++      sheetAllowedDetents,
++      sheetLargestUndimmedDetentIndex,
++      sheetGrabberVisible,
++      sheetCornerRadius,
++      sheetExpandsWhenScrolledToEdge,
++      sheetElevation,
++      sheetInitialDetentIndex,
++      gestureResponseDistance,
++      onAppear,
++      onDisappear,
++      onWillAppear,
++      onWillDisappear,
++      onDismissed,
++      onGestureCancel,
++      onSheetDetentChanged,
++      onHeaderHeightChange,
++      onHeaderBackButtonClicked,
++      onNativeDismissCancelled,
++      preventNativeDismiss,
+       ...props
+     } = rest;
+     if (active !== undefined && activityState === undefined) {
+diff --git a/node_modules/react-native-screens/src/components/Screen.tsx b/node_modules/react-native-screens/src/components/Screen.tsx
+index 68fbea0..5a758a3 100644
+--- a/node_modules/react-native-screens/src/components/Screen.tsx
++++ b/node_modules/react-native-screens/src/components/Screen.tsx
+@@ -367,6 +367,32 @@ export const InnerScreen = React.forwardRef<View, ScreenProps>(
+         style,
+         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+         onComponentRef,
++        // Native-stack/screen-only props must not be forwarded to Animated.View.
++        // React Native tries to call matching Obj-C setters on RCTView and crashes
++        // for props such as onSheetDetentChanged.
++        isNativeStack,
++        hasLargeHeader,
++        shouldFreeze,
++        stackPresentation,
++        sheetAllowedDetents,
++        sheetLargestUndimmedDetentIndex,
++        sheetGrabberVisible,
++        sheetCornerRadius,
++        sheetExpandsWhenScrolledToEdge,
++        sheetElevation,
++        sheetInitialDetentIndex,
++        gestureResponseDistance,
++        onAppear,
++        onDisappear,
++        onWillAppear,
++        onWillDisappear,
++        onDismissed,
++        onGestureCancel,
++        onSheetDetentChanged,
++        onHeaderHeightChange,
++        onHeaderBackButtonClicked,
++        onNativeDismissCancelled,
++        preventNativeDismiss,
+         ...props
+       } = rest;
+ 

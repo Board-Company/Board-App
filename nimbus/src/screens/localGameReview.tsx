@@ -15,75 +15,20 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import EngineEvalBar from '../components/game/EngineEvalBar';
+import { useEngineAnalysis } from '../hooks/useEngineAnalysis';
+import { useEngineQueueHealth } from '../hooks/useEngineQueueHealth';
+import { fenReplayFromMoves } from '../services/gameReplay';
+import { resolveEngineStatusLine, REVIEW_ENGINE_DEPTH } from '../services/engineAnalysis';
 import {
   getCompletedLocalGameById,
   type LocalGameRecord,
 } from '../services/localGameHistory';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   LocalGameHistory: undefined;
   LocalGameReview: { gameId: string };
-};
-
-const PIECE_VALUES: Record<string, number> = {
-  p: 1,
-  n: 3,
-  b: 3,
-  r: 5,
-  q: 9,
-  k: 0,
-};
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const getEvaluationFromChess = (chess: Chess) => {
-  if (chess.isCheckmate()) {
-    return chess.turn() === 'w'
-      ? { score: -100, label: 'M0', advantage: 'Black is winning' }
-      : { score: 100, label: 'M0', advantage: 'White is winning' };
-  }
-
-  if (chess.isDraw() || chess.isStalemate() || chess.isInsufficientMaterial() || chess.isThreefoldRepetition()) {
-    return { score: 0, label: '0.0', advantage: 'Equal position' };
-  }
-
-  let score = 0;
-
-  chess.board().forEach(rank => {
-    rank.forEach(square => {
-      if (!square) {
-        return;
-      }
-
-      const pieceValue = PIECE_VALUES[square.type] ?? 0;
-      score += square.color === 'w' ? pieceValue : -pieceValue;
-    });
-  });
-
-  const normalizedScore = clamp(score, -12, 12);
-
-  if (normalizedScore === 0) {
-    return { score: normalizedScore, label: '0.0', advantage: 'Equal position' };
-  }
-
-  return {
-    score: normalizedScore,
-    label: `${normalizedScore > 0 ? '+' : ''}${normalizedScore.toFixed(1)}`,
-    advantage: normalizedScore > 0 ? 'White is better' : 'Black is better',
-  };
-};
-
-const getEvaluation = (fen: string) => getEvaluationFromChess(new Chess(fen));
-
-/** Single replay pass; material eval runs only for the current ply (not for every move on load). */
-const buildFenReplay = (game: LocalGameRecord): string[] => {
-  const chess = new Chess(game.initialFen);
-  const fens: string[] = [chess.fen()];
-  for (const move of game.moves) {
-    chess.move(move);
-    fens.push(chess.fen());
-  }
-  return fens;
 };
 
 const noopOnMove = () => {};
@@ -119,14 +64,30 @@ const LocalGameReviewScreen = () => {
     };
   }, [route.params.gameId]);
 
-  const fenReplay = useMemo(() => (game ? buildFenReplay(game) : []), [game]);
+  const fenReplay = useMemo(
+    () => (game ? fenReplayFromMoves(game.moves, game.initialFen) : []),
+    [game],
+  );
+  const lastPly = Math.max(0, fenReplay.length - 1);
   const currentFen =
     game && fenReplay.length > 0
-      ? (fenReplay[moveIndex] ?? fenReplay[fenReplay.length - 1])
+      ? (fenReplay[Math.min(moveIndex, lastPly)] ?? fenReplay[lastPly])
       : (game?.finalFen ?? new Chess().fen());
   const currentMove = game && moveIndex > 0 ? game.moves[moveIndex - 1] : null;
-  const evaluation = useMemo(() => getEvaluation(currentFen), [currentFen]);
-  const whiteShare = clamp(((evaluation.score + 12) / 24) * 100, 0, 100);
+  const { queueAvailable } = useEngineQueueHealth(!!game);
+  const engineEval = useEngineAnalysis({
+    fen: game ? currentFen : null,
+    depth: REVIEW_ENGINE_DEPTH,
+    profile: 'analysis',
+    enabled: !!game,
+  });
+  const engineStatus = resolveEngineStatusLine({
+    queueAvailable,
+    status: engineEval.status,
+    loading: engineEval.loading,
+    error: engineEval.error,
+    waitingForWorker: engineEval.waitingForWorker,
+  });
 
   if (isLoading) {
     return (
@@ -136,7 +97,7 @@ const LocalGameReviewScreen = () => {
             style={styles.iconButton}
             onPress={() => navigation.navigate('LocalGameHistory')}
           >
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Game Review</Text>
@@ -144,7 +105,7 @@ const LocalGameReviewScreen = () => {
           <View style={styles.iconButton} />
         </View>
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#8CB369" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Loading game review...</Text>
         </View>
       </View>
@@ -159,7 +120,7 @@ const LocalGameReviewScreen = () => {
             style={styles.iconButton}
             onPress={() => navigation.navigate('LocalGameHistory')}
           >
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Game Review</Text>
@@ -185,7 +146,7 @@ const LocalGameReviewScreen = () => {
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('LocalGameHistory')}>
-            <Icon name="arrow-back" size={24} color="#8CB369" />
+            <Icon name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Game Review</Text>
@@ -199,46 +160,11 @@ const LocalGameReviewScreen = () => {
             {game.timeControlLabel} • {game.timeControlCategory}
           </Text>
           <Text style={styles.summaryText}>
-            Move {moveIndex} / {game.moves.length}
+            Move {moveIndex} / {lastPly}
           </Text>
           <Text style={styles.summaryText}>
             {currentMove ? `Last move: ${currentMove}` : 'Starting position'}
           </Text>
-          <View style={styles.evalSummaryRow}>
-            <Text style={styles.evalValue}>Eval {evaluation.label}</Text>
-            <Text style={styles.evalSummaryText}>{evaluation.advantage}</Text>
-          </View>
-        </View>
-
-        <View style={styles.boardCard}>
-          <View style={styles.boardContainer}>
-            {/* Remount per step: react-native-chessboard only reads initial `fen` once (no prop sync). */}
-            <ChessBoard
-              key={`${game.id}-${moveIndex}`}
-              fen={currentFen}
-              onMove={noopOnMove}
-              playerColor="w"
-              gestureEnabled={false}
-              moveAnimationDuration={0}
-              maxBoardWidth={reviewBoardMaxWidth}
-            />
-          </View>
-        </View>
-
-        <View style={styles.evalCard}>
-          <View style={styles.evalCardHeader}>
-            <Text style={styles.evalValue}>Eval {evaluation.label}</Text>
-            <Text style={styles.evalSummaryText}>{evaluation.advantage}</Text>
-          </View>
-          <View style={styles.evalBarLabels}>
-            <Text style={styles.evalPlayerLabel}>Black</Text>
-            <Text style={styles.evalPlayerLabel}>White</Text>
-          </View>
-          <View style={styles.evalBarTrack}>
-            <View style={[styles.evalBarBlack, { width: `${100 - whiteShare}%` }]} />
-            <View style={[styles.evalBarWhite, { width: `${whiteShare}%` }]} />
-          </View>
-          <Text style={styles.evalHint}>Material-based estimate for quick review</Text>
         </View>
 
         <View style={styles.controlsRow}>
@@ -257,20 +183,48 @@ const LocalGameReviewScreen = () => {
             <Text style={styles.controlButtonText}>Previous</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.controlButton, moveIndex === game.moves.length && styles.disabledButton]}
-            onPress={() => setMoveIndex(current => Math.min(game.moves.length, current + 1))}
-            disabled={moveIndex === game.moves.length}
+            style={[styles.controlButton, moveIndex === lastPly && styles.disabledButton]}
+            onPress={() => setMoveIndex(current => Math.min(lastPly, current + 1))}
+            disabled={moveIndex === lastPly}
           >
             <Text style={styles.controlButtonText}>Next</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.controlButton, moveIndex === game.moves.length && styles.disabledButton]}
-            onPress={() => setMoveIndex(game.moves.length)}
-            disabled={moveIndex === game.moves.length}
+            style={[styles.controlButton, moveIndex === lastPly && styles.disabledButton]}
+            onPress={() => setMoveIndex(lastPly)}
+            disabled={moveIndex === lastPly}
           >
             <Text style={styles.controlButtonText}>End</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.boardCard}>
+          <View style={styles.boardContainer} pointerEvents="none">
+            <ChessBoard
+              key={`${game.id}-${moveIndex}`}
+              fen={currentFen}
+              onMove={noopOnMove}
+              playerColor="w"
+              gestureEnabled={false}
+              moveAnimationDuration={0}
+              maxBoardWidth={reviewBoardMaxWidth}
+            />
+          </View>
+        </View>
+
+        <EngineEvalBar
+          variant="review"
+          evalText={engineEval.evalText}
+          advantage={engineEval.advantage}
+          whiteShare={engineEval.whiteShare}
+          depth={engineEval.depth}
+          targetDepth={REVIEW_ENGINE_DEPTH}
+          loading={engineEval.loading}
+          error={engineEval.error}
+          label={`Stockfish · depth ${REVIEW_ENGINE_DEPTH}`}
+          statusLine={engineStatus.line}
+          statusTone={engineStatus.tone}
+        />
       </ScrollView>
     </View>
   );
@@ -279,7 +233,7 @@ const LocalGameReviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
   },
   scrollContent: {
@@ -288,7 +242,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   iconButton: {
     width: 40,
@@ -301,57 +255,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 13,
-    marginTop: 4,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   summaryCard: {
-    backgroundColor: '#333333',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   summaryMode: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   summaryText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   evalSummaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    gap: 12,
+    marginTop: spacing.md,
+    gap: spacing.md,
   },
   evalValue: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '800',
   },
   evalSummaryText: {
-    color: '#8CB369',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
     flexShrink: 1,
     textAlign: 'right',
   },
   boardCard: {
-    backgroundColor: '#333333',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.md,
     alignSelf: 'center',
     maxWidth: '100%',
   },
@@ -360,48 +314,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   evalCard: {
-    backgroundColor: '#333333',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   evalCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   evalBarLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 14,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   evalBarTrack: {
     width: '100%',
     height: 18,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: 'hidden',
-    backgroundColor: '#111111',
+    backgroundColor: colors.backgroundBlack,
     borderWidth: 1,
-    borderColor: '#4A4A4A',
+    borderColor: colors.borderMuted,
     flexDirection: 'row',
   },
   evalBarWhite: {
     height: '100%',
-    backgroundColor: '#F2F2F2',
+    backgroundColor: colors.textPrimary,
   },
   evalBarBlack: {
     height: '100%',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundSunken,
   },
   evalPlayerLabel: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
   },
   evalHint: {
-    color: '#AAB79B',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 10,
     textAlign: 'center',
@@ -410,20 +364,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   controlButton: {
-    backgroundColor: '#8CB369',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   disabledButton: {
-    backgroundColor: '#5D5D5D',
+    backgroundColor: colors.textDisabled,
   },
   controlButtonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -431,23 +385,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   emptyTitle: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '700',
   },
   emptySubtitle: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   loadingText: {
-    color: '#C8D5B9',
+    color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 12,
+    marginTop: spacing.md,
     textAlign: 'center',
   },
 });

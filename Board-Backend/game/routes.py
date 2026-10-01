@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 
@@ -11,6 +11,7 @@ from game.models import (
     FriendGameState,
     JoinGameRequest,
     MoveRequestBody,
+    WatchGameResponse,
 )
 from game.realtime import game_events_channel
 from game.service import (
@@ -19,6 +20,8 @@ from game.service import (
     get_friend_game,
     join_friend_game,
     resign_friend_game,
+    spectator_count,
+    watch_friend_game,
 )
 from schemas import User
 from supabase_client import supabase
@@ -82,7 +85,7 @@ def _user_id(user: User) -> str:
 
 
 @router.get("/me/completed", response_model=list[CompletedGameSummary])
-async def list_my_completed_games(
+def list_my_completed_games(
     current_user: User = Depends(get_current_active_user),
 ):
     uid = _user_id(current_user)
@@ -109,7 +112,7 @@ async def list_my_completed_games(
 
 
 @router.get("/me/completed/{game_id}", response_model=CompletedGameSummary)
-async def get_my_completed_game(
+def get_my_completed_game(
     game_id: str,
     current_user: User = Depends(get_current_active_user),
 ):
@@ -162,6 +165,25 @@ async def join_game(
     )
 
 
+@router.post("/watch", response_model=WatchGameResponse)
+async def watch_game(
+    request: Request,
+    body: JoinGameRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Open a live game as a viewer with the same invite code players use.
+
+    Players get their own seat back; anyone else is registered as a spectator, which is
+    what lets them read the state and open the SSE stream afterwards.
+    """
+    redis = _redis(request)
+    state, role, spectators = await watch_friend_game(
+        redis, body.game_id, body.invite_code, _user_id(current_user)
+    )
+    return WatchGameResponse(state=state, role=role, spectator_count=spectators)
+
+
 @router.post("", response_model=CreateGameResponse)
 async def create_game(
     request: Request,
@@ -186,7 +208,7 @@ async def game_events_stream(
     """
     redis = _redis(request)
     uid = _user_id(current_user)
-    initial = await get_friend_game(redis, game_id, uid)
+    initial = await get_friend_game(redis, game_id, uid, allow_spectator=True)
     initial_json = initial.model_dump_json()
 
     async def event_generator():
@@ -194,7 +216,16 @@ async def game_events_stream(
         channel = game_events_channel(game_id)
         await pubsub.subscribe(channel)
         try:
-            yield f"data: {initial_json}\n\n"
+            # Re-read after subscribing so a move published between the permission check
+            # above and SUBSCRIBE isn't missed. If the game was archived in that gap, send
+            # the state we already have.
+            try:
+                snapshot_json = (
+                    await get_friend_game(redis, game_id, uid, allow_spectator=True)
+                ).model_dump_json()
+            except HTTPException:
+                snapshot_json = initial_json
+            yield f"data: {snapshot_json}\n\n"
             while True:
                 if await request.is_disconnected():
                     break
@@ -238,7 +269,9 @@ async def read_game(
     current_user: User = Depends(get_current_active_user),
 ):
     redis = _redis(request)
-    return await get_friend_game(redis, game_id, _user_id(current_user))
+    return await get_friend_game(
+        redis, game_id, _user_id(current_user), allow_spectator=True
+    )
 
 
 @router.post("/{game_id}/move", response_model=FriendGameState)

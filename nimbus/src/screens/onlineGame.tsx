@@ -1,12 +1,14 @@
 // @ts-ignore: No types for rn-eventsource
 import EventSource from 'rn-eventsource';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useLichessAuth } from '../contexts/LichessAuthContext';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
+import { colors, radius, spacing } from '../theme';
 
 type RootStackParamList = {
   PlayMenu: undefined;
@@ -22,15 +24,17 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'waiting' | 'playing' | 'finished'>('waiting');
   const [error, setError] = useState<string | null>(null);
-  const [stream, setStream] = useState<EventSource | null>(null);
+  const streamRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // Mount-once: this screen creates exactly one game for the route params it was
+    // opened with. `createGame` is deliberately not a dependency.
     createGame();
     return () => {
-      if (stream) {
-        stream.close();
-      }
+      streamRef.current?.close();
+      streamRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createGame = async () => {
@@ -53,7 +57,7 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
             increment: 0,
           },
           variant: gameType === 'chess960' ? 'chess960' : 'standard',
-          color: 'white',
+          color: colors.textPrimary,
         }),
       });
 
@@ -110,7 +114,7 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
       newStream.close();
     };
 
-    setStream(newStream);
+    streamRef.current = newStream;
   };
 
   const handleMove = async (evt: { move?: { from: string; to: string; promotion?: string } }) => {
@@ -157,44 +161,49 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
     );
   }
 
+  const finishedCopy = game.isCheckmate()
+    ? {
+        title: 'Checkmate',
+        subtitle: `${game.turn() === 'w' ? 'Black' : 'White'} wins`,
+      }
+    : game.isStalemate()
+      ? { title: 'Stalemate', subtitle: 'No legal moves left' }
+      : game.isDraw()
+        ? { title: 'Draw', subtitle: 'The game is drawn' }
+        : { title: 'Game over', subtitle: 'This match has ended' };
+
   return (
     <View style={styles.root}>
       {gameState === 'waiting' ? (
         <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color="#8CB369" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.statusText}>Waiting for opponent...</Text>
         </View>
-      ) : gameState === 'playing' ? (
+      ) : (
         <View style={styles.playWrap}>
           <Text style={styles.statusText}>
-            {game.turn() === 'w' ? 'Your turn' : "Opponent's turn"}
+            {gameState === 'finished'
+              ? finishedCopy.title
+              : game.turn() === 'w'
+                ? 'Your turn'
+                : "Opponent's turn"}
           </Text>
           <View style={styles.boardBlock}>
             <ChessBoard
               fen={game.fen()}
               onMove={handleMove}
               playerColor="w"
-              gestureEnabled={game.turn() === 'w'}
+              gestureEnabled={gameState === 'playing' && game.turn() === 'w'}
             />
           </View>
           <MoveHistory moves={game.history()} variant="dark" layout="inline" />
-        </View>
-      ) : (
-        <View style={styles.centerWrap}>
-          <Text style={styles.finishedText}>
-            Game finished!{' '}
-            {game.isCheckmate()
-              ? 'Checkmate!'
-              : game.isDraw()
-                ? 'Draw!'
-                : game.isStalemate()
-                  ? 'Stalemate!'
-                  : 'Game over!'}
-          </Text>
-          <MoveHistory moves={game.history()} variant="dark" layout="inline" />
-          <TouchableOpacity style={styles.primaryBtn} onPress={createGame}>
-            <Text style={styles.primaryBtnText}>Play Again</Text>
-          </TouchableOpacity>
+          <GameOverOverlay
+            visible={gameState === 'finished'}
+            title={finishedCopy.title}
+            subtitle={finishedCopy.subtitle}
+            primaryLabel="Play again"
+            onPrimary={createGame}
+          />
         </View>
       )}
     </View>
@@ -204,8 +213,8 @@ const OnlineGameScreen = ({ navigation: _navigation, route }: Props) => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
-    padding: 12,
+    backgroundColor: colors.background,
+    padding: spacing.md,
   },
   playWrap: {
     flex: 1,
@@ -219,34 +228,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   statusText: {
-    color: '#EEEEEE',
+    color: colors.textPrimary,
     fontSize: 18,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   finishedText: {
-    color: '#EEEEEE',
+    color: colors.textPrimary,
     fontSize: 20,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    color: '#E84855',
+    color: colors.danger,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   primaryBtn: {
-    backgroundColor: '#8CB369',
-    paddingHorizontal: 24,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.xl,
     paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 16,
+    borderRadius: radius.card,
+    marginTop: spacing.lg,
   },
   primaryBtnText: {
-    color: '#111',
+    color: colors.backgroundBlack,
     fontSize: 17,
     fontWeight: '800',
   },

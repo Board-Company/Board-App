@@ -72,23 +72,28 @@ def analyse_payload(
         limit = chess.engine.Limit(depth=payload.depth)
 
     multipv = max(1, payload.multipv)
-    collected: list[chess.engine.InfoDict] = []
+    # Newest info per MultiPV slot: Stockfish re-reports every line at each depth, so
+    # keeping all of them would put the shallowest search first in `lines`.
+    latest: dict[int, chess.engine.InfoDict] = {}
 
     with engine.analysis(board, limit, multipv=multipv) as analysis:
         for info in analysis:
-            if info.get("depth") is None and info.get("score") is None and not info.get("pv"):
+            if info.get("score") is None or not info.get("pv"):
                 continue
-            collected.append(info)
-            if on_progress and (info.get("depth") or info.get("pv")):
+            latest[info.get("multipv", 1)] = info
+            if on_progress:
                 partial = _infos_to_result(
-                    payload, collected, status="running", started=started
+                    payload, _ordered(latest), status="running", started=started
                 )
                 on_progress(partial)
 
-    if not collected:
+    if not latest:
         raw = engine.analyse(board, limit, multipv=multipv)
         infos = raw if isinstance(raw, list) else [raw]
         return _infos_to_result(payload, infos, status="done", started=started)
 
-    final = _infos_to_result(payload, collected, status="done", started=started)
-    return final
+    return _infos_to_result(payload, _ordered(latest), status="done", started=started)
+
+
+def _ordered(latest: dict[int, chess.engine.InfoDict]) -> list[chess.engine.InfoDict]:
+    return [latest[k] for k in sorted(latest)]

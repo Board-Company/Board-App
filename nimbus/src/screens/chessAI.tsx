@@ -10,15 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  Dimensions,
-  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import { LLM_API_URL } from '../env';
+import { colors, radius, spacing } from '../theme';
 
 type Message = {
   id: string;
@@ -56,12 +56,11 @@ const ChessAIScreen = () => {
   // Chess game state
   const chessRef = useRef(new Chess());
   const [fen, setFen] = useState(chessRef.current.fen());
+  const [, setLastMove] = useState<{from: string; to: string} | null>(null);
   const [playerColor] = useState<'w' | 'b'>('w');
-  const [lastMove, setLastMove] = useState<{from: string; to: string} | null>(null);
   const [showBoard, setShowBoard] = useState(true);
+  const [gameOver, setGameOver] = useState<{ title: string; subtitle: string } | null>(null);
   
-  const screenWidth = Dimensions.get('window').width;
-  const boardSize = Math.min(screenWidth - 32, 300);
   
   // Voice recognition state
   const [isListening, setIsListening] = useState(false);
@@ -275,9 +274,11 @@ const ChessAIScreen = () => {
             // Check game status
             if (chessRef.current.isCheckmate()) {
               const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
-              Alert.alert('Checkmate!', `${winner} wins!`);
+              setGameOver({ title: 'Checkmate', subtitle: `${winner} wins` });
+            } else if (chessRef.current.isStalemate()) {
+              setGameOver({ title: 'Stalemate', subtitle: 'No legal moves left' });
             } else if (chessRef.current.isDraw()) {
-              Alert.alert('Draw', 'The game is a draw!');
+              setGameOver({ title: 'Draw', subtitle: 'The game is drawn' });
             } else if (chessRef.current.isCheck()) {
               setMessages(prev => [...prev, {
                 id: generateMessageId(),
@@ -350,7 +351,15 @@ const ChessAIScreen = () => {
   };
 
   // Handle manual moves on the board
-  const handleBoardMove = (move: { from: string; to: string }) => {
+  const handleBoardMove = (event: {
+    move?: { from: string; to: string; promotion?: string };
+    from?: string;
+    to?: string;
+  }) => {
+    const move = event?.move ?? event;
+    if (!move?.from || !move?.to) {
+      return;
+    }
     try {
       const result = chessRef.current.move({
         from: move.from,
@@ -369,6 +378,15 @@ const ChessAIScreen = () => {
           moveExecuted: result.san,
         };
         setMessages(prev => [...prev, moveMsg]);
+
+        if (chessRef.current.isCheckmate()) {
+          const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
+          setGameOver({ title: 'Checkmate', subtitle: `${winner} wins` });
+        } else if (chessRef.current.isStalemate()) {
+          setGameOver({ title: 'Stalemate', subtitle: 'No legal moves left' });
+        } else if (chessRef.current.isDraw()) {
+          setGameOver({ title: 'Draw', subtitle: 'The game is drawn' });
+        }
       }
     } catch (error) {
       console.log('Invalid move');
@@ -380,6 +398,7 @@ const ChessAIScreen = () => {
     chessRef.current.reset();
     setFen(chessRef.current.fen());
     setLastMove(null);
+    setGameOver(null);
     setMessages(prev => [...prev, {
       id: generateMessageId(),
       role: 'assistant',
@@ -439,16 +458,6 @@ const ChessAIScreen = () => {
     }
   };
 
-  const clearChat = () => {
-    setMessages([
-      {
-        id: generateMessageId(),
-        role: 'assistant',
-        content: "Chat cleared! How can I help you with chess today?",
-      },
-    ]);
-  };
-
   const quickPrompts = [
     "Knight to f3",
     "Pawn to e4",
@@ -465,18 +474,18 @@ const ChessAIScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color="#8CB369" />
+          <Icon name="arrow-back" size={24} color={colors.accent} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <Icon name="psychology" size={28} color="#8CB369" />
+          <Icon name="psychology" size={28} color={colors.accent} />
           <Text style={styles.title}>Chess AI Coach</Text>
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity onPress={() => setShowBoard(!showBoard)} style={styles.headerIconButton}>
-            <Icon name={showBoard ? "visibility-off" : "visibility"} size={22} color="#888" />
+            <Icon name={showBoard ? "visibility-off" : "visibility"} size={22} color={colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity onPress={resetBoard} style={styles.headerIconButton}>
-            <Icon name="refresh" size={22} color="#888" />
+            <Icon name="refresh" size={22} color={colors.textFaint} />
           </TouchableOpacity>
         </View>
       </View>
@@ -489,11 +498,12 @@ const ChessAIScreen = () => {
               fen={fen}
               onMove={handleBoardMove}
               playerColor={playerColor}
+              gestureEnabled={!gameOver}
               moveAnimationDuration={10}
             />
           </View>
           <View style={styles.turnIndicator}>
-            <View style={[styles.turnDot, { backgroundColor: chessRef.current.turn() === 'w' ? '#fff' : '#333' }]} />
+            <View style={[styles.turnDot, { backgroundColor: chessRef.current.turn() === 'w' ? colors.textPrimary : colors.surface }]} />
             <Text style={styles.turnText}>
               {chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move
             </Text>
@@ -517,7 +527,7 @@ const ChessAIScreen = () => {
             ]}
           >
             {message.role === 'assistant' && (
-              <Icon name="smart-toy" size={20} color="#8CB369" style={styles.messageIcon} />
+              <Icon name="smart-toy" size={20} color={colors.accent} style={styles.messageIcon} />
             )}
             <Text
               style={[
@@ -531,7 +541,7 @@ const ChessAIScreen = () => {
         ))}
         {isLoading && (
           <View style={[styles.messageBubble, styles.assistantMessage]}>
-            <ActivityIndicator size="small" color="#8CB369" />
+            <ActivityIndicator size="small" color={colors.accent} />
             <Text style={styles.loadingText}>Thinking...</Text>
           </View>
         )}
@@ -552,7 +562,7 @@ const ChessAIScreen = () => {
           style={[styles.quickPrompt, styles.fenPrompt]}
           onPress={() => setShowFenInput(!showFenInput)}
         >
-          <Icon name="grid-on" size={16} color="#8CB369" />
+          <Icon name="grid-on" size={16} color={colors.accent} />
           <Text style={styles.quickPromptText}>Analyze FEN</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -565,7 +575,7 @@ const ChessAIScreen = () => {
             value={fenInput}
             onChangeText={setFenInput}
             placeholder="Paste FEN notation here..."
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textDisabled}
             multiline
           />
           <TouchableOpacity style={styles.fenAnalyzeButton} onPress={analyzePosition}>
@@ -593,7 +603,7 @@ const ChessAIScreen = () => {
             <Icon 
               name={isListening ? 'mic' : 'mic-none'} 
               size={24} 
-              color={isListening ? '#fff' : '#8CB369'} 
+              color={isListening ? colors.textPrimary : colors.accent} 
             />
           </TouchableOpacity>
         )}
@@ -602,7 +612,7 @@ const ChessAIScreen = () => {
           value={inputText}
           onChangeText={setInputText}
           placeholder={isListening ? "Listening..." : "Ask about chess..."}
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textDisabled}
           multiline
           maxLength={500}
         />
@@ -611,9 +621,16 @@ const ChessAIScreen = () => {
           onPress={() => sendChatMessage(inputText)}
           disabled={!inputText.trim() || isLoading}
         >
-          <Icon name="send" size={24} color={inputText.trim() ? '#fff' : '#666'} />
+          <Icon name="send" size={24} color={inputText.trim() ? colors.textPrimary : colors.textDisabled} />
         </TouchableOpacity>
       </View>
+      <GameOverOverlay
+        visible={!!gameOver}
+        title={gameOver?.title ?? 'Game over'}
+        subtitle={gameOver?.subtitle}
+        primaryLabel="New game"
+        onPrimary={resetBoard}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -621,96 +638,96 @@ const ChessAIScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.backgroundSunken,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingTop: 48,
-    paddingBottom: 16,
-    backgroundColor: '#222',
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: colors.surface,
   },
   backButton: {
-    padding: 8,
+    padding: spacing.sm,
   },
   headerTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   title: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: 'bold',
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.xs,
   },
   headerIconButton: {
-    padding: 8,
+    padding: spacing.sm,
   },
   boardContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#222',
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surfaceMuted,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: colors.surface,
   },
   boardWrapper: {
-    borderRadius: 8,
+    borderRadius: radius.sm,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   turnIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
   turnDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#666',
+    borderColor: colors.textDisabled,
   },
   turnText: {
-    color: '#aaa',
+    color: colors.textFaint,
     fontSize: 14,
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   messageBubble: {
     maxWidth: '85%',
-    padding: 12,
+    padding: spacing.md,
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   userMessage: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
   },
   assistantMessage: {
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
   },
   messageIcon: {
-    marginRight: 8,
+    marginRight: spacing.sm,
     marginTop: 2,
   },
   messageText: {
@@ -719,89 +736,89 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userMessageText: {
-    color: '#fff',
+    color: colors.textPrimary,
   },
   assistantMessageText: {
-    color: '#eee',
+    color: colors.textPrimary,
   },
   loadingText: {
-    color: '#888',
-    marginLeft: 8,
+    color: colors.textFaint,
+    marginLeft: spacing.sm,
     fontSize: 14,
   },
   quickPromptsContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: colors.surface,
   },
   quickPrompt: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.background,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderRadius: 20,
-    marginRight: 8,
+    marginRight: spacing.sm,
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: colors.borderMuted,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   fenPrompt: {
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   quickPromptText: {
-    color: '#ccc',
+    color: colors.textMuted,
     fontSize: 13,
   },
   fenInputContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#222',
-    gap: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+    gap: spacing.sm,
   },
   fenTextInput: {
     flex: 1,
-    backgroundColor: '#333',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
     padding: 10,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   fenAnalyzeButton: {
-    backgroundColor: '#8CB369',
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.sm,
     justifyContent: 'center',
   },
   fenAnalyzeButtonText: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontWeight: 'bold',
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: spacing.md,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    backgroundColor: '#222',
+    backgroundColor: colors.surfaceMuted,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: colors.surface,
     alignItems: 'flex-end',
-    gap: 8,
+    gap: spacing.sm,
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     maxHeight: 100,
   },
   sendButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -809,7 +826,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#444',
+    backgroundColor: colors.borderMuted,
   },
   micButton: {
     width: 44,
@@ -817,30 +834,30 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#333',
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#8CB369',
+    borderColor: colors.accent,
   },
   micButtonActive: {
-    backgroundColor: '#E63946',
-    borderColor: '#E63946',
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
   },
   recordingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    backgroundColor: 'rgba(230, 57, 70, 0.1)',
-    gap: 8,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.dangerTint,
+    gap: spacing.sm,
   },
   recordingDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#E63946',
+    backgroundColor: colors.danger,
   },
   recordingText: {
-    color: '#E63946',
+    color: colors.danger,
     fontSize: 14,
     fontWeight: '500',
   },

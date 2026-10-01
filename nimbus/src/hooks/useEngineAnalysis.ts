@@ -67,18 +67,17 @@ export function useEngineAnalysis(options: UseEngineAnalysisOptions): EngineAnal
 
     const targetKey = hasArchive ? `${gameId}:${ply}:${depth}` : `${fen}:${depth}:${profile}`;
     targetKeyRef.current = targetKey;
-    if (hasFen) {
-      targetFenRef.current = fen!;
-    }
+    targetFenRef.current = hasFen ? fen! : null;
 
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
     const previousJobId = jobIdRef.current;
+    const cancelStaleJobs = profile === 'play';
 
     const run = async () => {
       setState(s => ({ ...s, loading: true, error: null, waitingForWorker: false }));
 
-      if (previousJobId) {
+      if (cancelStaleJobs && previousJobId) {
         cancelEngineJob(previousJobId).catch(() => {});
         jobIdRef.current = null;
       }
@@ -98,7 +97,9 @@ export function useEngineAnalysis(options: UseEngineAnalysisOptions): EngineAnal
 
         const { job_id } = await createEngineJob(params);
         if (cancelled || targetKeyRef.current !== targetKey) {
-          cancelEngineJob(job_id).catch(() => {});
+          if (cancelStaleJobs) {
+            cancelEngineJob(job_id).catch(() => {});
+          }
           return;
         }
         jobIdRef.current = job_id;
@@ -109,7 +110,11 @@ export function useEngineAnalysis(options: UseEngineAnalysisOptions): EngineAnal
             if (cancelled || targetKeyRef.current !== targetKey) {
               return;
             }
-            if (targetFenRef.current && evt.fen !== targetFenRef.current) {
+            if (
+              targetFenRef.current &&
+              evt.fen.split(' ').slice(0, 2).join(' ') !==
+                targetFenRef.current.split(' ').slice(0, 2).join(' ')
+            ) {
               return;
             }
             const result = evt.result ?? undefined;
@@ -140,16 +145,18 @@ export function useEngineAnalysis(options: UseEngineAnalysisOptions): EngineAnal
       }
     };
 
-    const debounce = setTimeout(run, hasArchive ? 350 : 150);
+    const debounce = setTimeout(run, profile === 'analysis' || hasArchive ? 350 : 150);
 
     return () => {
       cancelled = true;
       clearTimeout(debounce);
       unsubscribe?.();
-      const jid = jobIdRef.current;
-      if (jid) {
-        cancelEngineJob(jid).catch(() => {});
-        jobIdRef.current = null;
+      if (cancelStaleJobs) {
+        const jid = jobIdRef.current;
+        if (jid) {
+          cancelEngineJob(jid).catch(() => {});
+          jobIdRef.current = null;
+        }
       }
     };
   }, [enabled, fen, gameId, ply, depth, profile]);

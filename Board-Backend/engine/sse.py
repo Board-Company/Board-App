@@ -34,29 +34,37 @@ async def stream_job_events(redis: Redis, job_id: str) -> AsyncIterator[str]:
     """
     Yield SSE events: first snapshot from hash, then updates after pub/sub notify.
     Re-reads hash on each notify (pub/sub is notification only).
+
+    Subscribe-then-snapshot: the snapshot sent to the client is read *after* subscribing,
+    so a publish between the two reads can't be lost. The hash is also re-read when the
+    wait times out, so a missed notify costs at most one keepalive interval.
     """
     record = await get_job_async(redis, job_id)
     if record is None:
         return
 
-    last_updated = record.updated_at
-    yield format_sse_event(job_record_to_sse_data(record))
-
     if is_terminal_status(record.status):
+        yield format_sse_event(job_record_to_sse_data(record))
         return
 
     pubsub = redis.pubsub()
     await pubsub.subscribe(events_channel(job_id))
 
     try:
+        record = await get_job_async(redis, job_id)
+        if record is None:
+            return
+
+        last_updated = record.updated_at
+        yield format_sse_event(job_record_to_sse_data(record))
+        if is_terminal_status(record.status):
+            return
+
         while True:
             message = await pubsub.get_message(
                 ignore_subscribe_messages=True,
                 timeout=KEEPALIVE_SEC,
             )
-            if message is None:
-                yield ": keepalive\n\n"
-                continue
 
             record = await get_job_async(redis, job_id)
             if record is None:
@@ -67,6 +75,8 @@ async def stream_job_events(redis: Redis, job_id: str) -> AsyncIterator[str]:
                 yield format_sse_event(job_record_to_sse_data(record))
                 if is_terminal_status(record.status):
                     break
+            elif message is None:
+                yield ": keepalive\n\n"
     finally:
         with contextlib.suppress(Exception):
             await pubsub.unsubscribe(events_channel(job_id))

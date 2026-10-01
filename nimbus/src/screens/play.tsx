@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Dimensions } from 'react-native';
 import { Chess } from 'chess.js';
 import ChessBoard from '../components/game/ChessBoard';
+import GameOverOverlay from '../components/game/GameOverOverlay';
 import MoveHistory from '../components/game/MoveHistory';
+import { colors, radius, spacing } from '../theme';
 
 const PlayScreen = () => {
   // Create a reference to the chess.js instance
@@ -10,6 +12,7 @@ const PlayScreen = () => {
   const [fen, setFen] = useState(chessRef.current.fen());
   const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
   const [gameStatus, setGameStatus] = useState('');
+  const [isGameOver, setIsGameOver] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
 
@@ -35,23 +38,25 @@ const PlayScreen = () => {
   const checkGameStatus = () => {
     if (chessRef.current.isCheckmate()) {
       const winner = chessRef.current.turn() === 'w' ? 'Black' : 'White';
+      setIsGameOver(true);
       setGameStatus(`Checkmate! ${winner} wins`);
-      Alert.alert('Game Over', `Checkmate! ${winner} wins`);
-    } else if (chessRef.current.isDraw()) {
-      setGameStatus('Draw');
-      Alert.alert('Game Over', 'Draw!');
     } else if (chessRef.current.isStalemate()) {
+      setIsGameOver(true);
       setGameStatus('Stalemate');
-      Alert.alert('Game Over', 'Stalemate!');
     } else if (chessRef.current.isThreefoldRepetition()) {
+      setIsGameOver(true);
       setGameStatus('Draw by repetition');
-      Alert.alert('Game Over', 'Draw by repetition!');
     } else if (chessRef.current.isInsufficientMaterial()) {
+      setIsGameOver(true);
       setGameStatus('Draw by insufficient material');
-      Alert.alert('Game Over', 'Draw by insufficient material!');
+    } else if (chessRef.current.isDraw()) {
+      setIsGameOver(true);
+      setGameStatus('Draw');
     } else if (chessRef.current.isCheck()) {
+      setIsGameOver(false);
       setGameStatus('Check!');
     } else {
+      setIsGameOver(false);
       setGameStatus(`${chessRef.current.turn() === 'w' ? 'White' : 'Black'} to move`);
     }
   };
@@ -93,6 +98,7 @@ const PlayScreen = () => {
     chessRef.current.reset();
     setFen(chessRef.current.fen());
     setMoveHistory([]);
+    setIsGameOver(false);
     setGameStatus('White to move');
   };
 
@@ -110,6 +116,7 @@ const PlayScreen = () => {
     setPlayerColor(color);
     setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
     setGameStatus('playing');
+    setIsGameOver(false);
     setMoveHistory([]);
     if (color === 'b') {
       // If player chooses black, computer (white) goes first
@@ -118,12 +125,16 @@ const PlayScreen = () => {
   };
 
   // Handle player move
-  const handleMove = (move: { from: string; to: string }) => {
+  const handleMove = (event: { move?: { from: string; to: string; promotion?: string }; from?: string; to?: string }) => {
+    const move = event?.move ?? event;
+    if (!move?.from || !move?.to) {
+      return;
+    }
     try {
       const result = chessRef.current.move({
         from: move.from,
         to: move.to,
-        promotion: 'q' // Always promote to queen for simplicity
+        promotion: 'q',
       });
 
       if (result) {
@@ -154,7 +165,7 @@ const PlayScreen = () => {
       <View style={styles.boardContainer}>
         {isLoading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#8CB369" />
+            <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.loadingText}>Thinking...</Text>
           </View>
         )}
@@ -163,6 +174,7 @@ const PlayScreen = () => {
             fen={fen}
             onMove={handleMove}
             playerColor={playerColor}
+            gestureEnabled={!isGameOver}
             moveAnimationDuration={10}
           />
           {/* Overlay capturable circles using View */}
@@ -180,7 +192,7 @@ const PlayScreen = () => {
                   height: squareSize - 12,
                   borderRadius: (squareSize - 12) / 2,
                   borderWidth: 3,
-                  borderColor: '#888',
+                  borderColor: colors.textFaint,
                   zIndex: 10,
                 }}
               />
@@ -219,6 +231,13 @@ const PlayScreen = () => {
       </View>
 
       <MoveHistory moves={moveHistory} />
+      <GameOverOverlay
+        visible={isGameOver}
+        title={gameStatus.includes('Checkmate') ? 'Checkmate' : gameStatus || 'Game over'}
+        subtitle={gameStatus}
+        primaryLabel="New game"
+        onPrimary={startNewGame}
+      />
     </View>
   );
 };
@@ -226,23 +245,23 @@ const PlayScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2A2A2A',
-    padding: 16,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 8,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   status: {
     fontSize: 18,
-    color: '#8CB369',
-    marginBottom: 8,
+    color: colors.accent,
+    marginBottom: spacing.sm,
   },
   boardContainer: {
     alignItems: 'center',
@@ -253,14 +272,14 @@ const styles = StyleSheet.create({
   loadingOverlay: {
     position: 'absolute',
     zIndex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlayStrong,
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: 'white',
+    color: colors.textPrimary,
     marginTop: 10,
     fontSize: 16,
   },
@@ -270,40 +289,40 @@ const styles = StyleSheet.create({
   buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   button: {
-    backgroundColor: '#8CB369',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   colorButton: {
-    backgroundColor: '#5D5D5D',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    backgroundColor: colors.textDisabled,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing.sm,
   },
   selectedButton: {
-    backgroundColor: '#8CB369',
+    backgroundColor: colors.accent,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: colors.textPrimary,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
   colorSelection: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   colorText: {
-    color: 'white',
+    color: colors.textPrimary,
     fontSize: 16,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
 });
 

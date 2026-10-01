@@ -2,6 +2,7 @@ import React from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { colors } from '../theme';
 
 type Props = {
   children: React.ReactNode;
@@ -25,6 +26,6 @@ export default function ScreenSafeArea({
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.black,
   },
 });

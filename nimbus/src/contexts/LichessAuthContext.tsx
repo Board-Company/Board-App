@@ -57,11 +57,15 @@ export const LichessAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [lichessInfo, setLichessInfo] = useState<LichessInfo | null>(null);
 
   useEffect(() => {
-    // Set up URL event listener for OAuth callback
+    // Set up URL event listener for OAuth callback.
+    // Subscribed once for the life of the provider: `handleDeepLink` is redefined on
+    // every render, so depending on it would tear down and re-add the listener each
+    // time and risk dropping a callback mid-OAuth.
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => {
       subscription.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getFirstString = (val: string | (string | null)[] | undefined | null) => {

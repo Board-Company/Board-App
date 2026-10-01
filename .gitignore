@@ -83,3 +83,19 @@ dist/
 __pycache__/
 *.pyc
 *.log
+
+# Secrets & data dumps
+#
+# A real Supabase dump (Lichess OAuth tokens, emails, bcrypt hashes) was once
+# committed to this public repo. These patterns keep local copies untracked —
+# `restore_from_backup.sql` in the repo is a placeholder template only.
+.env.*
+!.env.example
+*.bak
+*.backup
+*.dump
+*.dump.sql
+*_backup.sql
+*-backup.sql
+backups/
+db_cluster-*
