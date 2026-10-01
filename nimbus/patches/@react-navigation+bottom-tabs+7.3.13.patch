@@ -1,0 +1,99 @@
+diff --git a/node_modules/@react-navigation/bottom-tabs/lib/module/views/ScreenFallback.js b/node_modules/@react-navigation/bottom-tabs/lib/module/views/ScreenFallback.js
+index e27e9c2..aab5aa7 100644
+--- a/node_modules/@react-navigation/bottom-tabs/lib/module/views/ScreenFallback.js
++++ b/node_modules/@react-navigation/bottom-tabs/lib/module/views/ScreenFallback.js
+@@ -13,14 +13,21 @@ export const MaybeScreenContainer = ({
+   enabled,
+   ...rest
+ }) => {
++  const {
++    color,
++    hidden,
++    hide,
++    title,
++    ...screenProps
++  } = rest;
+   if (Screens?.screensEnabled?.()) {
+     return /*#__PURE__*/_jsx(Screens.ScreenContainer, {
+       enabled: enabled,
+-      ...rest
++      ...screenProps
+     });
+   }
+   return /*#__PURE__*/_jsx(View, {
+-    ...rest
++    ...screenProps
+   });
+ };
+ export function MaybeScreen({
+@@ -28,15 +35,22 @@ export function MaybeScreen({
+   active,
+   ...rest
+ }) {
++  const {
++    color,
++    hidden,
++    hide,
++    title,
++    ...screenProps
++  } = rest;
+   if (Screens?.screensEnabled?.()) {
+     return /*#__PURE__*/_jsx(Screens.Screen, {
+       enabled: enabled,
+       activityState: active,
+-      ...rest
++      ...screenProps
+     });
+   }
+   return /*#__PURE__*/_jsx(View, {
+-    ...rest
++    ...screenProps
+   });
+ }
+ //# sourceMappingURL=ScreenFallback.js.map
+diff --git a/node_modules/@react-navigation/bottom-tabs/src/views/ScreenFallback.tsx b/node_modules/@react-navigation/bottom-tabs/src/views/ScreenFallback.tsx
+index c792cda..dc58ee7 100644
+--- a/node_modules/@react-navigation/bottom-tabs/src/views/ScreenFallback.tsx
++++ b/node_modules/@react-navigation/bottom-tabs/src/views/ScreenFallback.tsx
+@@ -32,19 +32,37 @@ export const MaybeScreenContainer = ({
+   hasTwoStates: boolean;
+   children: React.ReactNode;
+ }) => {
++  const { color, hidden, hide, title, ...screenProps } = rest as ViewProps & {
++    color?: unknown;
++    hidden?: unknown;
++    hide?: unknown;
++    title?: unknown;
++  };
++
+   if (Screens?.screensEnabled?.()) {
+-    return <Screens.ScreenContainer enabled={enabled} {...rest} />;
++    return <Screens.ScreenContainer enabled={enabled} {...screenProps} />;
+   }
+ 
+-  return <View {...rest} />;
++  return <View {...screenProps} />;
+ };
+ 
+ export function MaybeScreen({ enabled, active, ...rest }: ViewProps & Props) {
++  const { color, hidden, hide, title, ...screenProps } = rest as ViewProps & {
++    color?: unknown;
++    hidden?: unknown;
++    hide?: unknown;
++    title?: unknown;
++  };
++
+   if (Screens?.screensEnabled?.()) {
+     return (
+-      <Screens.Screen enabled={enabled} activityState={active} {...rest} />
++      <Screens.Screen
++        enabled={enabled}
++        activityState={active}
++        {...screenProps}
++      />
+     );
+   }
+ 
+-  return <View {...rest} />;
++  return <View {...screenProps} />;
+ }

@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends stockfish \
     && rm -rf /var/lib/apt/lists/*
+ENV STOCKFISH_PATH=/usr/games/stockfish
 
 # Install Poetry
 RUN pip install poetry
