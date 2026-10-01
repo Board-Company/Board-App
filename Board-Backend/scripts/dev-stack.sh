@@ -29,7 +29,7 @@ case "${1:-up}" in
     [ -n "$STOCKFISH_PATH" ] || { echo "stockfish not found on PATH"; exit 1; }
     start_redis
     pkill -f "uvicorn api:app" 2>/dev/null || true
-    pkill -f "python -m engine_worker" 2>/dev/null || true
+    pkill -f -- "-m engine_worker" 2>/dev/null || true
     sleep 1
     # 0.0.0.0 so a phone on the LAN (or Tailscale) can reach it, not just localhost.
     nohup $PY -m uvicorn api:app --host 0.0.0.0 --port "$PORT" > "$LOGS/api.log" 2>&1 &
@@ -50,12 +50,13 @@ case "${1:-up}" in
     ;;
   down)
     pkill -f "uvicorn api:app" 2>/dev/null || true
-    pkill -f "python -m engine_worker" 2>/dev/null || true
+    pkill -f -- "-m engine_worker" 2>/dev/null || true
     echo "api and workers stopped (redis left running)"
     ;;
   status)
     echo "api:     $(curl -s "localhost:$PORT/health" || echo down)"
-    echo "workers: $(redis-cli client list 2>/dev/null | grep -c 'cmd=brpoplpush') idle"
+    echo "workers: $(pgrep -f -- "-m engine_worker" | wc -l | tr -d ' ') running, \
+$(redis-cli client list 2>/dev/null | grep -c 'cmd=brpoplpush') idle on the queue"
     ;;
   *) echo "usage: $0 {up [workers]|down|status}"; exit 1 ;;
 esac
